@@ -1,0 +1,38 @@
+import { createClient } from '@/lib/supabase/server'
+import { formatCurrency } from '@networth/utils'
+import { TransactionsClient } from '@/components/transactions/transactions-client'
+
+export const revalidate = 0
+
+export default async function TransactionsPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const [{ data: transactions }, { data: portfolios }] = await Promise.all([
+    supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user!.id)
+      .order('executed_at', { ascending: false })
+      .limit(100),
+    supabase.from('portfolios').select('*').eq('user_id', user!.id),
+  ])
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
+          Full history of your trades and transfers
+        </p>
+      </div>
+      <TransactionsClient
+        transactions={transactions ?? []}
+        portfolios={portfolios ?? []}
+        userId={user!.id}
+      />
+    </div>
+  )
+}

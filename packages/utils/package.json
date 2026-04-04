@@ -1,0 +1,14 @@
+{
+  "name": "@networth/utils",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@networth/types": "workspace:*",
+    "date-fns": "^3.6.0"
+  }
+}
