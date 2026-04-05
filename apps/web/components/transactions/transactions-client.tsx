@@ -16,12 +16,15 @@ const TX_TYPE_COLORS: Record<string, string> = {
   buy: 'var(--color-success)',
   sell: 'var(--color-danger)',
   dividend: '#6366f1',
+  coupon: '#6366f1',
+  rental_income: '#6366f1',
   deposit: 'var(--color-success)',
   withdrawal: 'var(--color-danger)',
-  fee: 'var(--color-warning)',
   interest: '#6366f1',
   split: '#a1a1aa',
   transfer: '#a1a1aa',
+  salary: 'var(--color-success)',
+  debt_payment: 'var(--color-danger)',
 }
 
 export function TransactionsClient({ transactions, portfolios, userId }: Props) {
@@ -50,12 +53,11 @@ export function TransactionsClient({ transactions, portfolios, userId }: Props) 
             </p>
           </div>
         ) : (
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Date</th>
-                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Symbol</th>
                   <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Type</th>
                   <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</th>
                   <th className="hidden md:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Price</th>
@@ -73,23 +75,22 @@ export function TransactionsClient({ transactions, portfolios, userId }: Props) 
                     <td className="px-4 md:px-5 py-3 text-xs md:text-sm">
                       {new Date(tx.executed_at).toLocaleDateString()}
                     </td>
-                    <td className="px-4 md:px-5 py-3 font-medium">{tx.symbol}</td>
                     <td className="px-4 md:px-5 py-3">
                       <span
-                        className="capitalize font-medium"
+                        className="font-medium"
                         style={{ color: TX_TYPE_COLORS[tx.transaction_type] ?? 'inherit' }}
                       >
-                        {tx.transaction_type}
+                        {tx.transaction_type.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="hidden sm:table-cell px-4 md:px-5 py-3">{Number(tx.quantity).toFixed(4)}</td>
-                    <td className="hidden md:table-cell px-4 md:px-5 py-3">
-                      {formatCurrency(Number(tx.price_per_unit), tx.currency)}
+                    <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">{Number(tx.quantity).toFixed(4)}</td>
+                    <td className="hidden md:table-cell px-4 md:px-5 py-3 tabular-nums">
+                      {formatCurrency(Number(tx.price), tx.currency)}
                     </td>
-                    <td className="px-4 md:px-5 py-3 font-medium">
-                      {formatCurrency(Number(tx.total_amount), tx.currency)}
+                    <td className="px-4 md:px-5 py-3 font-medium tabular-nums">
+                      {formatCurrency(Number(tx.quantity) * Number(tx.price), tx.currency)}
                     </td>
-                    <td className="hidden sm:table-cell px-4 md:px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>
+                    <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums" style={{ color: 'var(--color-muted-foreground)' }}>
                       {Number(tx.fee) > 0 ? formatCurrency(Number(tx.fee), tx.currency) : '—'}
                     </td>
                   </tr>

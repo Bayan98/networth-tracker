@@ -9,6 +9,9 @@ import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 
+// Asset types that don't need a ticker symbol
+const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'other']
+
 interface Props {
   portfolios: Portfolio[]
   userId: string
@@ -23,8 +26,6 @@ export function AddHoldingDialog({ portfolios, userId, onClose }: Props) {
   const [assetType, setAssetType] = useState<AssetType | ''>('')
   const [symbol, setSymbol] = useState('')
   const [assetName, setAssetName] = useState('')
-  const [quantity, setQuantity] = useState('')
-  const [avgCost, setAvgCost] = useState('')
   const [currency, setCurrency] = useState<CurrencyCode>('USD')
   const [notes, setNotes] = useState('')
   const [autoFilled, setAutoFilled] = useState(false)
@@ -32,18 +33,18 @@ export function AddHoldingDialog({ portfolios, userId, onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const needsSymbol = assetType && !NO_SYMBOL_TYPES.includes(assetType as AssetType)
+
   // Trigger lookup whenever symbol or assetType changes
   useEffect(() => {
-    if (!assetType || !symbol.trim()) {
+    if (!assetType || !needsSymbol || !symbol.trim()) {
       cancel()
       return
     }
     setLookupStatus('loading')
-    lookup(symbol, assetType as AssetType, ({ name, price }, status) => {
+    lookup(symbol, assetType as AssetType, ({ name }, status) => {
       setLookupStatus(status)
-      if (name) setAssetName(name)
-      if (price !== null) setAvgCost(String(price))
-      if (name || price !== null) setAutoFilled(true)
+      if (name) { setAssetName(name); setAutoFilled(true) }
     })
   }, [symbol, assetType]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -57,11 +58,9 @@ export function AddHoldingDialog({ portfolios, userId, onClose }: Props) {
     const { error } = await supabase.from('holdings').insert({
       portfolio_id: selectedPortfolioId,
       user_id: userId,
-      symbol: symbol.toUpperCase(),
+      symbol: symbol ? symbol.toUpperCase() : null,
       asset_name: assetName,
       asset_type: assetType,
-      quantity: parseFloat(quantity),
-      average_cost_basis: parseFloat(avgCost),
       currency,
       notes: notes || null,
     })
@@ -105,7 +104,6 @@ export function AddHoldingDialog({ portfolios, userId, onClose }: Props) {
                 setAssetType(e.target.value as AssetType)
                 setSymbol('')
                 setAssetName('')
-                setAvgCost('')
                 setAutoFilled(false)
               }}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none"
@@ -139,41 +137,42 @@ export function AddHoldingDialog({ portfolios, userId, onClose }: Props) {
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Symbol</label>
-                <div className="relative">
-                  <input
-                    value={symbol}
-                    onChange={(e) => {
-                      setSymbol(e.target.value)
-                      setAutoFilled(false)
-                      setLookupStatus('idle')
-                    }}
-                    placeholder="AAPL"
-                    required
-                    autoFocus
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none uppercase"
-                    style={inputStyle}
-                  />
-                  {lookupLoading && (
-                    <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--color-muted-foreground)' }} />
-                  )}
-                  {!lookupLoading && lookupStatus === 'not_found' && (
-                    <AlertCircle size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-warning, #f59e0b)' }} />
-                  )}
+              {needsSymbol && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Symbol</label>
+                  <div className="relative">
+                    <input
+                      value={symbol}
+                      onChange={(e) => {
+                        setSymbol(e.target.value)
+                        setAutoFilled(false)
+                        setLookupStatus('idle')
+                      }}
+                      placeholder="AAPL"
+                      autoFocus
+                      className="w-full px-3 py-2 rounded-lg text-sm outline-none uppercase"
+                      style={inputStyle}
+                    />
+                    {lookupLoading && (
+                      <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--color-muted-foreground)' }} />
+                    )}
+                    {!lookupLoading && lookupStatus === 'not_found' && (
+                      <AlertCircle size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-warning, #f59e0b)' }} />
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {lookupStatus === 'not_found' && (
                 <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-warning, #f59e0b)' }}>
                   <AlertCircle size={11} />
-                  Symbol not found — fill in the name and price manually
+                  Symbol not found — fill in the name manually
                 </p>
               )}
 
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-sm font-medium">
-                  Asset name
+                  Name
                   {autoFilled && assetName && (
                     <span className="flex items-center gap-1 text-xs font-normal" style={{ color: 'var(--color-accent)' }}>
                       <Sparkles size={10} /> auto-filled
@@ -188,44 +187,6 @@ export function AddHoldingDialog({ portfolios, userId, onClose }: Props) {
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                   style={inputStyle}
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Quantity</label>
-                  <input
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="10"
-                    min="0"
-                    step="any"
-                    required
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                    style={inputStyle}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-medium">
-                    Avg cost
-                    {autoFilled && avgCost && (
-                      <span className="flex items-center gap-1 text-xs font-normal" style={{ color: 'var(--color-accent)' }}>
-                        <Sparkles size={10} /> current
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="number"
-                    value={avgCost}
-                    onChange={(e) => setAvgCost(e.target.value)}
-                    placeholder="150.00"
-                    min="0"
-                    step="any"
-                    required
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                    style={inputStyle}
-                  />
-                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -247,6 +208,10 @@ export function AddHoldingDialog({ portfolios, userId, onClose }: Props) {
                   style={inputStyle}
                 />
               </div>
+
+              <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                Quantity and cost basis are calculated automatically from transactions.
+              </p>
 
               {error && (
                 <p className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p>

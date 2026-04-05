@@ -233,7 +233,7 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                     >
                       <td className="px-4 md:px-5 py-3">
                         <Link href={`/dashboard/portfolio/${holding.id}`} className="hover:underline">
-                          <p className="font-semibold">{holding.symbol}</p>
+                          <p className="font-semibold">{holding.symbol ?? holding.asset_name}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
                             {holding.asset_name}
                           </p>

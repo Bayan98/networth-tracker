@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Plus, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatPercent } from '@networth/utils'
-import { DEBT_TYPE_LABELS } from '@networth/utils'
 import { useAppStore } from '@/lib/store'
-import type { Debt, CurrencyCode, DebtType } from '@networth/types'
+import type { Debt, CurrencyCode } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 interface Props {
@@ -15,10 +14,6 @@ interface Props {
   userId: string
   currency: CurrencyCode
 }
-
-const DEBT_TYPES: DebtType[] = [
-  'mortgage', 'car_loan', 'student_loan', 'credit_card', 'personal_loan', 'other',
-]
 
 export function DebtsClient({ debts, userId, currency }: Props) {
   const router = useRouter()
@@ -28,7 +23,6 @@ export function DebtsClient({ debts, userId, currency }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const [name, setName] = useState('')
-  const [debtType, setDebtType] = useState<DebtType>('other')
   const [principal, setPrincipal] = useState('')
   const [balance, setBalance] = useState('')
   const [rate, setRate] = useState('')
@@ -58,7 +52,6 @@ export function DebtsClient({ debts, userId, currency }: Props) {
     const { error } = await supabase.from('debts').insert({
       user_id: userId,
       name,
-      debt_type: debtType,
       principal_amount: parseFloat(principal),
       current_balance: parseFloat(balance),
       interest_rate: parseFloat(rate) / 100,
@@ -136,18 +129,16 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Home Mortgage" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Type</label>
-                <select value={debtType} onChange={(e) => setDebtType(e.target.value as DebtType)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                  {DEBT_TYPES.map((t) => <option key={t} value={t}>{DEBT_TYPE_LABELS[t]}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
                 <label className="text-sm font-medium">Currency</label>
                 <CurrencyPicker
                   value={debtCurrency}
                   onChange={(c) => setDebtCurrency(c as CurrencyCode)}
                   style={inputStyle}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Interest rate (%)</label>
+                <input type="number" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="5.5" min="0" step="any" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Original amount</label>
@@ -157,11 +148,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                 <label className="text-sm font-medium">Current balance</label>
                 <input type="number" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="85000" min="0" step="any" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Interest rate (%)</label>
-                <input type="number" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="5.5" min="0" step="any" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-              </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-2">
                 <label className="text-sm font-medium">Min. payment</label>
                 <input type="number" value={minPayment} onChange={(e) => setMinPayment(e.target.value)} placeholder="500" min="0" step="any" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
               </div>
@@ -187,7 +174,6 @@ export function DebtsClient({ debts, userId, currency }: Props) {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Name</th>
-                <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Type</th>
                 <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Balance</th>
                 <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Rate</th>
                 <th className="hidden md:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Min. payment</th>
@@ -198,7 +184,6 @@ export function DebtsClient({ debts, userId, currency }: Props) {
               {debts.map((d) => (
                 <tr key={d.id} className="hover:bg-white/5" style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <td className="px-4 md:px-5 py-3 font-medium">{d.name}</td>
-                  <td className="hidden sm:table-cell px-4 md:px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>{DEBT_TYPE_LABELS[d.debt_type]}</td>
                   <td className="px-4 md:px-5 py-3" style={{ color: 'var(--color-danger)' }}>
                     {hideAmounts ? '••••••' : formatCurrency(Number(d.current_balance), d.currency)}
                   </td>

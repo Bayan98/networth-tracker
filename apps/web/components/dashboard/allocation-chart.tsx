@@ -23,7 +23,9 @@ interface Props {
 }
 
 export function AllocationChart({ holdings, currency }: Props) {
-  const priceItems = holdings.map((h) => ({ symbol: h.symbol, asset_type: h.asset_type }))
+  const priceItems = holdings
+    .filter((h) => h.symbol)
+    .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices } = usePrices(priceItems)
 
   if (holdings.length === 0) {
@@ -46,7 +48,7 @@ export function AllocationChart({ holdings, currency }: Props) {
   // Group by asset type
   const byType = new Map<string, number>()
   for (const h of holdings) {
-    const price = prices[h.symbol.toUpperCase()]
+    const price = h.symbol ? prices[h.symbol.toUpperCase()] : undefined
     const value =
       price != null
         ? Number(h.quantity) * price

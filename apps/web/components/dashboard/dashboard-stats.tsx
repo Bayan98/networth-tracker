@@ -17,11 +17,13 @@ interface Props {
 
 export function DashboardStats({ holdings, debts, portfolioCount, currency }: Props) {
   const hideAmounts = useAppStore((s) => s.hideAmounts)
-  const priceItems = holdings.map((h) => ({ symbol: h.symbol, asset_type: h.asset_type }))
+  const priceItems = holdings
+    .filter((h) => h.symbol)
+    .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices, loading } = usePrices(priceItems)
 
   const totalAssets = holdings.reduce((sum, h) => {
-    const price = prices[h.symbol.toUpperCase()]
+    const price = h.symbol ? prices[h.symbol.toUpperCase()] : undefined
     const value = price != null
       ? Number(h.quantity) * price
       : Number(h.quantity) * Number(h.average_cost_basis)

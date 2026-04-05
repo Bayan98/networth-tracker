@@ -1,57 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-// Common crypto symbol → CoinGecko coin ID mapping
-const SYMBOL_TO_CG_ID: Record<string, string> = {
-  BTC: "bitcoin",
-  ETH: "ethereum",
-  SOL: "solana",
-  ADA: "cardano",
-  DOT: "polkadot",
-  MATIC: "matic-network",
-  POL: "matic-network",
-  AVAX: "avalanche-2",
-  LINK: "chainlink",
-  UNI: "uniswap",
-  DOGE: "dogecoin",
-  SHIB: "shiba-inu",
-  LTC: "litecoin",
-  XRP: "ripple",
-  ATOM: "cosmos",
-  NEAR: "near",
-  ALGO: "algorand",
-  XLM: "stellar",
-  VET: "vechain",
-  AAVE: "aave",
-  MKR: "maker",
-  CRV: "curve-dao-token",
-  SUSHI: "sushi",
-  YFI: "yearn-finance",
-  BAT: "basic-attention-token",
-  ZEC: "zcash",
-  XMR: "monero",
-  BCH: "bitcoin-cash",
-  ETC: "ethereum-classic",
-  FIL: "filecoin",
-  FLOW: "flow",
-  ICP: "internet-computer",
-  OP: "optimism",
-  ARB: "arbitrum",
-  TON: "the-open-network",
-  APT: "aptos",
-  SUI: "sui",
-  TRX: "tron",
-  BNB: "binancecoin",
-  USDT: "tether",
-  USDC: "usd-coin",
-  DAI: "dai",
 };
 
 const CRYPTO_TTL_SECONDS = 60;
@@ -129,7 +84,7 @@ Deno.serve(async (req: Request) => {
       if (entry && (now - new Date(entry.updated_at).getTime()) / 1000 < ttl) {
         prices[sym] = entry.price;
       } else if (isCrypto) {
-        const cgId = SYMBOL_TO_CG_ID[sym] ?? sym.toLowerCase();
+        const cgId = symbolToCoinGeckoId(sym);
         needCgIds.push(cgId);
         cgIdToSymbol[cgId] = sym;
       } else if (

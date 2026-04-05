@@ -9,6 +9,8 @@ import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 
+const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'other']
+
 interface Props {
   holding: Holding
   portfolios: Portfolio[]
@@ -21,10 +23,8 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
 
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(holding.portfolio_id)
   const [assetType, setAssetType] = useState<AssetType>(holding.asset_type)
-  const [symbol, setSymbol] = useState(holding.symbol)
+  const [symbol, setSymbol] = useState(holding.symbol ?? '')
   const [assetName, setAssetName] = useState(holding.asset_name)
-  const [quantity, setQuantity] = useState(String(holding.quantity))
-  const [avgCost, setAvgCost] = useState(String(holding.average_cost_basis))
   const [currency, setCurrency] = useState<CurrencyCode>(holding.currency)
   const [notes, setNotes] = useState(holding.notes ?? '')
   const [autoFilled, setAutoFilled] = useState(false)
@@ -32,14 +32,14 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const needsSymbol = !NO_SYMBOL_TYPES.includes(assetType)
+
   useEffect(() => {
-    if (!symbol.trim()) { cancel(); return }
+    if (!needsSymbol || !symbol.trim()) { cancel(); return }
     setLookupStatus('loading')
-    lookup(symbol, assetType, ({ name, price }, status) => {
+    lookup(symbol, assetType, ({ name }, status) => {
       setLookupStatus(status)
-      if (name) setAssetName(name)
-      if (price !== null) setAvgCost(String(price))
-      if (name || price !== null) setAutoFilled(true)
+      if (name) { setAssetName(name); setAutoFilled(true) }
     })
   }, [symbol, assetType]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -53,11 +53,9 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
       .from('holdings')
       .update({
         portfolio_id: selectedPortfolioId,
-        symbol: symbol.toUpperCase(),
+        symbol: symbol ? symbol.toUpperCase() : null,
         asset_name: assetName,
         asset_type: assetType,
-        quantity: parseFloat(quantity),
-        average_cost_basis: parseFloat(avgCost),
         currency,
         notes: notes || null,
       })
@@ -89,7 +87,7 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
           <div>
             <h2 className="text-base font-semibold">Edit Holding</h2>
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
-              {holding.symbol}
+              {holding.symbol ?? holding.asset_name}
             </p>
           </div>
           <button onClick={onClose} style={{ color: 'var(--color-muted-foreground)' }}>
@@ -129,36 +127,37 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Symbol</label>
-            <div className="relative">
-              <input
-                value={symbol}
-                onChange={(e) => { setSymbol(e.target.value); setAutoFilled(false); setLookupStatus('idle') }}
-                placeholder="AAPL"
-                required
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none uppercase"
-                style={inputStyle}
-              />
-              {lookupLoading && (
-                <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--color-muted-foreground)' }} />
-              )}
-              {!lookupLoading && lookupStatus === 'not_found' && (
-                <AlertCircle size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-warning, #f59e0b)' }} />
-              )}
+          {needsSymbol && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Symbol</label>
+              <div className="relative">
+                <input
+                  value={symbol}
+                  onChange={(e) => { setSymbol(e.target.value); setAutoFilled(false); setLookupStatus('idle') }}
+                  placeholder="AAPL"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none uppercase"
+                  style={inputStyle}
+                />
+                {lookupLoading && (
+                  <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--color-muted-foreground)' }} />
+                )}
+                {!lookupLoading && lookupStatus === 'not_found' && (
+                  <AlertCircle size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-warning, #f59e0b)' }} />
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {lookupStatus === 'not_found' && (
             <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-warning, #f59e0b)' }}>
               <AlertCircle size={11} />
-              Symbol not found — fill in the name and price manually
+              Symbol not found — fill in the name manually
             </p>
           )}
 
           <div className="space-y-1.5">
             <label className="flex items-center gap-1.5 text-sm font-medium">
-              Asset name
+              Name
               {autoFilled && assetName && (
                 <span className="flex items-center gap-1 text-xs font-normal" style={{ color: 'var(--color-accent)' }}>
                   <Sparkles size={10} /> auto-filled
@@ -173,44 +172,6 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
               className="w-full px-3 py-2 rounded-lg text-sm outline-none"
               style={inputStyle}
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Quantity</label>
-              <input
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                placeholder="10"
-                min="0"
-                step="any"
-                required
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                style={inputStyle}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-sm font-medium">
-                Avg cost
-                {autoFilled && avgCost && (
-                  <span className="flex items-center gap-1 text-xs font-normal" style={{ color: 'var(--color-accent)' }}>
-                    <Sparkles size={10} /> current
-                  </span>
-                )}
-              </label>
-              <input
-                type="number"
-                value={avgCost}
-                onChange={(e) => setAvgCost(e.target.value)}
-                placeholder="150.00"
-                min="0"
-                step="any"
-                required
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                style={inputStyle}
-              />
-            </div>
           </div>
 
           <div className="space-y-1.5">

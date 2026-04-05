@@ -24,7 +24,7 @@ interface Props {
 }
 
 function buildMonthlyPoints(
-  transactions: Array<{ executed_at: string; total_amount: number; transaction_type: string }>,
+  transactions: Array<{ executed_at: string; quantity: number; price: number; transaction_type: string }>,
 ): ChartPoint[] {
   if (transactions.length === 0) return []
 
@@ -40,7 +40,7 @@ function buildMonthlyPoints(
   for (const tx of sorted) {
     const d = new Date(tx.executed_at)
     const label = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const amount = Number(tx.total_amount)
+    const amount = Number(tx.quantity) * Number(tx.price)
 
     if (['buy', 'deposit'].includes(tx.transaction_type)) {
       running += amount
@@ -74,7 +74,7 @@ export function NetWorthChart({ currency }: Props) {
 
       const { data: transactions } = await supabase
         .from('transactions')
-        .select('executed_at, total_amount, transaction_type')
+        .select('executed_at, quantity, price, transaction_type')
         .eq('user_id', user.id)
         .order('executed_at', { ascending: true })
 

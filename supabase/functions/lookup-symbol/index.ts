@@ -1,23 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const SYMBOL_TO_CG_ID: Record<string, string> = {
-  BTC: "bitcoin", ETH: "ethereum", SOL: "solana", ADA: "cardano",
-  DOT: "polkadot", MATIC: "matic-network", POL: "matic-network",
-  AVAX: "avalanche-2", LINK: "chainlink", UNI: "uniswap",
-  DOGE: "dogecoin", SHIB: "shiba-inu", LTC: "litecoin", XRP: "ripple",
-  ATOM: "cosmos", NEAR: "near", ALGO: "algorand", XLM: "stellar",
-  BNB: "binancecoin", USDT: "tether", USDC: "usd-coin", DAI: "dai",
-  TRX: "tron", TON: "the-open-network", APT: "aptos", SUI: "sui",
-  OP: "optimism", ARB: "arbitrum", FIL: "filecoin", ICP: "internet-computer",
-  BCH: "bitcoin-cash", ETC: "ethereum-classic", XMR: "monero", ZEC: "zcash",
 };
 
 const PRICEABLE = ["stock", "etf", "bond", "mutual_fund", "commodity", "crypto"];
@@ -66,7 +55,7 @@ Deno.serve(async (req: Request) => {
     let price: number | null = null;
 
     if (asset_type === "crypto") {
-      const cgId = SYMBOL_TO_CG_ID[sym] ?? sym.toLowerCase();
+      const cgId = symbolToCoinGeckoId(sym);
 
       // Get name + price in one call
       try {

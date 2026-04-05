@@ -30,7 +30,6 @@ export function AddPortfolioDialog({ userId, onClose }: Props) {
       name,
       description: description || null,
       base_currency: currency,
-      is_default: false,
     })
 
     if (error) {

@@ -58,11 +58,17 @@ export const INCOME_FREQUENCY_LABELS: Record<string, string> = {
 
 export const POPULAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'RUB', 'KZT', 'CNY', 'JPY', 'CHF', 'CAD', 'AUD']
 
-export const DEBT_TYPE_LABELS: Record<string, string> = {
-  mortgage: 'Mortgage',
-  car_loan: 'Car Loan',
-  student_loan: 'Student Loan',
-  credit_card: 'Credit Card',
-  personal_loan: 'Personal Loan',
-  other: 'Other',
+export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
+  buy: 'Buy',
+  sell: 'Sell',
+  dividend: 'Dividend',
+  interest: 'Interest',
+  deposit: 'Deposit',
+  withdrawal: 'Withdrawal',
+  split: 'Split',
+  transfer: 'Transfer',
+  coupon: 'Coupon',
+  rental_income: 'Rental Income',
+  salary: 'Salary',
+  debt_payment: 'Debt Payment',
 }

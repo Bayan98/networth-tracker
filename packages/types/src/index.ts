@@ -21,19 +21,14 @@ export type TransactionType =
   | 'interest'
   | 'deposit'
   | 'withdrawal'
-  | 'fee'
   | 'split'
   | 'transfer'
+  | 'coupon'
+  | 'rental_income'
+  | 'salary'
+  | 'debt_payment'
 
 export type CurrencyCode = string // ISO 4217 three-letter code
-
-export type DebtType =
-  | 'mortgage'
-  | 'car_loan'
-  | 'student_loan'
-  | 'credit_card'
-  | 'personal_loan'
-  | 'other'
 
 export type IncomeFrequency =
   | 'daily'
@@ -48,10 +43,8 @@ export interface Profile {
   id: string
   email: string | null
   full_name: string | null
-  avatar_url: string | null
   default_currency: CurrencyCode
   created_at: string
-  updated_at: string
 }
 
 export interface Portfolio {
@@ -60,20 +53,19 @@ export interface Portfolio {
   name: string
   description: string | null
   base_currency: CurrencyCode
-  is_default: boolean
   created_at: string
-  updated_at: string
 }
 
 export interface Holding {
   id: string
   portfolio_id: string | null
   user_id: string
-  symbol: string
+  symbol: string | null
   asset_name: string
   asset_type: AssetType
   quantity: number
   average_cost_basis: number
+  total_income_earned: number
   currency: CurrencyCode
   notes: string | null
   created_at: string
@@ -85,11 +77,10 @@ export interface Transaction {
   user_id: string
   portfolio_id: string | null
   holding_id: string | null
-  symbol: string
+  scheduled_event_id: string | null
   transaction_type: TransactionType
   quantity: number
-  price_per_unit: number
-  total_amount: number
+  price: number
   fee: number
   currency: CurrencyCode
   executed_at: string
@@ -97,26 +88,28 @@ export interface Transaction {
   created_at: string
 }
 
-export interface Income {
+export interface ScheduledEvent {
   id: string
   user_id: string
-  source: string
+  name: string
+  transaction_type: TransactionType
   amount: number
   currency: CurrencyCode
   frequency: IncomeFrequency
+  holding_id: string | null
+  debt_id: string | null
   is_active: boolean
   start_date: string
   end_date: string | null
+  last_executed_at: string | null
   notes: string | null
   created_at: string
-  updated_at: string
 }
 
 export interface Debt {
   id: string
   user_id: string
   name: string
-  debt_type: DebtType
   principal_amount: number
   current_balance: number
   interest_rate: number
@@ -159,17 +152,16 @@ export interface NetWorthSummary {
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Omit<Profile, 'created_at' | 'updated_at'>; Update: Partial<Profile> }
-      portfolios: { Row: Portfolio; Insert: Omit<Portfolio, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Portfolio> }
+      profiles: { Row: Profile; Insert: Omit<Profile, 'created_at'>; Update: Partial<Profile> }
+      portfolios: { Row: Portfolio; Insert: Omit<Portfolio, 'id' | 'created_at'>; Update: Partial<Portfolio> }
       holdings: { Row: Holding; Insert: Omit<Holding, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Holding> }
       transactions: { Row: Transaction; Insert: Omit<Transaction, 'id' | 'created_at'>; Update: Partial<Transaction> }
-      income: { Row: Income; Insert: Omit<Income, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Income> }
+      scheduled_events: { Row: ScheduledEvent; Insert: Omit<ScheduledEvent, 'id' | 'created_at'>; Update: Partial<ScheduledEvent> }
       debts: { Row: Debt; Insert: Omit<Debt, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Debt> }
     }
     Enums: {
       asset_type: AssetType
       transaction_type: TransactionType
-      debt_type: DebtType
       income_frequency: IncomeFrequency
     }
   }

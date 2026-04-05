@@ -78,11 +78,11 @@ export function HoldingsList({ holdings, currency }: HoldingsListProps) {
               className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
               style={{ background: ASSET_TYPE_COLORS[holding.asset_type] + '22', color: ASSET_TYPE_COLORS[holding.asset_type] }}
             >
-              {holding.symbol.slice(0, 2).toUpperCase()}
+              {(holding.symbol ?? holding.asset_name).slice(0, 2).toUpperCase()}
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{holding.symbol}</p>
+              <p className="text-sm font-medium truncate">{holding.symbol ?? holding.asset_name}</p>
               <p className="text-xs truncate" style={{ color: 'var(--color-muted-foreground)' }}>
                 {holding.asset_name} · {ASSET_TYPE_LABELS[holding.asset_type]}
               </p>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { Portfolio, TransactionType, CurrencyCode } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 
@@ -11,19 +12,18 @@ interface Props {
   portfolios: Portfolio[]
   userId: string
   holdingId?: string
-  defaultSymbol?: string
   defaultCurrency?: CurrencyCode
   onClose: () => void
 }
 
 const TX_TYPES: TransactionType[] = [
-  'buy', 'sell', 'dividend', 'interest', 'deposit', 'withdrawal', 'fee', 'transfer',
+  'buy', 'sell', 'dividend', 'interest', 'coupon', 'rental_income',
+  'deposit', 'withdrawal', 'transfer', 'split', 'salary', 'debt_payment',
 ]
 
-export function AddTransactionDialog({ portfolios, userId, holdingId, defaultSymbol, defaultCurrency, onClose }: Props) {
+export function AddTransactionDialog({ portfolios, userId, holdingId, defaultCurrency, onClose }: Props) {
   const router = useRouter()
   const [portfolioId, setPortfolioId] = useState(portfolios[0]?.id ?? '')
-  const [symbol, setSymbol] = useState(defaultSymbol ?? '')
   const [txType, setTxType] = useState<TransactionType>('buy')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
@@ -39,22 +39,15 @@ export function AddTransactionDialog({ portfolios, userId, holdingId, defaultSym
     setLoading(true)
     setError(null)
 
-    const qty = parseFloat(quantity)
-    const priceVal = parseFloat(price)
-    const feeVal = parseFloat(fee) || 0
-    const total = qty * priceVal
-
     const supabase = createClient()
     const { error } = await supabase.from('transactions').insert({
       user_id: userId,
       portfolio_id: portfolioId || null,
       holding_id: holdingId ?? null,
-      symbol: symbol.toUpperCase(),
       transaction_type: txType,
-      quantity: qty,
-      price_per_unit: priceVal,
-      total_amount: total,
-      fee: feeVal,
+      quantity: parseFloat(quantity),
+      price: parseFloat(price),
+      fee: parseFloat(fee) || 0,
       currency,
       executed_at: new Date(executedAt).toISOString(),
       notes: notes || null,
@@ -109,34 +102,20 @@ export function AddTransactionDialog({ portfolios, userId, holdingId, defaultSym
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Symbol</label>
-              <input
-                value={symbol}
-                onChange={(e) => { if (!holdingId) setSymbol(e.target.value) }}
-                placeholder="AAPL"
-                required
-                readOnly={!!holdingId}
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none uppercase"
-                style={{ ...inputStyle, ...(holdingId ? { opacity: 0.7 } : {}) }}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Type</label>
-              <select
-                value={txType}
-                onChange={(e) => setTxType(e.target.value as TransactionType)}
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none capitalize"
-                style={inputStyle}
-              >
-                {TX_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Type</label>
+            <select
+              value={txType}
+              onChange={(e) => setTxType(e.target.value as TransactionType)}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={inputStyle}
+            >
+              {TX_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {TRANSACTION_TYPE_LABELS[t] ?? t}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

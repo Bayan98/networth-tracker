@@ -47,7 +47,7 @@ export default async function HoldingDetailPage({ params }: Props) {
           <ChevronLeft size={14} /> Holdings
         </Link>
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold tracking-tight">{holding.symbol}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{holding.symbol ?? holding.asset_name}</h1>
           <span
             className="px-2 py-0.5 rounded text-xs font-medium"
             style={{ background: 'var(--color-muted)', color: 'var(--color-muted-foreground)' }}
@@ -85,7 +85,6 @@ export default async function HoldingDetailPage({ params }: Props) {
         transactions={transactions ?? []}
         portfolios={portfolios ?? []}
         holdingId={holdingId}
-        symbol={holding.symbol}
         currency={holding.currency}
         userId={user!.id}
       />

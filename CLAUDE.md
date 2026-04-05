@@ -49,14 +49,22 @@ Note: TanStack Query is installed and the provider is wired up, but not yet adop
 - **Secret key:** NEVER in client code — server/Edge Functions only
 
 ### Database tables (7 active)
-`profiles`, `portfolios`, `holdings`, `transactions`, `income`, `debts`, `api_cache`
+`profiles`, `portfolios`, `holdings`, `transactions`, `scheduled_events`, `debts`, `api_cache`
 
 ### Schema notes
-- `currency_code`: TEXT (no length constraint enforced in app), supports any ISO 4217 code
-- `asset_type` enum values: `stock`, `bond`, `etf`, `crypto`, `mutual_fund`, `real_estate`, `cash`, `commodity`, `deposit`, `transport`, `business`, `other`
-- `income_frequency` enum values: `daily`, `weekly`, `monthly`, `quarterly`, `annually`
+- `currency_code`: TEXT (3 chars), supports any ISO 4217 code
+- `asset_type` enum: `stock`, `bond`, `etf`, `crypto`, `mutual_fund`, `real_estate`, `cash`, `commodity`, `deposit`, `transport`, `business`, `other`
+- `transaction_type` enum: `buy`, `sell`, `dividend`, `interest`, `deposit`, `withdrawal`, `split`, `transfer`, `coupon`, `rental_income`, `salary`, `debt_payment`
+- `income_frequency` enum: `daily`, `weekly`, `monthly`, `quarterly`, `annually`
+- `holdings.symbol`: nullable — not needed for cash, real_estate, business, transport, other
+- `holdings.quantity` / `holdings.average_cost_basis` / `holdings.total_income_earned`: DB-cached values computed by trigger `trg_holding_cache` from transactions. Never set these directly — add transactions instead.
 - `holdings.portfolio_id`: nullable — holdings can exist without a portfolio
 - `transactions.portfolio_id`: nullable — transactions can be linked to a holding without a portfolio
+- `transactions` no longer has `symbol` or `total_amount` columns. Use `quantity * price` for total. `price` was previously `price_per_unit`.
+- `scheduled_events` replaces the old `income` table. Stores both income schedules and debt payment schedules. Links optionally to `holding_id` or `debt_id`.
+- `debts` no longer has `debt_type` column (enum dropped).
+- `profiles` no longer has `avatar_url` or `updated_at`.
+- `portfolios` no longer has `is_default` or `updated_at`.
 - Deleting a portfolio sets `portfolio_id = NULL` on related holdings/transactions (ON DELETE SET NULL)
 
 ### Edge Functions
@@ -197,3 +205,7 @@ https://www.notion.so/Portfolio-Tracker-system-design-31e138b9c1d580859652f580a3
 ## Keeping CLAUDE.md up to date
 
 Whenever a change affects information documented in CLAUDE.md — tech stack, route structure, removed features, new env vars, DB schema, edge functions, etc. — update CLAUDE.md in the same commit.
+
+## Git
+
+Never run `git add` or `git commit` or `git push` unless explicitly asked by the user.

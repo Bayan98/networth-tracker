@@ -4,19 +4,22 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency } from '@networth/utils'
-import { INCOME_FREQUENCY_LABELS } from '@networth/utils'
+import { formatCurrency, INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import { useAppStore } from '@/lib/store'
-import type { Income, CurrencyCode, IncomeFrequency } from '@networth/types'
+import type { ScheduledEvent, CurrencyCode, IncomeFrequency, TransactionType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 interface Props {
-  income: Income[]
+  events: ScheduledEvent[]
   userId: string
   currency: CurrencyCode
 }
 
 const FREQUENCIES: IncomeFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'annually']
+
+const EVENT_TYPES: TransactionType[] = [
+  'salary', 'dividend', 'interest', 'coupon', 'rental_income', 'debt_payment', 'transfer',
+]
 
 function annualize(amount: number, frequency: IncomeFrequency): number {
   const multipliers: Record<IncomeFrequency, number> = {
@@ -29,29 +32,33 @@ function annualize(amount: number, frequency: IncomeFrequency): number {
   return amount * (multipliers[frequency] ?? 1)
 }
 
-export function IncomeClient({ income, userId, currency }: Props) {
+export function ScheduledEventsClient({ events, userId, currency }: Props) {
   const router = useRouter()
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const [showAdd, setShowAdd] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Form state
-  const [source, setSource] = useState('')
+  const [name, setName] = useState('')
+  const [txType, setTxType] = useState<TransactionType>('salary')
   const [amount, setAmount] = useState('')
   const [freq, setFreq] = useState<IncomeFrequency>('monthly')
-  const [incCurrency, setIncCurrency] = useState<CurrencyCode>(currency)
+  const [eventCurrency, setEventCurrency] = useState<CurrencyCode>(currency)
   const [notes, setNotes] = useState('')
 
   async function handleDelete(id: string) {
     const supabase = createClient()
-    const { error } = await supabase.from('income').delete().eq('id', id)
+    const { error } = await supabase.from('scheduled_events').delete().eq('id', id)
     if (!error) router.refresh()
   }
 
-  const totalMonthly = income
-    .filter((i) => i.is_active)
-    .reduce((sum, i) => sum + annualize(Number(i.amount), i.frequency) / 12, 0)
+  const activeIncome = events.filter(
+    (e) => e.is_active && !['debt_payment'].includes(e.transaction_type),
+  )
+  const totalMonthly = activeIncome.reduce(
+    (sum, e) => sum + annualize(Number(e.amount), e.frequency) / 12,
+    0,
+  )
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -59,11 +66,12 @@ export function IncomeClient({ income, userId, currency }: Props) {
     setError(null)
 
     const supabase = createClient()
-    const { error } = await supabase.from('income').insert({
+    const { error } = await supabase.from('scheduled_events').insert({
       user_id: userId,
-      source,
+      name,
+      transaction_type: txType,
       amount: parseFloat(amount),
-      currency: incCurrency,
+      currency: eventCurrency,
       frequency: freq,
       notes: notes || null,
     })
@@ -76,7 +84,7 @@ export function IncomeClient({ income, userId, currency }: Props) {
 
     router.refresh()
     setShowAdd(false)
-    setSource('')
+    setName('')
     setAmount('')
     setLoading(false)
   }
@@ -107,7 +115,7 @@ export function IncomeClient({ income, userId, currency }: Props) {
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium"
           style={{ background: 'var(--color-accent)', color: '#fff' }}
         >
-          <Plus size={14} /> Add source
+          <Plus size={14} /> Add event
         </button>
       </div>
 
@@ -118,7 +126,7 @@ export function IncomeClient({ income, userId, currency }: Props) {
           style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold">New income source</h2>
+            <h2 className="text-sm font-semibold">New scheduled event</h2>
             <button onClick={() => setShowAdd(false)} style={{ color: 'var(--color-muted-foreground)' }}>
               <X size={16} />
             </button>
@@ -126,15 +134,41 @@ export function IncomeClient({ income, userId, currency }: Props) {
           <form onSubmit={handleAdd} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5 col-span-2">
-                <label className="text-sm font-medium">Source</label>
+                <label className="text-sm font-medium">Name</label>
                 <input
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  placeholder="Salary, Freelance, Dividends…"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Monthly salary, Mortgage payment…"
                   required
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                   style={inputStyle}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Type</label>
+                <select
+                  value={txType}
+                  onChange={(e) => setTxType(e.target.value as TransactionType)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                >
+                  {EVENT_TYPES.map((t) => (
+                    <option key={t} value={t}>{TRANSACTION_TYPE_LABELS[t] ?? t}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Frequency</label>
+                <select
+                  value={freq}
+                  onChange={(e) => setFreq(e.target.value as IncomeFrequency)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                >
+                  {FREQUENCIES.map((f) => (
+                    <option key={f} value={f}>{INCOME_FREQUENCY_LABELS[f]}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Amount</label>
@@ -151,27 +185,14 @@ export function IncomeClient({ income, userId, currency }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Frequency</label>
-                <select
-                  value={freq}
-                  onChange={(e) => setFreq(e.target.value as IncomeFrequency)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={inputStyle}
-                >
-                  {FREQUENCIES.map((f) => (
-                    <option key={f} value={f}>{INCOME_FREQUENCY_LABELS[f]}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
                 <label className="text-sm font-medium">Currency</label>
                 <CurrencyPicker
-                  value={incCurrency}
-                  onChange={(c) => setIncCurrency(c as CurrencyCode)}
+                  value={eventCurrency}
+                  onChange={(c) => setEventCurrency(c as CurrencyCode)}
                   style={inputStyle}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-2">
                 <label className="text-sm font-medium">Notes</label>
                 <input
                   value={notes}
@@ -205,23 +226,24 @@ export function IncomeClient({ income, userId, currency }: Props) {
         </div>
       )}
 
-      {/* Income list */}
+      {/* Events list */}
       <div
         className="rounded-xl overflow-hidden"
         style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
       >
-        {income.length === 0 ? (
+        {events.length === 0 ? (
           <div className="p-8 text-center">
             <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-              No income sources yet.
+              No scheduled events yet.
             </p>
           </div>
         ) : (
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Source</th>
+                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Name</th>
+                  <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Type</th>
                   <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Amount</th>
                   <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Frequency</th>
                   <th className="hidden md:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Annual</th>
@@ -230,32 +252,35 @@ export function IncomeClient({ income, userId, currency }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {income.map((i) => (
-                  <tr key={i.id} className="hover:bg-white/5" style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td className="px-4 md:px-5 py-3 font-medium">{i.source}</td>
+                {events.map((ev) => (
+                  <tr key={ev.id} className="hover:bg-white/5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td className="px-4 md:px-5 py-3 font-medium">{ev.name}</td>
+                    <td className="hidden sm:table-cell px-4 md:px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>
+                      {TRANSACTION_TYPE_LABELS[ev.transaction_type] ?? ev.transaction_type}
+                    </td>
                     <td className="px-4 md:px-5 py-3">
-                      {hideAmounts ? '••••' : formatCurrency(Number(i.amount), i.currency)}
+                      {hideAmounts ? '••••' : formatCurrency(Number(ev.amount), ev.currency)}
                     </td>
                     <td className="hidden sm:table-cell px-4 md:px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>
-                      {INCOME_FREQUENCY_LABELS[i.frequency]}
+                      {INCOME_FREQUENCY_LABELS[ev.frequency]}
                     </td>
                     <td className="hidden md:table-cell px-4 md:px-5 py-3">
-                      {hideAmounts ? '••••••' : formatCurrency(annualize(Number(i.amount), i.frequency), i.currency)}
+                      {hideAmounts ? '••••••' : formatCurrency(annualize(Number(ev.amount), ev.frequency), ev.currency)}
                     </td>
                     <td className="hidden sm:table-cell px-4 md:px-5 py-3">
                       <span
                         className="px-2 py-0.5 rounded-full text-xs font-medium"
                         style={{
-                          background: i.is_active ? 'rgba(34,197,94,0.15)' : 'var(--color-muted)',
-                          color: i.is_active ? 'var(--color-success)' : 'var(--color-muted-foreground)',
+                          background: ev.is_active ? 'rgba(34,197,94,0.15)' : 'var(--color-muted)',
+                          color: ev.is_active ? 'var(--color-success)' : 'var(--color-muted-foreground)',
                         }}
                       >
-                        {i.is_active ? 'Active' : 'Inactive'}
+                        {ev.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-2 md:px-3 py-3">
                       <button
-                        onClick={() => handleDelete(i.id)}
+                        onClick={() => handleDelete(ev.id)}
                         className="p-1.5 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
                         style={{ color: '#ef4444' }}
                         title="Delete"
