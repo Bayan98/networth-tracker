@@ -13,7 +13,7 @@ import {
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/portfolio', label: 'Portfolio', icon: TrendingUp },
+  { href: '/dashboard/portfolio', label: 'Holdings', icon: TrendingUp },
   { href: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { href: '/dashboard/income', label: 'Income', icon: DollarSign },
   { href: '/dashboard/debts', label: 'Debts', icon: CreditCard },
@@ -24,7 +24,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="w-60 flex flex-col border-r shrink-0"
+      className="w-60 hidden md:flex flex-col border-r shrink-0"
       style={{
         background: 'var(--color-card)',
         borderColor: 'var(--color-border)',

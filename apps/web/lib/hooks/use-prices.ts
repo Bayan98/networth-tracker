@@ -25,27 +25,11 @@ export function usePrices(items: PriceItem[]) {
       setLoading(true)
       try {
         const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (!session) return
-
-        const res = await window.fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/fetch-prices`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            },
-            body: JSON.stringify({ items }),
-          },
-        )
-
-        if (res.ok) {
-          const data = await res.json()
-          setPrices(data.prices ?? {})
+const { data, error } = await supabase.functions.invoke('fetch-prices', {
+          body: { items },
+        })
+        if (!error && data?.prices) {
+          setPrices(data.prices)
         }
       } catch (err) {
         console.error('usePrices error:', err)

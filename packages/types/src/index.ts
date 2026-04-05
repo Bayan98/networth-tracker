@@ -9,6 +9,9 @@ export type AssetType =
   | 'real_estate'
   | 'cash'
   | 'commodity'
+  | 'deposit'
+  | 'transport'
+  | 'business'
   | 'other'
 
 export type TransactionType =
@@ -22,7 +25,7 @@ export type TransactionType =
   | 'split'
   | 'transfer'
 
-export type CurrencyCode = 'USD' | 'RUB' | 'KZT' | 'EUR' | 'GBP'
+export type CurrencyCode = string // ISO 4217 three-letter code
 
 export type DebtType =
   | 'mortgage'
@@ -33,10 +36,8 @@ export type DebtType =
   | 'other'
 
 export type IncomeFrequency =
-  | 'one_time'
   | 'daily'
   | 'weekly'
-  | 'biweekly'
   | 'monthly'
   | 'quarterly'
   | 'annually'
@@ -66,7 +67,7 @@ export interface Portfolio {
 
 export interface Holding {
   id: string
-  portfolio_id: string
+  portfolio_id: string | null
   user_id: string
   symbol: string
   asset_name: string
@@ -82,7 +83,7 @@ export interface Holding {
 export interface Transaction {
   id: string
   user_id: string
-  portfolio_id: string
+  portfolio_id: string | null
   holding_id: string | null
   symbol: string
   transaction_type: TransactionType
@@ -94,19 +95,6 @@ export interface Transaction {
   executed_at: string
   notes: string | null
   created_at: string
-}
-
-export interface PriceHistory {
-  id: string
-  symbol: string
-  price: number
-  currency: CurrencyCode
-  open_price: number | null
-  high_price: number | null
-  low_price: number | null
-  volume: number | null
-  recorded_at: string
-  source: string
 }
 
 export interface Income {
@@ -136,18 +124,6 @@ export interface Debt {
   currency: CurrencyCode
   due_date: string | null
   is_active: boolean
-  notes: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface EmergencyFund {
-  id: string
-  user_id: string
-  target_amount: number
-  current_amount: number
-  currency: CurrencyCode
-  monthly_contribution: number
   notes: string | null
   created_at: string
   updated_at: string
@@ -187,15 +163,12 @@ export interface Database {
       portfolios: { Row: Portfolio; Insert: Omit<Portfolio, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Portfolio> }
       holdings: { Row: Holding; Insert: Omit<Holding, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Holding> }
       transactions: { Row: Transaction; Insert: Omit<Transaction, 'id' | 'created_at'>; Update: Partial<Transaction> }
-      price_history: { Row: PriceHistory; Insert: Omit<PriceHistory, 'id'>; Update: Partial<PriceHistory> }
       income: { Row: Income; Insert: Omit<Income, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Income> }
       debts: { Row: Debt; Insert: Omit<Debt, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Debt> }
-      emergency_fund: { Row: EmergencyFund; Insert: Omit<EmergencyFund, 'id' | 'created_at' | 'updated_at'>; Update: Partial<EmergencyFund> }
     }
     Enums: {
       asset_type: AssetType
       transaction_type: TransactionType
-      currency_code: CurrencyCode
       debt_type: DebtType
       income_frequency: IncomeFrequency
     }

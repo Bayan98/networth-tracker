@@ -8,6 +8,7 @@ import { formatCurrency, formatPercent } from '@networth/utils'
 import { DEBT_TYPE_LABELS } from '@networth/utils'
 import { useAppStore } from '@/lib/store'
 import type { Debt, CurrencyCode, DebtType } from '@networth/types'
+import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 interface Props {
   debts: Debt[]
@@ -142,9 +143,11 @@ export function DebtsClient({ debts, userId, currency }: Props) {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Currency</label>
-                <select value={debtCurrency} onChange={(e) => setDebtCurrency(e.target.value as CurrencyCode)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                  {['USD', 'KZT', 'RUB', 'EUR', 'GBP'].map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <CurrencyPicker
+                  value={debtCurrency}
+                  onChange={(c) => setDebtCurrency(c as CurrencyCode)}
+                  style={inputStyle}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Original amount</label>
@@ -179,30 +182,34 @@ export function DebtsClient({ debts, userId, currency }: Props) {
             <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>No debts recorded.</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                {['Name', 'Type', 'Balance', 'Rate', 'Min. payment', ''].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>{h}</th>
-                ))}
+                <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Name</th>
+                <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Type</th>
+                <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Balance</th>
+                <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Rate</th>
+                <th className="hidden md:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Min. payment</th>
+                <th className="px-2 py-3" />
               </tr>
             </thead>
             <tbody>
               {debts.map((d) => (
                 <tr key={d.id} className="hover:bg-white/5" style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td className="px-5 py-3 font-medium">{d.name}</td>
-                  <td className="px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>{DEBT_TYPE_LABELS[d.debt_type]}</td>
-                  <td className="px-5 py-3" style={{ color: 'var(--color-danger)' }}>
+                  <td className="px-4 md:px-5 py-3 font-medium">{d.name}</td>
+                  <td className="hidden sm:table-cell px-4 md:px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>{DEBT_TYPE_LABELS[d.debt_type]}</td>
+                  <td className="px-4 md:px-5 py-3" style={{ color: 'var(--color-danger)' }}>
                     {hideAmounts ? '••••••' : formatCurrency(Number(d.current_balance), d.currency)}
                   </td>
-                  <td className="px-5 py-3">{formatPercent(Number(d.interest_rate) * 100, 2)}</td>
-                  <td className="px-5 py-3">
+                  <td className="hidden sm:table-cell px-4 md:px-5 py-3">{formatPercent(Number(d.interest_rate) * 100, 2)}</td>
+                  <td className="hidden md:table-cell px-4 md:px-5 py-3">
                     {hideAmounts ? '••••' : formatCurrency(Number(d.minimum_payment), d.currency)}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-2 md:px-3 py-3">
                     <button
                       onClick={() => handleDelete(d.id)}
-                      className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity"
+                      className="p-1.5 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
                       style={{ color: '#ef4444' }}
                       title="Delete"
                     >
@@ -213,6 +220,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

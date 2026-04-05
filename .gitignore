@@ -17,6 +17,7 @@ apps/web/out
 # Build outputs
 dist
 build
+*.tsbuildinfo
 
 # OS
 .DS_Store
@@ -28,3 +29,5 @@ Thumbs.db
 .cursor
 .claude
 *.swp
+.vercel
+.env*.local

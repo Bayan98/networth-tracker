@@ -19,7 +19,7 @@ export default async function PortfolioPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Portfolio</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Holdings</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
           Manage your assets and positions
         </p>

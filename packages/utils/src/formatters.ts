@@ -1,8 +1,6 @@
-import type { CurrencyCode } from '@networth/types'
-
 export function formatCurrency(
   amount: number,
-  currency: CurrencyCode = 'USD',
+  currency: string = 'USD',
   options?: Intl.NumberFormatOptions,
 ): string {
   return new Intl.NumberFormat('en-US', {
@@ -26,21 +24,13 @@ export function formatNumber(value: number, decimals = 2): string {
   }).format(value)
 }
 
-export function formatCompact(amount: number, currency: CurrencyCode = 'USD'): string {
+export function formatCompact(amount: number, currency: string = 'USD'): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(amount)
-}
-
-export const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  RUB: '₽',
-  KZT: '₸',
 }
 
 export const ASSET_TYPE_LABELS: Record<string, string> = {
@@ -52,18 +42,21 @@ export const ASSET_TYPE_LABELS: Record<string, string> = {
   real_estate: 'Real Estate',
   cash: 'Cash',
   commodity: 'Commodity',
+  deposit: 'Bank Deposit',
+  transport: 'Transport',
+  business: 'Business',
   other: 'Other',
 }
 
 export const INCOME_FREQUENCY_LABELS: Record<string, string> = {
-  one_time: 'One-time',
   daily: 'Daily',
   weekly: 'Weekly',
-  biweekly: 'Bi-weekly',
   monthly: 'Monthly',
   quarterly: 'Quarterly',
   annually: 'Annually',
 }
+
+export const POPULAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'RUB', 'KZT', 'CNY', 'JPY', 'CHF', 'CAD', 'AUD']
 
 export const DEBT_TYPE_LABELS: Record<string, string> = {
   mortgage: 'Mortgage',

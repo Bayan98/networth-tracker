@@ -133,9 +133,7 @@ Deno.serve(async (req: Request) => {
         needCgIds.push(cgId);
         cgIdToSymbol[cgId] = sym;
       } else if (
-        ["stock", "etf", "bond", "mutual_fund", "commodity"].includes(
-          item.asset_type,
-        )
+        ["stock", "etf", "bond", "mutual_fund", "commodity"].includes(item.asset_type)
       ) {
         needStocks.push(sym);
       }

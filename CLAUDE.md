@@ -2,8 +2,8 @@
 
 ## Project overview
 
-Multi-currency portfolio tracker: stocks, crypto, debts, income, emergency fund.
-Monorepo: `apps/web` (Next.js 15) + `apps/mobile` (Expo) + shared `packages/`.
+Multi-currency portfolio tracker: stocks, crypto, debts, income.
+Monorepo: `apps/web` (Next.js 16) + `apps/mobile` (Expo) + shared `packages/`.
 Target stack: $0/month on Supabase + Vercel free tier.
 
 System design: https://www.notion.so/Portfolio-Tracker-system-design-31e138b9c1d580859652f580a3cf372c
@@ -13,14 +13,14 @@ System design: https://www.notion.so/Portfolio-Tracker-system-design-31e138b9c1d
 ```
 networth-tracker/
 ├── apps/
-│   ├── web/          # Next.js 15 App Router (Vercel)
+│   ├── web/          # Next.js 16 App Router (Vercel)
 │   └── mobile/       # Expo + Expo Router (EAS) — future
 ├── packages/
 │   ├── types/        # TypeScript interfaces, enums
 │   ├── ui/           # Shared React components (web-first now)
-│   └── utils/        # API client, formatters, validators
+│   └── utils/        # Formatters, labels, constants
 ├── supabase/
-│   └── migrations/   # SQL migration files
+│   └── functions/    # Edge Functions (Deno)
 ├── CLAUDE.md
 ├── turbo.json
 ├── pnpm-workspace.yaml
@@ -31,24 +31,38 @@ networth-tracker/
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Supabase (PostgreSQL 17, Auth, Realtime, Edge Functions) |
-| Web | Next.js 15, App Router, Server Components, Server Actions |
+| Backend | Supabase (PostgreSQL 17, Auth, Edge Functions) |
+| Web | Next.js 16, App Router, Server Components |
 | Hosting | Vercel |
-| State | TanStack Query v5 (server) + Zustand (UI) |
+| State | Zustand (UI state only) |
 | Styling | Tailwind CSS v4 |
 | Monorepo | Turborepo + pnpm workspaces |
-| Prices | CoinGecko (crypto) + Finnhub (stocks) + NBRK (KZT) |
+| Prices | CoinGecko (crypto) + Finnhub (stocks/ETFs/bonds) |
+
+Note: TanStack Query is installed and the provider is wired up, but not yet adopted. Data fetching uses direct Supabase client calls.
 
 ## Supabase
 
 - **Project ID:** `itdvyquvthxstlybpyrt`
 - **URL:** `https://itdvyquvthxstlybpyrt.supabase.co`
 - **Anon key (JWT):** in `.env.local` as `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- **Publishable key:** in `.env.local` as `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - **Secret key:** NEVER in client code — server/Edge Functions only
 
-### Database tables (9)
-`profiles`, `portfolios`, `holdings`, `transactions`, `price_history`, `income`, `debts`, `emergency_fund`, `api_cache`
+### Database tables (7 active)
+`profiles`, `portfolios`, `holdings`, `transactions`, `income`, `debts`, `api_cache`
+
+### Schema notes
+- `currency_code`: TEXT (no length constraint enforced in app), supports any ISO 4217 code
+- `asset_type` enum values: `stock`, `bond`, `etf`, `crypto`, `mutual_fund`, `real_estate`, `cash`, `commodity`, `deposit`, `transport`, `business`, `other`
+- `income_frequency` enum values: `daily`, `weekly`, `monthly`, `quarterly`, `annually`
+- `holdings.portfolio_id`: nullable — holdings can exist without a portfolio
+- `transactions.portfolio_id`: nullable — transactions can be linked to a holding without a portfolio
+- Deleting a portfolio sets `portfolio_id = NULL` on related holdings/transactions (ON DELETE SET NULL)
+
+### Edge Functions
+- `fetch-prices`: fetches current prices for a list of `{ symbol, asset_type }` items. Priceable types: `stock`, `etf`, `bond`, `mutual_fund`, `commodity`, `crypto`. `verify_jwt: false` (public price data).
+- `lookup-symbol`: given `{ symbol, asset_type }`, returns `{ name, price }`. Used for auto-fill in add/edit holding dialogs. `verify_jwt: false`.
+- Both functions use the service role key internally for caching in `api_cache`. Results cached: 3600s for name lookups, 60s for prices.
 
 ### Key rules
 - Always use `@supabase/ssr` on web (not deprecated auth-helpers)
@@ -67,11 +81,12 @@ apps/web/app/
 ├── (auth)/
 │   ├── login/page.tsx
 │   └── signup/page.tsx
-└── (dashboard)/
-    ├── layout.tsx          # Sidebar + header
-    ├── page.tsx            # Dashboard: net worth, charts
+└── dashboard/
+    ├── layout.tsx          # Auth check, sidebar + header + mobile nav
+    ├── page.tsx            # Dashboard: net worth stats, charts, holdings list
     ├── portfolio/
-    │   └── [holdingId]/page.tsx
+    │   ├── page.tsx        # Holdings list with filters
+    │   └── [holdingId]/page.tsx  # Holding detail + transaction history
     ├── transactions/page.tsx
     ├── income/page.tsx
     ├── debts/page.tsx
@@ -79,42 +94,47 @@ apps/web/app/
 ```
 
 ### Server vs Client components
-- **Default:** Server Component
-- **'use client'** only for: charts (recharts), Realtime tickers, forms, filters, toggles
-- Data fetching in Server Components via Supabase server client
-- Mutations via **Server Actions** (no API routes for CRUD)
+- **Default:** Server Component — all pages fetch data server-side
+- **'use client'** only for: charts (recharts), forms, filters, toggles, interactive tables
+- Server Components use `createClient()` from `@/lib/supabase/server`
+- Client Components use `createClient()` from `@/lib/supabase/client` for mutations
 
-### Revalidation strategy
+### Data flow
+- **Reads:** Server Components → Supabase server client → pass data as props to Client Components
+- **Mutations:** Client Components → `supabase.from(...).insert/update/delete()` → `router.refresh()` to re-fetch
+
+### Revalidation
 | Data | Strategy |
 |------|---------|
-| Portfolio summary | `revalidate = 300` + on-demand tags |
-| Asset prices | Client Component + Supabase Realtime |
-| Transactions | On-demand via `revalidatePath` |
-| Settings | Static |
+| Holdings/portfolios | `revalidate = 300`, `router.refresh()` after mutations |
+| Prices | `usePrices` hook polls every 60s |
+| Transactions | `router.refresh()` after mutations |
 
-## State management
+## State management (Zustand)
 
-- **TanStack Query v5** — all server state (holdings, prices, transactions)
-- **Zustand** — UI state: `selectedCurrency`, `theme`, `hideAmounts`, `assetTypeFilter`
-- Zustand state persisted to `localStorage` via `partialize`
+Zustand store at `apps/web/lib/store.ts`:
+- `selectedCurrency` — display currency for all amounts
+- `hideAmounts` — toggle to mask all financial values
+- `theme` — light/dark (future)
 
-### Query key factories
-```ts
-portfolioKeys.all / .lists() / .detail(id)
-holdingKeys.all / .byPortfolio(pid)
-priceKeys.crypto(ids) / .stock(syms) / .exchangeRate(from, to)
-transactionKeys.byPortfolio(pid)
-```
+State persisted to `localStorage` via `partialize`.
+
+## UI / Layout
+
+- **Desktop:** fixed sidebar (`w-60`) + header
+- **Mobile:** sidebar hidden, bottom tab bar (`MobileNav` component) with 6 items
+- Tables hide non-essential columns on small screens (`hidden sm:table-cell`, `hidden md:table-cell`)
+- Action buttons (edit/delete) always visible on mobile (no hover-only opacity trick on touch)
 
 ## Currencies & prices
 
-- Supported: USD, RUB, KZT, EUR, GBP
-- Crypto → CoinGecko (30 calls/min free)
-- Stocks → Finnhub (60 calls/min free)
-- KZT rate → NBRK XML API (daily, free)
-- Conversion chain: source → USD → multiply by KZT/USD rate from NBRK
+- Supported: any ISO 4217 currency (full list via `currency-codes` npm package)
+- Popular defaults shown first: USD, EUR, GBP, RUB, KZT, CNY, JPY, CHF, CAD, AUD
+- `CurrencyCode = string` — open type, not restricted to a union
+- `CurrencyPicker` component: searchable dropdown at `apps/web/components/ui/currency-picker.tsx`
+- Crypto prices → CoinGecko (free, no key)
+- Stock/ETF/bond prices → Finnhub (`FINNHUB_API_KEY` Supabase secret)
 - All external API calls go through Supabase Edge Function `fetch-prices` (proxy + cache)
-- Cache TTL: crypto 60s, stocks 60s, FX 3600s
 
 ## Security rules
 
@@ -123,14 +143,20 @@ transactionKeys.byPortfolio(pid)
 3. RLS on every user-owned table with `(select auth.uid()) = user_id`
 4. `.eq('user_id', userId)` in queries for index leverage
 5. `SECURITY DEFINER` + `SET search_path = ''` on sensitive DB functions
+6. Edge Functions that handle public data (prices) use `verify_jwt: false`
 
 ## Environment variables
 
 ### apps/web/.env.local
 ```
-NEXT_PUBLIC_SUPABASE_URL=<your-supabase-project-url>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+NEXT_PUBLIC_SUPABASE_URL=https://itdvyquvthxstlybpyrt.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 SUPABASE_SERVICE_ROLE_KEY=<secret — never commit>
+```
+
+### Supabase secrets (set via dashboard or CLI)
+```
+FINNHUB_API_KEY=<finnhub API key>
 ```
 
 ## Development commands
@@ -157,13 +183,17 @@ pnpm lint
 - TypeScript strict mode everywhere
 - No `any` — use proper types from `packages/types`
 - Prefer `async/await` over `.then()`
-- Server Actions for mutations, not API routes
-- Always handle Supabase errors: `if (error) throw error`
-- Format numbers with `Intl.NumberFormat` using user's `selectedCurrency`
-- `MaskedAmount` component for "hide amounts" mode
-- Use English for everything in the project (code comments, docs, UI copy, commit messages, and PR descriptions)
+- Direct Supabase client calls for mutations (not Server Actions)
+- Always handle Supabase errors: check `error` and show to user or throw
+- Format numbers with `formatCurrency(amount, currency)` from `@networth/utils`
+- Use `MaskedAmount` component or `hideAmounts` store flag to respect privacy mode
+- Use English for everything in the project (code, comments, docs, UI copy, commits)
 
 ## When updating system design
 
 If architecture decisions change, update the Notion page at:
 https://www.notion.so/Portfolio-Tracker-system-design-31e138b9c1d580859652f580a3cf372c
+
+## Keeping CLAUDE.md up to date
+
+Whenever a change affects information documented in CLAUDE.md — tech stack, route structure, removed features, new env vars, DB schema, edge functions, etc. — update CLAUDE.md in the same commit.

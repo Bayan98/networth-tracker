@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import { formatCurrency } from '@networth/utils'
 import { TransactionsClient } from '@/components/transactions/transactions-client'
 
-export const revalidate = 0
+export const revalidate = 60
 
 export default async function TransactionsPage() {
   const supabase = await createClient()

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
 import type { Profile, CurrencyCode } from '@networth/types'
+import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 interface Props {
   profile: Profile | null
@@ -83,18 +84,11 @@ export function SettingsClient({ profile, userEmail }: Props) {
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Default currency</label>
-            <select
+            <CurrencyPicker
               value={defaultCurrency}
-              onChange={(e) => setDefaultCurrency(e.target.value as CurrencyCode)}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              onChange={(c) => setDefaultCurrency(c as CurrencyCode)}
               style={inputStyle}
-            >
-              {['USD', 'KZT', 'RUB', 'EUR', 'GBP'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           {error && <p className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p>}
           <button

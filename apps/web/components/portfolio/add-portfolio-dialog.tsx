@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 interface Props {
   userId: string
@@ -14,7 +15,7 @@ export function AddPortfolioDialog({ userId, onClose }: Props) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [currency, setCurrency] = useState<'USD' | 'KZT' | 'RUB' | 'EUR' | 'GBP'>('USD')
+  const [currency, setCurrency] = useState('USD')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -89,22 +90,15 @@ export function AddPortfolioDialog({ userId, onClose }: Props) {
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Base currency</label>
-            <select
+            <CurrencyPicker
               value={currency}
-              onChange={(e) => setCurrency(e.target.value as typeof currency)}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              onChange={setCurrency}
               style={{
                 background: 'var(--color-muted)',
                 border: '1px solid var(--color-border)',
                 color: 'var(--color-foreground)',
               }}
-            >
-              {['USD', 'KZT', 'RUB', 'EUR', 'GBP'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {error && (

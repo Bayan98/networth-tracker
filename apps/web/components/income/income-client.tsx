@@ -8,6 +8,7 @@ import { formatCurrency } from '@networth/utils'
 import { INCOME_FREQUENCY_LABELS } from '@networth/utils'
 import { useAppStore } from '@/lib/store'
 import type { Income, CurrencyCode, IncomeFrequency } from '@networth/types'
+import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 interface Props {
   income: Income[]
@@ -15,21 +16,17 @@ interface Props {
   currency: CurrencyCode
 }
 
-const FREQUENCIES: IncomeFrequency[] = [
-  'one_time', 'daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'annually',
-]
+const FREQUENCIES: IncomeFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'annually']
 
 function annualize(amount: number, frequency: IncomeFrequency): number {
   const multipliers: Record<IncomeFrequency, number> = {
-    one_time: 1,
     daily: 365,
     weekly: 52,
-    biweekly: 26,
     monthly: 12,
     quarterly: 4,
     annually: 1,
   }
-  return amount * multipliers[frequency]
+  return amount * (multipliers[frequency] ?? 1)
 }
 
 export function IncomeClient({ income, userId, currency }: Props) {
@@ -168,16 +165,11 @@ export function IncomeClient({ income, userId, currency }: Props) {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Currency</label>
-                <select
+                <CurrencyPicker
                   value={incCurrency}
-                  onChange={(e) => setIncCurrency(e.target.value as CurrencyCode)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  onChange={(c) => setIncCurrency(c as CurrencyCode)}
                   style={inputStyle}
-                >
-                  {['USD', 'KZT', 'RUB', 'EUR', 'GBP'].map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Notes</label>
@@ -225,54 +217,57 @@ export function IncomeClient({ income, userId, currency }: Props) {
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                {['Source', 'Amount', 'Frequency', 'Annual', 'Status', ''].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {income.map((i) => (
-                <tr key={i.id} className="hover:bg-white/5" style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td className="px-5 py-3 font-medium">{i.source}</td>
-                  <td className="px-5 py-3">
-                    {hideAmounts ? '••••' : formatCurrency(Number(i.amount), i.currency)}
-                  </td>
-                  <td className="px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>
-                    {INCOME_FREQUENCY_LABELS[i.frequency]}
-                  </td>
-                  <td className="px-5 py-3">
-                    {hideAmounts ? '••••••' : formatCurrency(annualize(Number(i.amount), i.frequency), i.currency)}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span
-                      className="px-2 py-0.5 rounded-full text-xs font-medium"
-                      style={{
-                        background: i.is_active ? 'rgba(34,197,94,0.15)' : 'var(--color-muted)',
-                        color: i.is_active ? 'var(--color-success)' : 'var(--color-muted-foreground)',
-                      }}
-                    >
-                      {i.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <button
-                      onClick={() => handleDelete(i.id)}
-                      className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity"
-                      style={{ color: '#ef4444' }}
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Source</th>
+                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Amount</th>
+                  <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Frequency</th>
+                  <th className="hidden md:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Annual</th>
+                  <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Status</th>
+                  <th className="px-2 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {income.map((i) => (
+                  <tr key={i.id} className="hover:bg-white/5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td className="px-4 md:px-5 py-3 font-medium">{i.source}</td>
+                    <td className="px-4 md:px-5 py-3">
+                      {hideAmounts ? '••••' : formatCurrency(Number(i.amount), i.currency)}
+                    </td>
+                    <td className="hidden sm:table-cell px-4 md:px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>
+                      {INCOME_FREQUENCY_LABELS[i.frequency]}
+                    </td>
+                    <td className="hidden md:table-cell px-4 md:px-5 py-3">
+                      {hideAmounts ? '••••••' : formatCurrency(annualize(Number(i.amount), i.frequency), i.currency)}
+                    </td>
+                    <td className="hidden sm:table-cell px-4 md:px-5 py-3">
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-medium"
+                        style={{
+                          background: i.is_active ? 'rgba(34,197,94,0.15)' : 'var(--color-muted)',
+                          color: i.is_active ? 'var(--color-success)' : 'var(--color-muted-foreground)',
+                        }}
+                      >
+                        {i.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-2 md:px-3 py-3">
+                      <button
+                        onClick={() => handleDelete(i.id)}
+                        className="p-1.5 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
+                        style={{ color: '#ef4444' }}
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

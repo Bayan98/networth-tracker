@@ -5,8 +5,7 @@ import { useAppStore } from '@/lib/store'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { Profile } from '@networth/types'
-
-const CURRENCIES = ['USD', 'KZT', 'RUB', 'EUR', 'GBP'] as const
+import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 interface HeaderProps {
   user: Profile | null
@@ -25,32 +24,26 @@ export function Header({ user }: HeaderProps) {
 
   return (
     <header
-      className="h-16 flex items-center justify-between px-6 border-b shrink-0"
+      className="h-14 md:h-16 flex items-center justify-between px-4 md:px-6 border-b shrink-0"
       style={{
         background: 'var(--color-card)',
         borderColor: 'var(--color-border)',
       }}
     >
-      <div />
+      {/* Logo on mobile (sidebar hidden) */}
+      <span className="font-bold text-base tracking-tight md:hidden">
+        Networth <span style={{ color: 'var(--color-accent)' }}>Tracker</span>
+      </span>
+      <div className="hidden md:block" />
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
         {/* Currency selector */}
-        <select
+        <CurrencyPicker
           value={selectedCurrency}
-          onChange={(e) => setSelectedCurrency(e.target.value as typeof selectedCurrency)}
-          className="px-3 py-1.5 rounded-lg text-sm outline-none"
-          style={{
-            background: 'var(--color-muted)',
-            color: 'var(--color-foreground)',
-            border: '1px solid var(--color-border)',
-          }}
-        >
-          {CURRENCIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          onChange={(c) => setSelectedCurrency(c)}
+          className="w-20"
+          align="right"
+        />
 
         {/* Hide amounts toggle */}
         <button
@@ -65,9 +58,9 @@ export function Header({ user }: HeaderProps) {
           {hideAmounts ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
 
-        {/* User name */}
+        {/* User name — hidden on mobile */}
         {user?.full_name && (
-          <span className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+          <span className="hidden sm:inline text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
             {user.full_name}
           </span>
         )}
