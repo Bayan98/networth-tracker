@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { formatCurrency } from '@networth/utils'
-import type { Transaction, Portfolio } from '@networth/types'
+import type { Transaction } from '@networth/types'
 import { AddTransactionDialog } from './add-transaction-dialog'
 
 interface Props {
   transactions: Transaction[]
-  portfolios: Portfolio[]
   userId: string
 }
 
@@ -16,18 +15,12 @@ const TX_TYPE_COLORS: Record<string, string> = {
   buy: 'var(--color-success)',
   sell: 'var(--color-danger)',
   dividend: '#6366f1',
-  coupon: '#6366f1',
-  rental_income: '#6366f1',
   deposit: 'var(--color-success)',
   withdrawal: 'var(--color-danger)',
-  interest: '#6366f1',
   split: '#a1a1aa',
-  transfer: '#a1a1aa',
-  salary: 'var(--color-success)',
-  debt_payment: 'var(--color-danger)',
 }
 
-export function TransactionsClient({ transactions, portfolios, userId }: Props) {
+export function TransactionsClient({ transactions, userId }: Props) {
   const [showAdd, setShowAdd] = useState(false)
 
   return (
@@ -62,7 +55,6 @@ export function TransactionsClient({ transactions, portfolios, userId }: Props) 
                   <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</th>
                   <th className="hidden md:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Price</th>
                   <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Total</th>
-                  <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Fee</th>
                 </tr>
               </thead>
               <tbody>
@@ -90,9 +82,6 @@ export function TransactionsClient({ transactions, portfolios, userId }: Props) 
                     <td className="px-4 md:px-5 py-3 font-medium tabular-nums">
                       {formatCurrency(Number(tx.quantity) * Number(tx.price), tx.currency)}
                     </td>
-                    <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums" style={{ color: 'var(--color-muted-foreground)' }}>
-                      {Number(tx.fee) > 0 ? formatCurrency(Number(tx.fee), tx.currency) : '—'}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -103,7 +92,6 @@ export function TransactionsClient({ transactions, portfolios, userId }: Props) 
 
       {showAdd && (
         <AddTransactionDialog
-          portfolios={portfolios}
           userId={userId}
           onClose={() => setShowAdd(false)}
         />

@@ -2,7 +2,7 @@
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { usePrices } from '@/lib/hooks/use-prices'
-import { ASSET_TYPE_LABELS } from '@networth/utils'
+import { ASSET_TYPE_LABELS, resolveHoldingPrice } from '@networth/utils'
 import type { Holding, CurrencyCode } from '@networth/types'
 
 const ASSET_COLORS: Record<string, string> = {
@@ -48,11 +48,8 @@ export function AllocationChart({ holdings, currency }: Props) {
   // Group by asset type
   const byType = new Map<string, number>()
   for (const h of holdings) {
-    const price = h.symbol ? prices[h.symbol.toUpperCase()] : undefined
-    const value =
-      price != null
-        ? Number(h.quantity) * price
-        : Number(h.quantity) * Number(h.average_cost_basis)
+    const { price } = resolveHoldingPrice(h, prices)
+    const value = Number(h.quantity) * price
     byType.set(h.asset_type, (byType.get(h.asset_type) ?? 0) + value)
   }
 

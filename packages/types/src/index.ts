@@ -18,15 +18,9 @@ export type TransactionType =
   | 'buy'
   | 'sell'
   | 'dividend'
-  | 'interest'
   | 'deposit'
   | 'withdrawal'
   | 'split'
-  | 'transfer'
-  | 'coupon'
-  | 'rental_income'
-  | 'salary'
-  | 'debt_payment'
 
 export type CurrencyCode = string // ISO 4217 three-letter code
 
@@ -68,6 +62,8 @@ export interface Holding {
   total_income_earned: number
   currency: CurrencyCode
   notes: string | null
+  manual_price: number | null
+  manual_price_date: string | null
   created_at: string
   updated_at: string
 }
@@ -75,13 +71,10 @@ export interface Holding {
 export interface Transaction {
   id: string
   user_id: string
-  portfolio_id: string | null
   holding_id: string | null
-  scheduled_event_id: string | null
   transaction_type: TransactionType
   quantity: number
   price: number
-  fee: number
   currency: CurrencyCode
   executed_at: string
   notes: string | null
@@ -94,6 +87,7 @@ export interface ScheduledEvent {
   name: string
   transaction_type: TransactionType
   amount: number
+  amount_type: 'fixed' | 'percent'
   currency: CurrencyCode
   frequency: IncomeFrequency
   holding_id: string | null

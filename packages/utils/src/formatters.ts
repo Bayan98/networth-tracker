@@ -56,19 +56,27 @@ export const INCOME_FREQUENCY_LABELS: Record<string, string> = {
   annually: 'Annually',
 }
 
+export function resolveHoldingPrice(
+  holding: { symbol: string | null; average_cost_basis: number; manual_price: number | null },
+  prices: Record<string, number>,
+): { price: number; source: 'live' | 'manual' | 'cost_basis' } {
+  if (holding.symbol) {
+    const live = prices[holding.symbol.toUpperCase()]
+    if (live != null) return { price: live, source: 'live' }
+  }
+  if (holding.manual_price != null) {
+    return { price: holding.manual_price, source: 'manual' }
+  }
+  return { price: Number(holding.average_cost_basis), source: 'cost_basis' }
+}
+
 export const POPULAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'RUB', 'KZT', 'CNY', 'JPY', 'CHF', 'CAD', 'AUD']
 
 export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   buy: 'Buy',
   sell: 'Sell',
   dividend: 'Dividend',
-  interest: 'Interest',
   deposit: 'Deposit',
   withdrawal: 'Withdrawal',
   split: 'Split',
-  transfer: 'Transfer',
-  coupon: 'Coupon',
-  rental_income: 'Rental Income',
-  salary: 'Salary',
-  debt_payment: 'Debt Payment',
 }

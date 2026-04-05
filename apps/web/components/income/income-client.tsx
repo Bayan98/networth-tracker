@@ -17,9 +17,7 @@ interface Props {
 
 const FREQUENCIES: IncomeFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'annually']
 
-const EVENT_TYPES: TransactionType[] = [
-  'salary', 'dividend', 'interest', 'coupon', 'rental_income', 'debt_payment', 'transfer',
-]
+const EVENT_TYPES: TransactionType[] = ['dividend', 'deposit', 'withdrawal']
 
 function annualize(amount: number, frequency: IncomeFrequency): number {
   const multipliers: Record<IncomeFrequency, number> = {
@@ -40,7 +38,8 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const [name, setName] = useState('')
-  const [txType, setTxType] = useState<TransactionType>('salary')
+  const [txType, setTxType] = useState<TransactionType>('dividend')
+  const [amountType, setAmountType] = useState<'fixed' | 'percent'>('fixed')
   const [amount, setAmount] = useState('')
   const [freq, setFreq] = useState<IncomeFrequency>('monthly')
   const [eventCurrency, setEventCurrency] = useState<CurrencyCode>(currency)
@@ -53,7 +52,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
   }
 
   const activeIncome = events.filter(
-    (e) => e.is_active && !['debt_payment'].includes(e.transaction_type),
+    (e) => e.is_active && e.transaction_type !== 'withdrawal',
   )
   const totalMonthly = activeIncome.reduce(
     (sum, e) => sum + annualize(Number(e.amount), e.frequency) / 12,
@@ -71,6 +70,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
       name,
       transaction_type: txType,
       amount: parseFloat(amount),
+      amount_type: amountType,
       currency: eventCurrency,
       frequency: freq,
       notes: notes || null,
@@ -86,6 +86,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
     setShowAdd(false)
     setName('')
     setAmount('')
+    setAmountType('fixed')
     setLoading(false)
   }
 
@@ -183,6 +184,18 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                   style={inputStyle}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Amount type</label>
+                <select
+                  value={amountType}
+                  onChange={(e) => setAmountType(e.target.value as 'fixed' | 'percent')}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                >
+                  <option value="fixed">Fixed</option>
+                  <option value="percent">Percent (%)</option>
+                </select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Currency</label>

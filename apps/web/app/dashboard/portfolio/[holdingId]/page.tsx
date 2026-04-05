@@ -16,7 +16,7 @@ export default async function HoldingDetailPage({ params }: Props) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: holding }, { data: transactions }, { data: portfolios }] = await Promise.all([
+  const [{ data: holding }, { data: transactions }] = await Promise.all([
     supabase
       .from('holdings')
       .select('*')
@@ -29,7 +29,6 @@ export default async function HoldingDetailPage({ params }: Props) {
       .eq('holding_id', holdingId)
       .eq('user_id', user!.id)
       .order('executed_at', { ascending: false }),
-    supabase.from('portfolios').select('*').eq('user_id', user!.id),
   ])
 
   if (!holding) notFound()
@@ -83,7 +82,6 @@ export default async function HoldingDetailPage({ params }: Props) {
 
       <HoldingTransactionSection
         transactions={transactions ?? []}
-        portfolios={portfolios ?? []}
         holdingId={holdingId}
         currency={holding.currency}
         userId={user!.id}

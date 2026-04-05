@@ -5,29 +5,23 @@ import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { TRANSACTION_TYPE_LABELS } from '@networth/utils'
-import type { Portfolio, TransactionType, CurrencyCode } from '@networth/types'
+import type { TransactionType, CurrencyCode } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 interface Props {
-  portfolios: Portfolio[]
   userId: string
   holdingId?: string
   defaultCurrency?: CurrencyCode
   onClose: () => void
 }
 
-const TX_TYPES: TransactionType[] = [
-  'buy', 'sell', 'dividend', 'interest', 'coupon', 'rental_income',
-  'deposit', 'withdrawal', 'transfer', 'split', 'salary', 'debt_payment',
-]
+const TX_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'split']
 
-export function AddTransactionDialog({ portfolios, userId, holdingId, defaultCurrency, onClose }: Props) {
+export function AddTransactionDialog({ userId, holdingId, defaultCurrency, onClose }: Props) {
   const router = useRouter()
-  const [portfolioId, setPortfolioId] = useState(portfolios[0]?.id ?? '')
   const [txType, setTxType] = useState<TransactionType>('buy')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
-  const [fee, setFee] = useState('0')
   const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency ?? 'USD')
   const [executedAt, setExecutedAt] = useState(new Date().toISOString().slice(0, 16))
   const [notes, setNotes] = useState('')
@@ -42,12 +36,10 @@ export function AddTransactionDialog({ portfolios, userId, holdingId, defaultCur
     const supabase = createClient()
     const { error } = await supabase.from('transactions').insert({
       user_id: userId,
-      portfolio_id: portfolioId || null,
       holding_id: holdingId ?? null,
       transaction_type: txType,
       quantity: parseFloat(quantity),
       price: parseFloat(price),
-      fee: parseFloat(fee) || 0,
       currency,
       executed_at: new Date(executedAt).toISOString(),
       notes: notes || null,
@@ -83,25 +75,6 @@ export function AddTransactionDialog({ portfolios, userId, holdingId, defaultCur
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          {portfolios.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Portfolio</label>
-              <select
-                value={portfolioId}
-                onChange={(e) => setPortfolioId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                style={inputStyle}
-              >
-                <option value="">— No portfolio —</option>
-                {portfolios.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Type</label>
             <select
@@ -149,28 +122,13 @@ export function AddTransactionDialog({ portfolios, userId, holdingId, defaultCur
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Fee</label>
-              <input
-                type="number"
-                value={fee}
-                onChange={(e) => setFee(e.target.value)}
-                placeholder="0"
-                min="0"
-                step="any"
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                style={inputStyle}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Currency</label>
-              <CurrencyPicker
-                value={currency}
-                onChange={(c) => setCurrency(c as CurrencyCode)}
-                style={inputStyle}
-              />
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Currency</label>
+            <CurrencyPicker
+              value={currency}
+              onChange={(c) => setCurrency(c as CurrencyCode)}
+              style={inputStyle}
+            />
           </div>
 
           <div className="space-y-1.5">

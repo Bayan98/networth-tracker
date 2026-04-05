@@ -9,15 +9,12 @@ export default async function TransactionsPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: transactions }, { data: portfolios }] = await Promise.all([
-    supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('executed_at', { ascending: false })
-      .limit(100),
-    supabase.from('portfolios').select('*').eq('user_id', user!.id),
-  ])
+  const { data: transactions } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', user!.id)
+    .order('executed_at', { ascending: false })
+    .limit(100)
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -29,7 +26,6 @@ export default async function TransactionsPage() {
       </div>
       <TransactionsClient
         transactions={transactions ?? []}
-        portfolios={portfolios ?? []}
         userId={user!.id}
       />
     </div>

@@ -5,7 +5,7 @@ import { StatCard } from '@/components/ui/stat-card'
 import { MaskedAmount } from '@/components/ui/masked-amount'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency } from '@networth/utils'
+import { formatCurrency, resolveHoldingPrice } from '@networth/utils'
 import type { Holding, Debt, CurrencyCode } from '@networth/types'
 
 interface Props {
@@ -23,11 +23,8 @@ export function DashboardStats({ holdings, debts, portfolioCount, currency }: Pr
   const { prices, loading } = usePrices(priceItems)
 
   const totalAssets = holdings.reduce((sum, h) => {
-    const price = h.symbol ? prices[h.symbol.toUpperCase()] : undefined
-    const value = price != null
-      ? Number(h.quantity) * price
-      : Number(h.quantity) * Number(h.average_cost_basis)
-    return sum + value
+    const { price } = resolveHoldingPrice(h, prices)
+    return sum + Number(h.quantity) * price
   }, 0)
 
   const totalDebt = debts.reduce((sum, d) => sum + Number(d.current_balance), 0)

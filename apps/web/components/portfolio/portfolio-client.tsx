@@ -58,10 +58,10 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
 
   const selectedPortfolio = portfolios.find((p) => p.id === selectedPortfolioId)
 
-  const totalValue = visible.reduce(
-    (sum, h) => sum + Number(h.quantity) * Number(h.average_cost_basis),
-    0,
-  )
+  const totalValue = visible.reduce((sum, h) => {
+    const unitPrice = h.manual_price != null ? Number(h.manual_price) : Number(h.average_cost_basis)
+    return sum + Number(h.quantity) * unitPrice
+  }, 0)
 
   function toggleType(t: AssetType) {
     setSelectedTypes((prev) => {
@@ -223,7 +223,8 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
               </thead>
               <tbody>
                 {visible.map((holding) => {
-                  const value = Number(holding.quantity) * Number(holding.average_cost_basis)
+                  const unitPrice = holding.manual_price != null ? Number(holding.manual_price) : Number(holding.average_cost_basis)
+                  const value = Number(holding.quantity) * unitPrice
                   const portfolio = portfolios.find((p) => p.id === holding.portfolio_id)
                   return (
                     <tr
@@ -258,6 +259,11 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                       </td>
                       <td className="px-4 md:px-5 py-3 font-semibold tabular-nums">
                         {hideAmounts ? '••••••' : formatCurrency(value, currency)}
+                        {holding.manual_price != null && holding.manual_price_date && (
+                          <p className="text-xs font-normal mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
+                            manual · {formatManualPriceAge(holding.manual_price_date)}
+                          </p>
+                        )}
                       </td>
                       <td className="px-2 md:px-3 py-3">
                         <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -307,6 +313,14 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
       )}
     </div>
   )
+}
+
+function formatManualPriceAge(dateStr: string): string {
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000)
+  if (days === 0) return 'today'
+  if (days === 1) return '1d ago'
+  if (days < 30) return `${days}d ago`
+  return `${Math.floor(days / 30)}mo ago`
 }
 
 function DropdownOption({

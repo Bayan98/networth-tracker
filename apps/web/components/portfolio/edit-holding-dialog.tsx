@@ -9,7 +9,7 @@ import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 
-const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'other']
+const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'deposit', 'other']
 
 interface Props {
   holding: Holding
@@ -27,6 +27,12 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
   const [assetName, setAssetName] = useState(holding.asset_name)
   const [currency, setCurrency] = useState<CurrencyCode>(holding.currency)
   const [notes, setNotes] = useState(holding.notes ?? '')
+  const [manualPrice, setManualPrice] = useState<string>(
+    holding.manual_price != null ? String(holding.manual_price) : ''
+  )
+  const [manualPriceDate, setManualPriceDate] = useState<string>(
+    holding.manual_price_date ?? ''
+  )
   const [autoFilled, setAutoFilled] = useState(false)
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle')
   const [loading, setLoading] = useState(false)
@@ -58,6 +64,8 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
         asset_type: assetType,
         currency,
         notes: notes || null,
+        manual_price: manualPrice ? Number(manualPrice) : null,
+        manual_price_date: manualPriceDate || null,
       })
       .eq('id', holding.id)
 
@@ -182,6 +190,36 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
               style={inputStyle}
             />
           </div>
+
+          {!needsSymbol && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Current Market Value
+                <span className="ml-1 text-xs font-normal" style={{ color: 'var(--color-muted-foreground)' }}>
+                  per unit · optional
+                </span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={manualPrice}
+                  onChange={(e) => setManualPrice(e.target.value)}
+                  placeholder="e.g. 250000"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                />
+                <input
+                  type="date"
+                  value={manualPriceDate}
+                  onChange={(e) => setManualPriceDate(e.target.value)}
+                  className="w-36 px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Notes</label>
