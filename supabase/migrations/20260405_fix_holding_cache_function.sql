@@ -1,9 +1,9 @@
 -- Fix: create recalculate_holding_cache(uuid) that trg_holding_cache trigger calls.
 --
 -- Recalculates three cached columns on holdings from transactions:
---   quantity            — net position (buys/deposits/splits/transfers minus sells/withdrawals)
+--   quantity            — net position (buys/deposits/splits minus sells/withdrawals)
 --   average_cost_basis  — weighted average price of buy transactions
---   total_income_earned — total cash received from income-type transactions
+--   total_income_earned — total cash received from dividend transactions
 
 CREATE OR REPLACE FUNCTION public.recalculate_holding_cache(p_holding_id uuid)
 RETURNS void
@@ -21,11 +21,10 @@ BEGIN
   -- Net quantity: inflows minus outflows
   SELECT COALESCE(SUM(
     CASE transaction_type
-      WHEN 'buy'      THEN quantity
-      WHEN 'deposit'  THEN quantity
-      WHEN 'split'    THEN quantity
-      WHEN 'transfer' THEN quantity
-      WHEN 'sell'     THEN -quantity
+      WHEN 'buy'        THEN quantity
+      WHEN 'deposit'    THEN quantity
+      WHEN 'split'      THEN quantity
+      WHEN 'sell'       THEN -quantity
       WHEN 'withdrawal' THEN -quantity
       ELSE 0
     END
@@ -54,7 +53,7 @@ BEGIN
   INTO v_total_income
   FROM public.transactions
   WHERE holding_id = p_holding_id
-    AND transaction_type IN ('dividend', 'interest', 'coupon', 'rental_income', 'salary');
+    AND transaction_type = 'dividend';
 
   -- Write back to holding
   UPDATE public.holdings
