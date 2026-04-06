@@ -9,6 +9,7 @@ import { formatCurrency, ASSET_TYPE_LABELS } from '@networth/utils'
 import type { Portfolio, Holding, CurrencyCode, AssetType } from '@networth/types'
 import { createClient } from '@/lib/supabase/client'
 import { AddPortfolioDialog } from './add-portfolio-dialog'
+import { EditPortfolioDialog } from './edit-portfolio-dialog'
 import { AddHoldingDialog } from './add-holding-dialog'
 import { EditHoldingDialog } from './edit-holding-dialog'
 
@@ -27,6 +28,7 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
   const [selectedTypes, setSelectedTypes] = useState<Set<AssetType>>(new Set())
   const [portfolioOpen, setPortfolioOpen] = useState(false)
   const [showAddPortfolio, setShowAddPortfolio] = useState(false)
+  const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null)
   const [showAddHolding, setShowAddHolding] = useState(false)
   const [editingHolding, setEditingHolding] = useState<Holding | null>(null)
 
@@ -105,7 +107,6 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
             >
               <DropdownOption
                 label="All portfolios"
-                count={holdings.length}
                 active={selectedPortfolioId === null}
                 onClick={() => { setSelectedPortfolioId(null); setPortfolioOpen(false) }}
               />
@@ -113,9 +114,9 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                 <DropdownOption
                   key={p.id}
                   label={p.name}
-                  count={holdings.filter((h) => h.portfolio_id === p.id).length}
                   active={selectedPortfolioId === p.id}
                   onClick={() => { setSelectedPortfolioId(p.id); setSelectedTypes(new Set()); setPortfolioOpen(false) }}
+                  onEdit={() => { setEditingPortfolio(p); setPortfolioOpen(false) }}
                   onDelete={() => handleDeletePortfolio(p.id)}
                 />
               ))}
@@ -233,7 +234,7 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                       style={{ borderBottom: '1px solid var(--color-border)' }}
                     >
                       <td className="px-4 md:px-5 py-3">
-                        <Link href={`/dashboard/portfolio/${holding.id}`} className="hover:underline">
+                        <Link href={`/holdings/${holding.id}`} className="hover:underline">
                           <p className="font-semibold">{holding.symbol ?? holding.asset_name}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
                             {holding.asset_name}
@@ -297,6 +298,9 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
       {showAddPortfolio && (
         <AddPortfolioDialog userId={userId} onClose={() => setShowAddPortfolio(false)} />
       )}
+      {editingPortfolio && (
+        <EditPortfolioDialog portfolio={editingPortfolio} onClose={() => setEditingPortfolio(null)} />
+      )}
       {showAddHolding && (
         <AddHoldingDialog
           portfolios={portfolios}
@@ -325,15 +329,15 @@ function formatManualPriceAge(dateStr: string): string {
 
 function DropdownOption({
   label,
-  count,
   active,
   onClick,
+  onEdit,
   onDelete,
 }: {
   label: string
-  count: number
   active: boolean
   onClick: () => void
+  onEdit?: () => void
   onDelete?: () => void
 }) {
   return (
@@ -349,21 +353,34 @@ function DropdownOption({
     >
       <button
         onClick={onClick}
-        className="flex-1 flex items-center justify-between gap-3 px-3 py-1.5 text-sm"
+        className="flex-1 px-3 py-1.5 text-sm text-left"
         style={{ color: active ? 'var(--color-accent)' : 'var(--color-foreground)' }}
       >
-        <span>{label}</span>
-        <span className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>{count}</span>
+        {label}
       </button>
-      {onDelete && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete() }}
-          className="opacity-0 group-hover/opt:opacity-100 p-1.5 mr-1 rounded transition-opacity"
-          style={{ color: '#ef4444' }}
-          title="Delete portfolio"
-        >
-          <Trash2 size={12} />
-        </button>
+      {(onEdit || onDelete) && (
+        <div className="flex items-center gap-0.5 opacity-0 group-hover/opt:opacity-100 pr-1 transition-opacity">
+          {onEdit && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit() }}
+              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              style={{ color: 'var(--color-muted-foreground)' }}
+              title="Edit portfolio"
+            >
+              <Pencil size={12} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              style={{ color: '#ef4444' }}
+              title="Delete portfolio"
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

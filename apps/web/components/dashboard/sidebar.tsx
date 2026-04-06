@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   TrendingUp,
-  ArrowLeftRight,
   DollarSign,
   CreditCard,
   Settings,
@@ -13,10 +12,9 @@ import {
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/portfolio', label: 'Holdings', icon: TrendingUp },
-  { href: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { href: '/dashboard/income', label: 'Income', icon: DollarSign },
-  { href: '/dashboard/debts', label: 'Debts', icon: CreditCard },
+  { href: '/holdings', label: 'Holdings', icon: TrendingUp },
+  { href: '/income', label: 'Income', icon: DollarSign },
+  { href: '/debts', label: 'Debts', icon: CreditCard },
 ]
 
 export function Sidebar() {
@@ -64,7 +62,7 @@ export function Sidebar() {
       {/* Settings link */}
       <div className="px-3 py-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
         <Link
-          href="/dashboard/settings"
+          href="/settings"
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{ color: 'var(--color-muted-foreground)' }}
         >

@@ -37,7 +37,7 @@ export function HoldingsList({ holdings, currency }: HoldingsListProps) {
           Add your first portfolio and start tracking.
         </p>
         <Link
-          href="/dashboard/portfolio"
+          href="/holdings"
           className="inline-block mt-4 px-4 py-2 rounded-lg text-sm font-medium"
           style={{ background: 'var(--color-accent)', color: '#fff' }}
         >
@@ -58,7 +58,7 @@ export function HoldingsList({ holdings, currency }: HoldingsListProps) {
       >
         <h2 className="text-sm font-semibold">Holdings</h2>
         <Link
-          href="/dashboard/portfolio"
+          href="/holdings"
           className="text-xs"
           style={{ color: 'var(--color-accent)' }}
         >
@@ -70,7 +70,7 @@ export function HoldingsList({ holdings, currency }: HoldingsListProps) {
         {holdings.map((holding) => (
           <Link
             key={holding.id}
-            href={`/dashboard/portfolio/${holding.id}`}
+            href={`/holdings/${holding.id}`}
             className="flex items-center gap-4 px-5 py-3 hover:bg-white/5 transition-colors"
           >
             {/* Asset type badge */}

@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   TrendingUp,
-  ArrowLeftRight,
   DollarSign,
   CreditCard,
   Settings,
@@ -13,11 +12,10 @@ import {
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { href: '/dashboard/portfolio', label: 'Holdings', icon: TrendingUp },
-  { href: '/dashboard/transactions', label: 'Txns', icon: ArrowLeftRight },
-  { href: '/dashboard/income', label: 'Income', icon: DollarSign },
-  { href: '/dashboard/debts', label: 'Debts', icon: CreditCard },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/holdings', label: 'Holdings', icon: TrendingUp },
+  { href: '/income', label: 'Income', icon: DollarSign },
+  { href: '/debts', label: 'Debts', icon: CreditCard },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export function MobileNav() {

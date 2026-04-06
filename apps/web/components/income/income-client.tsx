@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Plus, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
@@ -255,7 +256,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Name</th>
+                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Name / Holding</th>
                   <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Type</th>
                   <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Amount</th>
                   <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Frequency</th>
@@ -267,7 +268,19 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
               <tbody>
                 {events.map((ev) => (
                   <tr key={ev.id} className="hover:bg-white/5" style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td className="px-4 md:px-5 py-3 font-medium">{ev.name}</td>
+                    <td className="px-4 md:px-5 py-3 font-medium">
+                      {ev.holding_id ? (
+                        <Link
+                          href={`/holdings/${ev.holding_id}`}
+                          className="hover:underline"
+                          style={{ color: 'var(--color-accent)' }}
+                        >
+                          {ev.name}
+                        </Link>
+                      ) : (
+                        ev.name
+                      )}
+                    </td>
                     <td className="hidden sm:table-cell px-4 md:px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>
                       {TRANSACTION_TYPE_LABELS[ev.transaction_type] ?? ev.transaction_type}
                     </td>

@@ -91,12 +91,11 @@ describe('formatCompact', () => {
   })
 
   it('formats small amounts without suffix', () => {
-    // maximumFractionDigits: 1 means one decimal is always shown
-    expect(formatCompact(999, 'USD')).toBe('$999.0')
+    expect(formatCompact(999, 'USD')).toBe('$999')
   })
 
   it('uses USD by default', () => {
-    expect(formatCompact(10_000)).toBe('$10.0K')
+    expect(formatCompact(10_000)).toBe('$10K')
   })
 })
 

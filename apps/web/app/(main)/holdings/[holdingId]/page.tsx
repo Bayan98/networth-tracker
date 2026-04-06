@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, ASSET_TYPE_LABELS } from '@networth/utils'
 import { HoldingTransactionSection } from '@/components/portfolio/holding-transaction-section'
+import { HoldingScheduledEventsSection } from '@/components/portfolio/holding-scheduled-events-section'
 
 interface Props {
   params: Promise<{ holdingId: string }>
@@ -16,7 +17,7 @@ export default async function HoldingDetailPage({ params }: Props) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: holding }, { data: transactions }] = await Promise.all([
+  const [{ data: holding }, { data: transactions }, { data: scheduledEvents }] = await Promise.all([
     supabase
       .from('holdings')
       .select('*')
@@ -29,6 +30,12 @@ export default async function HoldingDetailPage({ params }: Props) {
       .eq('holding_id', holdingId)
       .eq('user_id', user!.id)
       .order('executed_at', { ascending: false }),
+    supabase
+      .from('scheduled_events')
+      .select('*')
+      .eq('holding_id', holdingId)
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false }),
   ])
 
   if (!holding) notFound()
@@ -39,7 +46,7 @@ export default async function HoldingDetailPage({ params }: Props) {
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <Link
-          href="/dashboard/portfolio"
+          href="/holdings"
           className="inline-flex items-center gap-1 text-sm mb-3"
           style={{ color: 'var(--color-muted-foreground)' }}
         >
@@ -79,6 +86,13 @@ export default async function HoldingDetailPage({ params }: Props) {
           </div>
         ))}
       </div>
+
+      <HoldingScheduledEventsSection
+        events={scheduledEvents ?? []}
+        holdingId={holdingId}
+        userId={user!.id}
+        currency={holding.currency}
+      />
 
       <HoldingTransactionSection
         transactions={transactions ?? []}

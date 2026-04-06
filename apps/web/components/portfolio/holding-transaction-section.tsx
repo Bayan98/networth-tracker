@@ -1,10 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@networth/utils'
 import type { Transaction, CurrencyCode } from '@networth/types'
+import { createClient } from '@/lib/supabase/client'
 import { AddTransactionDialog } from '@/components/transactions/add-transaction-dialog'
+import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
 
 const TX_TYPE_COLORS: Record<string, string> = {
   buy: 'var(--color-success)',
@@ -23,7 +26,15 @@ interface Props {
 }
 
 export function HoldingTransactionSection({ transactions, holdingId, currency, userId }: Props) {
+  const router = useRouter()
   const [showAdd, setShowAdd] = useState(false)
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null)
+
+  async function handleDelete(id: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('transactions').delete().eq('id', id)
+    if (!error) router.refresh()
+  }
 
   return (
     <div
@@ -60,13 +71,14 @@ export function HoldingTransactionSection({ transactions, holdingId, currency, u
               <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</th>
               <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Price</th>
               <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Total</th>
+              <th className="px-2 py-3" />
             </tr>
           </thead>
           <tbody>
             {transactions.map((tx) => (
               <tr
                 key={tx.id}
-                className="hover:bg-white/5"
+                className="group hover:bg-white/5"
                 style={{ borderBottom: '1px solid var(--color-border)' }}
               >
                 <td className="px-4 md:px-5 py-3 text-xs md:text-sm">
@@ -87,6 +99,26 @@ export function HoldingTransactionSection({ transactions, holdingId, currency, u
                 <td className="px-4 md:px-5 py-3 font-medium tabular-nums">
                   {formatCurrency(Number(tx.quantity) * Number(tx.price), tx.currency)}
                 </td>
+                <td className="px-2 md:px-3 py-3">
+                  <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setEditingTx(tx)}
+                      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                      style={{ color: 'var(--color-muted-foreground)' }}
+                      title="Edit"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(tx.id)}
+                      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                      style={{ color: '#ef4444' }}
+                      title="Delete"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -100,6 +132,12 @@ export function HoldingTransactionSection({ transactions, holdingId, currency, u
           holdingId={holdingId}
           defaultCurrency={currency}
           onClose={() => setShowAdd(false)}
+        />
+      )}
+      {editingTx && (
+        <EditTransactionDialog
+          transaction={editingTx}
+          onClose={() => setEditingTx(null)}
         />
       )}
     </div>
