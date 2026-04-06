@@ -46,7 +46,6 @@ export interface Portfolio {
   user_id: string
   name: string
   description: string | null
-  base_currency: CurrencyCode
   created_at: string
 }
 
