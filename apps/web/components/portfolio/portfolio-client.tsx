@@ -5,13 +5,16 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Trash2, ChevronDown, Check, Pencil } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, ASSET_TYPE_LABELS } from '@networth/utils'
+import { formatCurrency, formatPercent, ASSET_TYPE_LABELS, resolveHoldingPrice } from '@networth/utils'
 import type { Portfolio, Holding, CurrencyCode, AssetType } from '@networth/types'
 import { createClient } from '@/lib/supabase/client'
+import { usePrices } from '@/lib/hooks/use-prices'
 import { AddPortfolioDialog } from './add-portfolio-dialog'
 import { EditPortfolioDialog } from './edit-portfolio-dialog'
 import { AddHoldingDialog } from './add-holding-dialog'
 import { EditHoldingDialog } from './edit-holding-dialog'
+
+const PRICEABLE_TYPES = new Set(['stock', 'etf', 'bond', 'mutual_fund', 'commodity', 'crypto'])
 
 interface Props {
   portfolios: Portfolio[]
@@ -23,6 +26,11 @@ interface Props {
 export function PortfolioClient({ portfolios, holdings, currency, userId }: Props) {
   const router = useRouter()
   const hideAmounts = useAppStore((s) => s.hideAmounts)
+
+  const priceItems = holdings
+    .filter((h) => h.symbol && PRICEABLE_TYPES.has(h.asset_type))
+    .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
+  const { prices } = usePrices(priceItems)
 
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null)
   const [selectedTypes, setSelectedTypes] = useState<Set<AssetType>>(new Set())
@@ -61,8 +69,8 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
   const selectedPortfolio = portfolios.find((p) => p.id === selectedPortfolioId)
 
   const totalValue = visible.reduce((sum, h) => {
-    const unitPrice = h.manual_price != null ? Number(h.manual_price) : Number(h.average_cost_basis)
-    return sum + Number(h.quantity) * unitPrice
+    const { price } = resolveHoldingPrice(h, prices)
+    return sum + Number(h.quantity) * price
   }, 0)
 
   function toggleType(t: AssetType) {
@@ -218,14 +226,17 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                   <th className="hidden lg:table-cell px-4 md:px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Portfolio</th>
                   <th className="hidden md:table-cell px-4 md:px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</th>
                   <th className="hidden sm:table-cell px-4 md:px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Avg Cost</th>
-                  <th className="px-4 md:px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Value</th>
+                  <th className="px-4 md:px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Market Value</th>
+                  <th className="hidden sm:table-cell px-4 md:px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Change</th>
                   <th className="px-2 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {visible.map((holding) => {
-                  const unitPrice = holding.manual_price != null ? Number(holding.manual_price) : Number(holding.average_cost_basis)
-                  const value = Number(holding.quantity) * unitPrice
+                  const { price, source } = resolveHoldingPrice(holding, prices)
+                  const value = Number(holding.quantity) * price
+                  const avgCost = Number(holding.average_cost_basis)
+                  const changePct = source !== 'cost_basis' && avgCost > 0 ? ((price - avgCost) / avgCost) * 100 : null
                   const portfolio = portfolios.find((p) => p.id === holding.portfolio_id)
                   return (
                     <tr
@@ -260,10 +271,19 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                       </td>
                       <td className="px-4 md:px-5 py-3 font-semibold tabular-nums">
                         {hideAmounts ? '••••••' : formatCurrency(value, currency)}
-                        {holding.manual_price != null && holding.manual_price_date && (
+                        {source === 'manual' && holding.manual_price_date && (
                           <p className="text-xs font-normal mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
                             manual · {formatManualPriceAge(holding.manual_price_date)}
                           </p>
+                        )}
+                      </td>
+                      <td className="hidden sm:table-cell px-4 md:px-5 py-3 text-right tabular-nums text-sm">
+                        {!hideAmounts && changePct !== null ? (
+                          <span className="font-medium" style={{ color: changePct >= 0 ? '#22c55e' : '#ef4444' }}>
+                            {formatPercent(changePct)}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--color-muted-foreground)' }}>—</span>
                         )}
                       </td>
                       <td className="px-2 md:px-3 py-3">

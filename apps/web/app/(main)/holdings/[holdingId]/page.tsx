@@ -6,6 +6,7 @@ import { formatCurrency } from '@networth/utils'
 import { HoldingTransactionSection } from '@/components/portfolio/holding-transaction-section'
 import { HoldingScheduledEventsSection } from '@/components/portfolio/holding-scheduled-events-section'
 import { HoldingDetailHeader } from '@/components/portfolio/holding-detail-header'
+import { HoldingMarketStats } from '@/components/portfolio/holding-market-stats'
 
 interface Props {
   params: Promise<{ holdingId: string }>
@@ -45,8 +46,6 @@ export default async function HoldingDetailPage({ params }: Props) {
 
   if (!holding) notFound()
 
-  const totalValue = Number(holding.quantity) * Number(holding.average_cost_basis)
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
@@ -61,24 +60,28 @@ export default async function HoldingDetailPage({ params }: Props) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Quantity', value: Number(holding.quantity).toLocaleString('en-US', { maximumFractionDigits: 6 }) },
-          { label: 'Avg Cost', value: formatCurrency(Number(holding.average_cost_basis), holding.currency) },
-          { label: 'Total Cost', value: formatCurrency(totalValue, holding.currency) },
-          { label: 'Currency', value: holding.currency },
-        ].map(({ label, value }) => (
-          <div
-            key={label}
-            className="p-4 rounded-xl"
-            style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-          >
-            <p className="text-xs mb-1" style={{ color: 'var(--color-muted-foreground)' }}>
-              {label}
-            </p>
-            <p className="font-semibold">{value}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {/* Static stats */}
+        <div
+          className="p-4 rounded-xl"
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
+        >
+          <p className="text-xs mb-1" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</p>
+          <p className="font-semibold">
+            {Number(holding.quantity).toLocaleString('en-US', { maximumFractionDigits: 6 })}
+          </p>
+        </div>
+        <div
+          className="p-4 rounded-xl"
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
+        >
+          <p className="text-xs mb-1" style={{ color: 'var(--color-muted-foreground)' }}>Avg Buy Price</p>
+          <p className="font-semibold">
+            {formatCurrency(Number(holding.average_cost_basis), holding.currency)}
+          </p>
+        </div>
+        {/* Dynamic market stats (client component) */}
+        <HoldingMarketStats holding={holding} />
       </div>
 
       <HoldingScheduledEventsSection
