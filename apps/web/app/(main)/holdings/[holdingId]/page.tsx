@@ -2,9 +2,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { formatCurrency, ASSET_TYPE_LABELS } from '@networth/utils'
+import { formatCurrency } from '@networth/utils'
 import { HoldingTransactionSection } from '@/components/portfolio/holding-transaction-section'
 import { HoldingScheduledEventsSection } from '@/components/portfolio/holding-scheduled-events-section'
+import { HoldingDetailHeader } from '@/components/portfolio/holding-detail-header'
 
 interface Props {
   params: Promise<{ holdingId: string }>
@@ -17,7 +18,7 @@ export default async function HoldingDetailPage({ params }: Props) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: holding }, { data: transactions }, { data: scheduledEvents }] = await Promise.all([
+  const [{ data: holding }, { data: transactions }, { data: scheduledEvents }, { data: portfolios }] = await Promise.all([
     supabase
       .from('holdings')
       .select('*')
@@ -36,6 +37,10 @@ export default async function HoldingDetailPage({ params }: Props) {
       .eq('holding_id', holdingId)
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('portfolios')
+      .select('*')
+      .eq('user_id', user!.id),
   ])
 
   if (!holding) notFound()
@@ -52,18 +57,7 @@ export default async function HoldingDetailPage({ params }: Props) {
         >
           <ChevronLeft size={14} /> Holdings
         </Link>
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold tracking-tight">{holding.symbol ?? holding.asset_name}</h1>
-          <span
-            className="px-2 py-0.5 rounded text-xs font-medium"
-            style={{ background: 'var(--color-muted)', color: 'var(--color-muted-foreground)' }}
-          >
-            {ASSET_TYPE_LABELS[holding.asset_type] ?? holding.asset_type}
-          </span>
-        </div>
-        <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-          {holding.asset_name}
-        </p>
+        <HoldingDetailHeader holding={holding} portfolios={portfolios ?? []} />
       </div>
 
       {/* Stats */}
