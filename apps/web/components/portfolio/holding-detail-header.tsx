@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Pencil, Trash2 } from 'lucide-react'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
+import { createClient } from '@/lib/supabase/client'
 import type { Holding, Portfolio } from '@networth/types'
 import { EditHoldingDialog } from './edit-holding-dialog'
 
@@ -12,7 +14,15 @@ interface Props {
 }
 
 export function HoldingDetailHeader({ holding, portfolios }: Props) {
+  const router = useRouter()
   const [showEdit, setShowEdit] = useState(false)
+
+  async function handleDelete() {
+    if (!confirm(`Delete "${holding.asset_name}"? This will also delete all its transactions.`)) return
+    const supabase = createClient()
+    const { error } = await supabase.from('holdings').delete().eq('id', holding.id)
+    if (!error) router.push('/holdings')
+  }
 
   return (
     <>
@@ -31,13 +41,22 @@ export function HoldingDetailHeader({ holding, portfolios }: Props) {
             {holding.asset_name}
           </p>
         </div>
-        <button
-          onClick={() => setShowEdit(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium mt-1"
-          style={{ background: 'var(--color-muted)', color: 'var(--color-foreground)' }}
-        >
-          <Pencil size={12} /> Edit
-        </button>
+        <div className="flex items-center gap-2 mt-1">
+          <button
+            onClick={() => setShowEdit(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: 'var(--color-muted)', color: 'var(--color-foreground)' }}
+          >
+            <Pencil size={12} /> Edit
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+          >
+            <Trash2 size={12} /> Delete
+          </button>
+        </div>
       </div>
 
       {showEdit && (

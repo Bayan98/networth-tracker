@@ -15,14 +15,15 @@ const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transp
 interface Props {
   portfolios: Portfolio[]
   userId: string
+  defaultPortfolioId?: string | null
   onClose: () => void
 }
 
-export function AddHoldingDialog({ portfolios, userId, onClose }: Props) {
+export function AddHoldingDialog({ portfolios, userId, defaultPortfolioId, onClose }: Props) {
   const router = useRouter()
   const { lookup, cancel, loading: lookupLoading } = useSymbolLookup()
 
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null)
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(defaultPortfolioId ?? null)
   const [assetType, setAssetType] = useState<AssetType | ''>('')
   const [symbol, setSymbol] = useState('')
   const [assetName, setAssetName] = useState('')
