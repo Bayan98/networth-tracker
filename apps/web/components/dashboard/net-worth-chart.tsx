@@ -13,6 +13,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatCompact } from '@networth/utils'
 import type { CurrencyCode } from '@networth/types'
+import { CHART_TOOLTIP_STYLE } from '@/components/ui/area-chart'
 
 interface ChartPoint {
   date: string
@@ -28,12 +29,10 @@ function buildMonthlyPoints(
 ): ChartPoint[] {
   if (transactions.length === 0) return []
 
-  // Sort oldest first
   const sorted = [...transactions].sort(
     (a, b) => new Date(a.executed_at).getTime() - new Date(b.executed_at).getTime(),
   )
 
-  // Accumulate cumulative invested amount by month
   const monthly = new Map<string, number>()
   let running = 0
 
@@ -49,6 +48,12 @@ function buildMonthlyPoints(
     }
 
     monthly.set(label, running)
+  }
+
+  const now = new Date()
+  const currentLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  if (!monthly.has(currentLabel) && running > 0) {
+    monthly.set(currentLabel, running)
   }
 
   return Array.from(monthly.entries()).map(([date, value]) => ({ date, value }))
@@ -138,12 +143,7 @@ export function NetWorthChart({ currency }: Props) {
                 width={64}
               />
               <Tooltip
-                contentStyle={{
-                  background: 'var(--color-card)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '8px',
-                  fontSize: 12,
-                }}
+                contentStyle={CHART_TOOLTIP_STYLE}
                 labelFormatter={formatXAxis}
                 formatter={(value: number) => [formatCurrency(value, currency), 'Invested']}
               />

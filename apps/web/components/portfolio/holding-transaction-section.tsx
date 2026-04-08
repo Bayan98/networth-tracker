@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@networth/utils'
 import type { Transaction, CurrencyCode } from '@networth/types'
 import { createClient } from '@/lib/supabase/client'
+import { recomputeAndSaveAvgCost } from '@/lib/recompute-holding-avg-cost'
 import { AddTransactionDialog } from '@/components/transactions/add-transaction-dialog'
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
 
@@ -33,7 +34,10 @@ export function HoldingTransactionSection({ transactions, holdingId, currency, u
   async function handleDelete(id: string) {
     const supabase = createClient()
     const { error } = await supabase.from('transactions').delete().eq('id', id)
-    if (!error) router.refresh()
+    if (!error) {
+      await recomputeAndSaveAvgCost(holdingId, currency, supabase)
+      router.refresh()
+    }
   }
 
   return (
@@ -63,80 +67,93 @@ export function HoldingTransactionSection({ transactions, holdingId, currency, u
         </div>
       ) : (
         <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Date</th>
-              <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Type</th>
-              <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</th>
-              <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Price</th>
-              <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Total</th>
-              <th className="px-2 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((tx) => (
-              <tr
-                key={tx.id}
-                className="group hover:bg-white/5"
-                style={{ borderBottom: '1px solid var(--color-border)' }}
-              >
-                <td className="px-4 md:px-5 py-3 text-xs md:text-sm">
-                  {new Date(tx.executed_at).toLocaleDateString()}
-                </td>
-                <td className="px-4 md:px-5 py-3">
-                  <span
-                    className="capitalize font-medium"
-                    style={{ color: TX_TYPE_COLORS[tx.transaction_type] ?? 'inherit' }}
-                  >
-                    {tx.transaction_type.replace('_', ' ')}
-                  </span>
-                </td>
-                <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">{Number(tx.quantity).toFixed(4)}</td>
-                <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">
-                  {formatCurrency(Number(tx.price), tx.currency)}
-                </td>
-                <td className="px-4 md:px-5 py-3 font-medium tabular-nums">
-                  {formatCurrency(Number(tx.quantity) * Number(tx.price), tx.currency)}
-                </td>
-                <td className="px-2 md:px-3 py-3">
-                  <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => setEditingTx(tx)}
-                      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                      style={{ color: 'var(--color-muted-foreground)' }}
-                      title="Edit"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(tx.id)}
-                      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                      style={{ color: '#ef4444' }}
-                      title="Delete"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </td>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Date</th>
+                <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Type</th>
+                <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</th>
+                <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Price</th>
+                <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Total</th>
+                <th className="px-2 py-3" />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {transactions.map((tx) => {
+                const isCrossRate = tx.currency.toUpperCase() !== currency.toUpperCase()
+                const total = Number(tx.quantity) * Number(tx.price)
+
+                return (
+                  <tr
+                    key={tx.id}
+                    className="group hover:bg-white/5"
+                    style={{ borderBottom: '1px solid var(--color-border)' }}
+                  >
+                    <td className="px-4 md:px-5 py-3 text-xs md:text-sm">
+                      {new Date(tx.executed_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 md:px-5 py-3">
+                      <span
+                        className="capitalize font-medium"
+                        style={{ color: TX_TYPE_COLORS[tx.transaction_type] ?? 'inherit' }}
+                      >
+                        {tx.transaction_type.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">
+                      {Number(tx.quantity).toFixed(4)}
+                    </td>
+                    <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">
+                      {formatCurrency(Number(tx.price), tx.currency)}
+                      {isCrossRate && (
+                        <span className="ml-1.5 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                          ({tx.currency})
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 md:px-5 py-3 font-medium tabular-nums">
+                      {formatCurrency(total, tx.currency)}
+                    </td>
+                    <td className="px-2 md:px-3 py-3">
+                      <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setEditingTx(tx)}
+                          className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                          style={{ color: 'var(--color-muted-foreground)' }}
+                          title="Edit"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(tx.id)}
+                          className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                          style={{ color: '#ef4444' }}
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {showAdd && (
         <AddTransactionDialog
           userId={userId}
           holdingId={holdingId}
-          defaultCurrency={currency}
+          holdingCurrency={currency}
           onClose={() => setShowAdd(false)}
         />
       )}
       {editingTx && (
         <EditTransactionDialog
           transaction={editingTx}
+          holdingCurrency={currency}
           onClose={() => setEditingTx(null)}
         />
       )}

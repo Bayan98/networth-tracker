@@ -2,6 +2,8 @@
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { usePrices } from '@/lib/hooks/use-prices'
+import { useTodayFx } from '@/lib/hooks/use-today-fx'
+import { useAppStore } from '@/lib/store'
 import { ASSET_TYPE_LABELS, resolveHoldingPrice } from '@networth/utils'
 import type { Holding, CurrencyCode } from '@networth/types'
 
@@ -23,10 +25,24 @@ interface Props {
 }
 
 export function AllocationChart({ holdings, currency }: Props) {
+  const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const priceItems = holdings
     .filter((h) => h.symbol)
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices } = usePrices(priceItems)
+  const { fx, loading: fxLoading } = useTodayFx(holdings, selectedCurrency)
+
+  if (fxLoading) {
+    return (
+      <div
+        className="rounded-xl p-5 h-64 flex flex-col"
+        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
+      >
+        <h2 className="text-sm font-semibold mb-4">Allocation</h2>
+        <div className="flex-1 rounded-lg animate-pulse" style={{ background: 'var(--color-muted)' }} />
+      </div>
+    )
+  }
 
   if (holdings.length === 0) {
     return (
@@ -45,11 +61,11 @@ export function AllocationChart({ holdings, currency }: Props) {
     )
   }
 
-  // Group by asset type
   const byType = new Map<string, number>()
   for (const h of holdings) {
-    const { price } = resolveHoldingPrice(h, prices)
-    const value = Number(h.quantity) * price
+    const { price, source } = resolveHoldingPrice(h, prices)
+    const priceCcy = source === 'live' ? 'USD' : h.currency
+    const value = Number(h.quantity) * price * fx(priceCcy)
     byType.set(h.asset_type, (byType.get(h.asset_type) ?? 0) + value)
   }
 

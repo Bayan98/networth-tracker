@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { formatCurrency } from '@networth/utils'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { useAppStore } from '@/lib/store'
+import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import type { Holding, CurrencyCode } from '@networth/types'
 
 interface HoldingsListProps {
@@ -25,6 +26,8 @@ const ASSET_TYPE_COLORS: Record<string, string> = {
 
 export function HoldingsList({ holdings, currency }: HoldingsListProps) {
   const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const selectedCurrency = useAppStore((s) => s.selectedCurrency)
+  const { fx, loading: fxLoading } = useTodayFx(holdings, selectedCurrency)
 
   if (holdings.length === 0) {
     return (
@@ -73,7 +76,6 @@ export function HoldingsList({ holdings, currency }: HoldingsListProps) {
             href={`/holdings/${holding.id}`}
             className="flex items-center gap-4 px-5 py-3 hover:bg-white/5 transition-colors"
           >
-            {/* Asset type badge */}
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
               style={{ background: ASSET_TYPE_COLORS[holding.asset_type] + '22', color: ASSET_TYPE_COLORS[holding.asset_type] }}
@@ -90,7 +92,7 @@ export function HoldingsList({ holdings, currency }: HoldingsListProps) {
 
             <div className="text-right shrink-0">
               <p className="text-sm font-medium">
-                {hideAmounts ? '••••••' : formatCurrency(Number(holding.quantity) * Number(holding.average_cost_basis), currency)}
+                {hideAmounts ? '••••••' : fxLoading ? '—' : formatCurrency(Number(holding.quantity) * Number(holding.average_cost_basis) * fx(holding.currency), selectedCurrency)}
               </p>
               <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                 {Number(holding.quantity).toFixed(4)} units

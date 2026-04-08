@@ -9,8 +9,8 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const CRYPTO_TTL_SECONDS = 60;
-const STOCK_TTL_SECONDS = 60;
+const CRYPTO_TTL_SECONDS = 10800;
+const STOCK_TTL_SECONDS = 10800;
 const FX_TTL_SECONDS = 3600;
 
 interface RequestItem {
@@ -54,7 +54,6 @@ Deno.serve(async (req: Request) => {
     const prices: Record<string, number | null> = {};
     const now = Date.now();
 
-    // Load all cached prices for requested symbols
     const cacheKeys = items.map((i) => `price:${i.symbol.toUpperCase()}`);
     const { data: cached } = await supabase
       .from("api_cache")
@@ -69,7 +68,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Determine what needs a fresh fetch
     const needCgIds: string[] = [];
     const cgIdToSymbol: Record<string, string> = {};
     const needStocks: string[] = [];
@@ -94,7 +92,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Fetch crypto prices from CoinGecko (free tier, no key needed)
     if (needCgIds.length > 0) {
       try {
         const url =
@@ -130,7 +127,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Fetch stock/ETF prices from Finnhub
     const finnhubToken = Deno.env.get("FINNHUB_API_KEY");
     if (needStocks.length > 0 && finnhubToken) {
       await Promise.all(

@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { TRANSACTION_TYPE_LABELS } from '@networth/utils'
+import { recomputeAndSaveAvgCost } from '@/lib/recompute-holding-avg-cost'
+import { useTxFxRate } from '@/lib/hooks/use-tx-fx-rate'
+import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { TransactionType, CurrencyCode } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { Dialog, DialogFooter, inputStyle } from '@/components/ui/dialog'
@@ -11,22 +13,25 @@ import { Dialog, DialogFooter, inputStyle } from '@/components/ui/dialog'
 interface Props {
   userId: string
   holdingId?: string
-  defaultCurrency?: CurrencyCode
+  holdingCurrency?: CurrencyCode
   onClose: () => void
 }
 
 const TX_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'split']
 
-export function AddTransactionDialog({ userId, holdingId, defaultCurrency, onClose }: Props) {
+export function AddTransactionDialog({ userId, holdingId, holdingCurrency, onClose }: Props) {
   const router = useRouter()
   const [txType, setTxType] = useState<TransactionType>('buy')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
-  const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency ?? 'USD')
+  const [currency, setCurrency] = useState<CurrencyCode>(holdingCurrency ?? 'USD')
   const [executedAt, setExecutedAt] = useState(new Date().toISOString().slice(0, 16))
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const needsFx = !!holdingId && !!holdingCurrency && currency.toUpperCase() !== holdingCurrency.toUpperCase()
+  const { rate: fxRate, loading: fxLoading } = useTxFxRate(currency, holdingCurrency, executedAt.slice(0, 10))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -46,9 +51,15 @@ export function AddTransactionDialog({ userId, holdingId, defaultCurrency, onClo
     })
 
     if (error) { setError(error.message); setLoading(false); return }
+    if (holdingId && holdingCurrency) {
+      await recomputeAndSaveAvgCost(holdingId, holdingCurrency, supabase)
+    }
     router.refresh()
     onClose()
   }
+
+  const priceNum = parseFloat(price)
+  const convertedPrice = needsFx && !isNaN(priceNum) ? priceNum * fxRate : null
 
   return (
     <Dialog title="Add Transaction" onClose={onClose}>
@@ -67,6 +78,13 @@ export function AddTransactionDialog({ userId, holdingId, defaultCurrency, onClo
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Price / unit</label>
             <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="150.00" min="0" step="any" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+            {convertedPrice != null && (
+              <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                {fxLoading
+                  ? 'Fetching rate…'
+                  : `≈ ${formatCurrency(convertedPrice, holdingCurrency!)} in ${holdingCurrency}`}
+              </p>
+            )}
           </div>
         </div>
         <div className="space-y-1.5">

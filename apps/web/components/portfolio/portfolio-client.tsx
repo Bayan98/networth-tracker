@@ -1,19 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Trash2, ChevronDown, Pencil, ArrowUpDown } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, formatPercent, ASSET_TYPE_LABELS, resolveHoldingPrice } from '@networth/utils'
+import { formatCurrency, formatPercent, ASSET_TYPE_LABELS, resolveHoldingPrice, PRICEABLE_TYPES } from '@networth/utils'
 import type { Portfolio, Holding, CurrencyCode, AssetType } from '@networth/types'
 import { createClient } from '@/lib/supabase/client'
 import { usePrices } from '@/lib/hooks/use-prices'
+import { usePortfolioHistory } from '@/lib/hooks/use-portfolio-history'
+import { HoldingsChart } from './holdings-chart'
 import { AddPortfolioDialog } from './add-portfolio-dialog'
 import { EditPortfolioDialog } from './edit-portfolio-dialog'
 import { AddHoldingDialog } from './add-holding-dialog'
-
-const PRICEABLE_TYPES = new Set(['stock', 'etf', 'bond', 'mutual_fund', 'commodity', 'crypto'])
+import type { Period } from '@/components/ui/area-chart'
 
 type SortKey = 'value-desc' | 'value-asc' | 'alpha' | 'abs-gain' | 'abs-loss' | 'rel-gain' | 'rel-loss'
 
@@ -37,6 +38,18 @@ interface Props {
 export function PortfolioClient({ portfolios, holdings, currency, userId }: Props) {
   const router = useRouter()
   const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const selectedCurrency = useAppStore((s) => s.selectedCurrency)
+  const setSelectedCurrency = useAppStore((s) => s.setSelectedCurrency)
+
+  const currencyInitRef = useRef(false)
+  useEffect(() => {
+    if (!currencyInitRef.current) {
+      currencyInitRef.current = true
+      if (selectedCurrency === 'USD' && currency !== 'USD') {
+        setSelectedCurrency(currency)
+      }
+    }
+  }, [])
 
   const priceItems = holdings
     .filter((h) => h.symbol && PRICEABLE_TYPES.has(h.asset_type))
@@ -48,6 +61,7 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
   const [portfolioOpen, setPortfolioOpen] = useState(false)
   const [sortOpen, setSortOpen] = useState(false)
   const [sortBy, setSortBy] = useState<SortKey>('value-desc')
+  const [period, setPeriod] = useState<Period>('1y')
   const [showAddPortfolio, setShowAddPortfolio] = useState(false)
   const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null)
   const [showAddHolding, setShowAddHolding] = useState(false)
@@ -74,19 +88,37 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
 
   const selectedPortfolio = portfolios.find((p) => p.id === selectedPortfolioId)
 
-  // Enrich all visible holdings with computed values (needed for both sorting and rendering)
+  const { series, startPrices, avgCostPerHolding, loading: histLoading, todayFx, startFx } = usePortfolioHistory(visible, period, selectedCurrency)
+
   const enriched = visible.map((h) => {
-    const { price, source } = resolveHoldingPrice(h, prices)
+    const { price: rawPrice, source } = resolveHoldingPrice(h, prices)
     const qty = Number(h.quantity)
-    const avgCost = Number(h.average_cost_basis)
-    const value = qty * price
-    const costBasis = qty * avgCost
-    const changeAbs = source !== 'cost_basis' && costBasis > 0 ? value - costBasis : null
-    const changePct = changeAbs !== null && costBasis > 0 ? (changeAbs / costBasis) * 100 : null
+    const avgCost = avgCostPerHolding[h.id] ?? Number(h.average_cost_basis)
+
+    const priceCcy = source === 'live' ? 'USD' : h.currency
+    const fxPrice = todayFx(priceCcy)
+    const fxHolding = todayFx(h.currency)
+
+    const price = source === 'cost_basis' ? avgCost : rawPrice
+
+    const value = qty * price * fxPrice
+    const costBasis = qty * avgCost * fxHolding
+
+    const startPrice = h.symbol && source !== 'cost_basis' ? startPrices[h.symbol] : undefined
+    const currentUnitValue = price * fxPrice
+    const startUnitValue = startPrice !== undefined
+      ? startPrice * startFx('USD')
+      : undefined
+    const changeAbs = startUnitValue !== undefined
+      ? qty * (currentUnitValue - startUnitValue)
+      : (source !== 'cost_basis' && costBasis > 0 ? value - costBasis : null)
+    const changePct = startUnitValue !== undefined && startUnitValue > 0
+      ? (currentUnitValue - startUnitValue) / startUnitValue * 100
+      : (changeAbs !== null && costBasis > 0 ? changeAbs / costBasis * 100 : null)
+
     return { h, price, source, qty, avgCost, value, costBasis, changeAbs, changePct }
   })
 
-  // Sort
   const sorted = [...enriched].sort((a, b) => {
     switch (sortBy) {
       case 'alpha':      return a.h.asset_name.localeCompare(b.h.asset_name)
@@ -135,10 +167,8 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
 
   return (
     <div className="space-y-4">
-      {/* ── Filters row ───────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2">
 
-        {/* Category chips — full width on mobile (top row), inline on desktop */}
         {allTypes.length > 1 && (
           <div className="order-first sm:order-2 w-full sm:w-auto flex items-center gap-2 flex-wrap">
             {allTypes.map((t) => {
@@ -163,7 +193,6 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
           </div>
         )}
 
-        {/* Portfolio dropdown */}
         <div className="relative order-2 sm:order-1">
           <button
             type="button"
@@ -216,7 +245,6 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
           )}
         </div>
 
-        {/* Add holding */}
         <div className="ml-auto order-last">
           <button
             onClick={() => setShowAddHolding(true)}
@@ -228,23 +256,27 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
         </div>
       </div>
 
-      {/* ── Holdings table ────────────────────────────────────────────── */}
+      <HoldingsChart
+        series={series}
+        currency={selectedCurrency}
+        loading={histLoading}
+        period={period}
+        onPeriodChange={setPeriod}
+      />
+
       <div
         className="rounded-xl overflow-hidden"
         style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
       >
-        {/* Table header row */}
         <div
           className="flex items-center justify-between px-5 py-3 border-b gap-3"
           style={{ borderColor: 'var(--color-border)', background: 'var(--color-muted)' }}
         >
-          {/* Left: count + sort */}
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xs font-semibold uppercase tracking-wider shrink-0" style={{ color: 'var(--color-muted-foreground)' }}>
               {visible.length} holding{visible.length !== 1 ? 's' : ''}
             </span>
 
-            {/* Sort dropdown */}
             {visible.length > 1 && (
               <div className="relative">
                 <button
@@ -286,15 +318,14 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
             )}
           </div>
 
-          {/* Right: total value + change */}
           {visible.length > 0 && (
             <div className="text-right shrink-0">
               <p className="text-sm font-semibold">
-                {hideAmounts ? '••••••' : formatCurrency(totalValue, currency)}
+                {hideAmounts ? '••••••' : histLoading ? '—' : formatCurrency(totalValue, selectedCurrency)}
               </p>
-              {!hideAmounts && totalChangePct !== null && (
+              {!hideAmounts && !histLoading && totalChangePct !== null && (
                 <p className="text-xs tabular-nums" style={{ color: totalChangeAbs >= 0 ? '#22c55e' : '#ef4444' }}>
-                  {totalChangeAbs >= 0 ? '+' : ''}{formatCurrency(totalChangeAbs, currency)}
+                  {totalChangeAbs >= 0 ? '+' : ''}{formatCurrency(totalChangeAbs, selectedCurrency)}
                   <span className="mx-1 opacity-50">·</span>
                   {formatPercent(totalChangePct)}
                 </p>
@@ -325,7 +356,6 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                       className="group transition-colors hover:bg-white/[0.03]"
                       style={{ borderBottom: '1px solid var(--color-border)' }}
                     >
-                      {/* Asset info */}
                       <td className="px-4 md:px-5 py-3.5 w-full">
                         <Link href={`/holdings/${holding.id}`} className="block">
                           <p className="font-semibold text-sm leading-snug flex items-baseline gap-0">
@@ -342,7 +372,7 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                           )}
                           {!hideAmounts && (
                             <p className="text-xs mt-1 tabular-nums" style={{ color: 'var(--color-muted-foreground)' }}>
-                              {qty !== 1
+                              {histLoading ? '…' : qty !== 1
                                 ? <>{qty.toLocaleString('en-US', { maximumFractionDigits: 6 })}<span className="mx-1 opacity-40">·</span>{formatCurrency(avgCost, holding.currency)}</>
                                 : formatCurrency(avgCost, holding.currency)
                               }
@@ -351,14 +381,13 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                         </Link>
                       </td>
 
-                      {/* Market value + change */}
                       <td className="px-4 md:px-5 py-3.5 text-right whitespace-nowrap">
                         <p className="font-semibold text-sm tabular-nums">
-                          {hideAmounts ? '••••••' : formatCurrency(value, currency)}
+                          {hideAmounts ? '••••••' : histLoading ? '—' : formatCurrency(value, selectedCurrency)}
                         </p>
-                        {!hideAmounts && changeAbs !== null && changePct !== null ? (
+                        {!hideAmounts && !histLoading && changeAbs !== null && changePct !== null ? (
                           <p className="text-xs mt-0.5 tabular-nums" style={{ color: changeColor }}>
-                            {isPositive ? '+' : ''}{formatCurrency(changeAbs, currency)}
+                            {isPositive ? '+' : ''}{formatCurrency(changeAbs, selectedCurrency)}
                             <span className="mx-1 opacity-50">·</span>
                             {formatPercent(changePct)}
                           </p>

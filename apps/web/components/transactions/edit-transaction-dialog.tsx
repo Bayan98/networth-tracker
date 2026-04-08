@@ -3,19 +3,22 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { TRANSACTION_TYPE_LABELS } from '@networth/utils'
+import { recomputeAndSaveAvgCost } from '@/lib/recompute-holding-avg-cost'
+import { useTxFxRate } from '@/lib/hooks/use-tx-fx-rate'
+import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { Transaction, TransactionType, CurrencyCode } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { Dialog, DialogFooter, inputStyle } from '@/components/ui/dialog'
 
 interface Props {
   transaction: Transaction
+  holdingCurrency?: string
   onClose: () => void
 }
 
 const TX_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'split']
 
-export function EditTransactionDialog({ transaction, onClose }: Props) {
+export function EditTransactionDialog({ transaction, holdingCurrency, onClose }: Props) {
   const router = useRouter()
   const [txType, setTxType] = useState<TransactionType>(transaction.transaction_type)
   const [quantity, setQuantity] = useState(String(transaction.quantity))
@@ -25,6 +28,9 @@ export function EditTransactionDialog({ transaction, onClose }: Props) {
   const [notes, setNotes] = useState(transaction.notes ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const needsFx = !!holdingCurrency && currency.toUpperCase() !== holdingCurrency.toUpperCase()
+  const { rate: fxRate, loading: fxLoading } = useTxFxRate(currency, holdingCurrency, executedAt.slice(0, 10))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -42,9 +48,15 @@ export function EditTransactionDialog({ transaction, onClose }: Props) {
     }).eq('id', transaction.id)
 
     if (error) { setError(error.message); setLoading(false); return }
+    if (transaction.holding_id && holdingCurrency) {
+      await recomputeAndSaveAvgCost(transaction.holding_id, holdingCurrency, supabase)
+    }
     router.refresh()
     onClose()
   }
+
+  const priceNum = parseFloat(price)
+  const convertedPrice = needsFx && !isNaN(priceNum) ? priceNum * fxRate : null
 
   return (
     <Dialog title="Edit Transaction" onClose={onClose}>
@@ -63,6 +75,13 @@ export function EditTransactionDialog({ transaction, onClose }: Props) {
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Price / unit</label>
             <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} min="0" step="any" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+            {convertedPrice != null && (
+              <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                {fxLoading
+                  ? 'Fetching rate…'
+                  : `≈ ${formatCurrency(convertedPrice, holdingCurrency!)} in ${holdingCurrency}`}
+              </p>
+            )}
           </div>
         </div>
         <div className="space-y-1.5">

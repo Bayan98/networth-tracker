@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { formatCurrency } from '@networth/utils'
 import { HoldingTransactionSection } from '@/components/portfolio/holding-transaction-section'
 import { HoldingScheduledEventsSection } from '@/components/portfolio/holding-scheduled-events-section'
 import { HoldingDetailHeader } from '@/components/portfolio/holding-detail-header'
@@ -61,7 +60,7 @@ export default async function HoldingDetailPage({ params }: Props) {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {/* Static stats */}
+        {/* Quantity — static, no FX needed */}
         <div
           className="p-4 rounded-xl"
           style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
@@ -71,17 +70,8 @@ export default async function HoldingDetailPage({ params }: Props) {
             {Number(holding.quantity).toLocaleString('en-US', { maximumFractionDigits: 6 })}
           </p>
         </div>
-        <div
-          className="p-4 rounded-xl"
-          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-        >
-          <p className="text-xs mb-1" style={{ color: 'var(--color-muted-foreground)' }}>Avg Buy Price</p>
-          <p className="font-semibold">
-            {formatCurrency(Number(holding.average_cost_basis), holding.currency)}
-          </p>
-        </div>
-        {/* Dynamic market stats (client component) */}
-        <HoldingMarketStats holding={holding} />
+        {/* Avg Buy Price + market stats — client component, FX-adjusted from transactions */}
+        <HoldingMarketStats holding={holding} transactions={transactions ?? []} />
       </div>
 
       <HoldingScheduledEventsSection
