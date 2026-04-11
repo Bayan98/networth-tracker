@@ -11,7 +11,6 @@ const CORS_HEADERS = {
 
 const CRYPTO_TTL_SECONDS = 10800;
 const STOCK_TTL_SECONDS = 10800;
-const FX_TTL_SECONDS = 3600;
 
 interface RequestItem {
   symbol: string;

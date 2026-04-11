@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { recomputeAndSaveAvgCost } from '@/lib/recompute-holding-avg-cost'
+import { recomputeAndSaveAvgCost } from '@/lib/recompute-asset-avg-cost'
 import { useTxFxRate } from '@/lib/hooks/use-tx-fx-rate'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { Transaction, TransactionType, CurrencyCode } from '@networth/types'
@@ -12,13 +12,13 @@ import { Dialog, DialogFooter, inputStyle } from '@/components/ui/dialog'
 
 interface Props {
   transaction: Transaction
-  holdingCurrency?: string
+  assetCurrency?: string
   onClose: () => void
 }
 
 const TX_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'split']
 
-export function EditTransactionDialog({ transaction, holdingCurrency, onClose }: Props) {
+export function EditTransactionDialog({ transaction, assetCurrency, onClose }: Props) {
   const router = useRouter()
   const [txType, setTxType] = useState<TransactionType>(transaction.transaction_type)
   const [quantity, setQuantity] = useState(String(transaction.quantity))
@@ -29,8 +29,8 @@ export function EditTransactionDialog({ transaction, holdingCurrency, onClose }:
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const needsFx = !!holdingCurrency && currency.toUpperCase() !== holdingCurrency.toUpperCase()
-  const { rate: fxRate, loading: fxLoading } = useTxFxRate(currency, holdingCurrency, executedAt.slice(0, 10))
+  const needsFx = !!assetCurrency && currency.toUpperCase() !== assetCurrency.toUpperCase()
+  const { rate: fxRate, loading: fxLoading } = useTxFxRate(currency, assetCurrency, executedAt.slice(0, 10))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -48,8 +48,8 @@ export function EditTransactionDialog({ transaction, holdingCurrency, onClose }:
     }).eq('id', transaction.id)
 
     if (error) { setError(error.message); setLoading(false); return }
-    if (transaction.holding_id && holdingCurrency) {
-      await recomputeAndSaveAvgCost(transaction.holding_id, holdingCurrency, supabase)
+    if (transaction.asset_id && assetCurrency) {
+      await recomputeAndSaveAvgCost(transaction.asset_id, assetCurrency, supabase)
     }
     router.refresh()
     onClose()
@@ -79,7 +79,7 @@ export function EditTransactionDialog({ transaction, holdingCurrency, onClose }:
               <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                 {fxLoading
                   ? 'Fetching rate…'
-                  : `≈ ${formatCurrency(convertedPrice, holdingCurrency!)} in ${holdingCurrency}`}
+                  : `≈ ${formatCurrency(convertedPrice, assetCurrency!)} in ${assetCurrency}`}
               </p>
             )}
           </div>

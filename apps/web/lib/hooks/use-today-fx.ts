@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { FxRates } from '@networth/utils'
 
 export function useTodayFx(
-  holdings: Array<{ currency: string }>,
+  assets: Array<{ currency: string }>,
   displayCurrency: string,
 ): { fx: (from: string) => number; loading: boolean } {
   const [rates, setRates] = useState<FxRates>({})
@@ -14,11 +14,11 @@ export function useTodayFx(
   const currenciesKey = useMemo(() => {
     const set = new Set<string>([
       'USD',
-      ...holdings.map((h) => h.currency.toUpperCase()),
+      ...assets.map((h) => h.currency.toUpperCase()),
     ])
     return [...set].sort().join(',')
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holdings.map((h) => h.currency).join(',')])
+  }, [assets.map((h) => h.currency).join(',')])
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)

@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Trash2, ChevronDown, Pencil, ArrowUpDown } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, formatPercent, ASSET_TYPE_LABELS, resolveHoldingPrice, PRICEABLE_TYPES } from '@networth/utils'
-import type { Portfolio, Holding, CurrencyCode, AssetType } from '@networth/types'
+import { formatCurrency, formatPercent, ASSET_TYPE_LABELS, resolveAssetPrice, PRICEABLE_TYPES } from '@networth/utils'
+import type { Portfolio, Asset, CurrencyCode, AssetType } from '@networth/types'
 import { createClient } from '@/lib/supabase/client'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { usePortfolioHistory } from '@/lib/hooks/use-portfolio-history'
-import { HoldingsChart } from './holdings-chart'
+import { AssetsChart } from './assets-chart'
 import { AddPortfolioDialog } from './add-portfolio-dialog'
 import { EditPortfolioDialog } from './edit-portfolio-dialog'
-import { AddHoldingDialog } from './add-holding-dialog'
+import { AddAssetDialog } from './add-asset-dialog'
 import type { Period } from '@/components/ui/area-chart'
 
 type SortKey = 'value-desc' | 'value-asc' | 'alpha' | 'abs-gain' | 'abs-loss' | 'rel-gain' | 'rel-loss'
@@ -30,12 +30,12 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 interface Props {
   portfolios: Portfolio[]
-  holdings: Holding[]
+  assets: Asset[]
   currency: CurrencyCode
   userId: string
 }
 
-export function PortfolioClient({ portfolios, holdings, currency, userId }: Props) {
+export function PortfolioClient({ portfolios, assets, currency, userId }: Props) {
   const router = useRouter()
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
@@ -51,7 +51,7 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
     }
   }, [])
 
-  const priceItems = holdings
+  const priceItems = assets
     .filter((h) => h.symbol && PRICEABLE_TYPES.has(h.asset_type))
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices } = usePrices(priceItems)
@@ -64,7 +64,7 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
   const [period, setPeriod] = useState<Period>('1y')
   const [showAddPortfolio, setShowAddPortfolio] = useState(false)
   const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null)
-  const [showAddHolding, setShowAddHolding] = useState(false)
+  const [showAddAsset, setShowAddAsset] = useState(false)
 
   async function handleDeletePortfolio(id: string) {
     const supabase = createClient()
@@ -76,8 +76,8 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
   }
 
   const byPortfolio = selectedPortfolioId
-    ? holdings.filter((h) => h.portfolio_id === selectedPortfolioId)
-    : holdings
+    ? assets.filter((h) => h.portfolio_id === selectedPortfolioId)
+    : assets
 
   const visible =
     selectedTypes.size > 0
@@ -88,21 +88,21 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
 
   const selectedPortfolio = portfolios.find((p) => p.id === selectedPortfolioId)
 
-  const { series, startPrices, avgCostPerHolding, loading: histLoading, todayFx, startFx } = usePortfolioHistory(visible, period, selectedCurrency)
+  const { series, startPrices, avgCostPerAsset, loading: histLoading, todayFx, startFx } = usePortfolioHistory(visible, period, selectedCurrency)
 
   const enriched = visible.map((h) => {
-    const { price: rawPrice, source } = resolveHoldingPrice(h, prices)
+    const { price: rawPrice, source } = resolveAssetPrice(h, prices)
     const qty = Number(h.quantity)
-    const avgCost = avgCostPerHolding[h.id] ?? Number(h.average_cost_basis)
+    const avgCost = avgCostPerAsset[h.id] ?? Number(h.average_cost_basis)
 
     const priceCcy = source === 'live' ? 'USD' : h.currency
     const fxPrice = todayFx(priceCcy)
-    const fxHolding = todayFx(h.currency)
+    const fxAsset = todayFx(h.currency)
 
     const price = source === 'cost_basis' ? avgCost : rawPrice
 
     const value = qty * price * fxPrice
-    const costBasis = qty * avgCost * fxHolding
+    const costBasis = qty * avgCost * fxAsset
 
     const startPrice = h.symbol && source !== 'cost_basis' ? startPrices[h.symbol] : undefined
     const currentUnitValue = price * fxPrice
@@ -124,30 +124,10 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
       case 'alpha':      return a.h.asset_name.localeCompare(b.h.asset_name)
       case 'value-desc': return b.value - a.value
       case 'value-asc':  return a.value - b.value
-      case 'abs-gain': {
-        if (a.changeAbs === null && b.changeAbs === null) return 0
-        if (a.changeAbs === null) return 1
-        if (b.changeAbs === null) return -1
-        return b.changeAbs - a.changeAbs
-      }
-      case 'abs-loss': {
-        if (a.changeAbs === null && b.changeAbs === null) return 0
-        if (a.changeAbs === null) return 1
-        if (b.changeAbs === null) return -1
-        return a.changeAbs - b.changeAbs
-      }
-      case 'rel-gain': {
-        if (a.changePct === null && b.changePct === null) return 0
-        if (a.changePct === null) return 1
-        if (b.changePct === null) return -1
-        return b.changePct - a.changePct
-      }
-      case 'rel-loss': {
-        if (a.changePct === null && b.changePct === null) return 0
-        if (a.changePct === null) return 1
-        if (b.changePct === null) return -1
-        return a.changePct - b.changePct
-      }
+      case 'abs-gain':   return (b.changeAbs ?? 0) - (a.changeAbs ?? 0)
+      case 'abs-loss':   return (a.changeAbs ?? 0) - (b.changeAbs ?? 0)
+      case 'rel-gain':   return (b.changePct ?? 0) - (a.changePct ?? 0)
+      case 'rel-loss':   return (a.changePct ?? 0) - (b.changePct ?? 0)
     }
   })
 
@@ -247,16 +227,16 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
 
         <div className="ml-auto order-last">
           <button
-            onClick={() => setShowAddHolding(true)}
+            onClick={() => setShowAddAsset(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium hover:opacity-90 active:opacity-75 transition-opacity"
             style={{ background: 'var(--color-accent)', color: '#fff' }}
           >
-            <Plus size={14} /> Add holding
+            <Plus size={14} /> Add asset
           </button>
         </div>
       </div>
 
-      <HoldingsChart
+      <AssetsChart
         series={series}
         currency={selectedCurrency}
         loading={histLoading}
@@ -274,7 +254,7 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
         >
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xs font-semibold uppercase tracking-wider shrink-0" style={{ color: 'var(--color-muted-foreground)' }}>
-              {visible.length} holding{visible.length !== 1 ? 's' : ''}
+              {visible.length} asset{visible.length !== 1 ? 's' : ''}
             </span>
 
             {visible.length > 1 && (
@@ -289,7 +269,6 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                     border: `1px solid ${sortBy !== 'value-desc' ? 'color-mix(in srgb, var(--color-accent) 30%, transparent)' : 'var(--color-border)'}`,
                   }}
                 >
-                  <ArrowUpDown size={11} />
                   <span>{SORT_LABELS[sortBy]}</span>
                 </button>
 
@@ -337,44 +316,44 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
         {visible.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-              {holdings.length === 0
-                ? 'No holdings yet. Add your first position.'
-                : 'No holdings match the selected filters.'}
+              {assets.length === 0
+                ? 'No assets yet. Add your first position.'
+                : 'No assets match the selected filters.'}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <tbody>
-                {sorted.map(({ h: holding, source, qty, avgCost, value, changeAbs, changePct }) => {
+                {sorted.map(({ h: asset, source, qty, avgCost, value, changeAbs, changePct }) => {
                   const isPositive = changeAbs !== null && changeAbs >= 0
                   const changeColor = isPositive ? '#22c55e' : '#ef4444'
 
                   return (
                     <tr
-                      key={holding.id}
+                      key={asset.id}
                       className="group transition-colors hover:bg-white/[0.03]"
                       style={{ borderBottom: '1px solid var(--color-border)' }}
                     >
                       <td className="px-4 md:px-5 py-3.5 w-full">
-                        <Link href={`/holdings/${holding.id}`} className="block">
+                        <Link href={`/assets/${asset.id}`} className="block">
                           <p className="font-semibold text-sm leading-snug flex items-baseline gap-0">
-                            <span>{holding.asset_name}</span>
+                            <span>{asset.asset_name}</span>
                             <span className="mx-1.5 opacity-30 font-normal">·</span>
                             <span className="text-xs font-normal" style={{ color: 'var(--color-muted-foreground)' }}>
-                              {ASSET_TYPE_LABELS[holding.asset_type] ?? holding.asset_type}
+                              {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
                             </span>
                           </p>
-                          {holding.symbol && (
+                          {asset.symbol && (
                             <p className="text-xs mt-0.5 font-mono tracking-wide" style={{ color: 'var(--color-muted-foreground)' }}>
-                              {holding.symbol}
+                              {asset.symbol}
                             </p>
                           )}
                           {!hideAmounts && (
                             <p className="text-xs mt-1 tabular-nums" style={{ color: 'var(--color-muted-foreground)' }}>
                               {histLoading ? '…' : qty !== 1
-                                ? <>{qty.toLocaleString('en-US', { maximumFractionDigits: 6 })}<span className="mx-1 opacity-40">·</span>{formatCurrency(avgCost, holding.currency)}</>
-                                : formatCurrency(avgCost, holding.currency)
+                                ? <>{qty.toLocaleString('en-US', { maximumFractionDigits: 6 })}<span className="mx-1 opacity-40">·</span>{formatCurrency(avgCost, asset.currency)}</>
+                                : formatCurrency(avgCost, asset.currency)
                               }
                             </p>
                           )}
@@ -391,9 +370,9 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
                             <span className="mx-1 opacity-50">·</span>
                             {formatPercent(changePct)}
                           </p>
-                        ) : source === 'manual' && holding.manual_price_date ? (
+                        ) : source === 'manual' && asset.manual_price_date ? (
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
-                            manual · {formatManualPriceAge(holding.manual_price_date)}
+                            manual · {formatManualPriceAge(asset.manual_price_date)}
                           </p>
                         ) : null}
                       </td>
@@ -413,12 +392,12 @@ export function PortfolioClient({ portfolios, holdings, currency, userId }: Prop
       {editingPortfolio && (
         <EditPortfolioDialog portfolio={editingPortfolio} onClose={() => setEditingPortfolio(null)} />
       )}
-      {showAddHolding && (
-        <AddHoldingDialog
+      {showAddAsset && (
+        <AddAssetDialog
           portfolios={portfolios}
           userId={userId}
           defaultPortfolioId={selectedPortfolioId}
-          onClose={() => setShowAddHolding(false)}
+          onClose={() => setShowAddAsset(false)}
         />
       )}
     </div>

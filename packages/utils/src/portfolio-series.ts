@@ -3,13 +3,13 @@
  * unit-tested without React state or Supabase calls.
  */
 
-import type { Holding } from '@networth/types'
+import type { Asset } from '@networth/types'
 import { nearestPriceForDate } from './fx-utils'
 
 export const PRICEABLE_TYPES = new Set(['stock', 'etf', 'bond', 'mutual_fund', 'commodity', 'crypto'])
 
 export interface RawTransaction {
-  holding_id: string
+  asset_id: string
   quantity: number
   price: number
   transaction_type: string
@@ -33,16 +33,16 @@ export type FxRates = Record<string, number>
  * Compute a portfolio time-series from raw inputs.
  *
  * For each date in `timeAxis` (must be sorted ascending):
- *   - Replays all transactions up to that date to track per-holding quantity and cost basis.
- *     The cost basis is stored in each holding's own currency and converted to `displayCurrency`
+ *   - Replays all transactions up to that date to track per-asset quantity and cost basis.
+ *     The cost basis is stored in each asset's own currency and converted to `displayCurrency`
  *     per data point using the corresponding FX rate from `fxRates`.
  *   - Market value uses `priceHistory` (prices are in USD) when available,
- *     otherwise falls back to `manual_price` / `average_cost_basis` in the holding's currency.
+ *     otherwise falls back to `manual_price` / `average_cost_basis` in the asset's currency.
  *
  * Conversion formula at each date:
- *   costBasis_display  = sum over holdings of: holdingCost_holdingCcy × fx(holdingCcy → display, date)
- *   marketValue_display = sum over holdings of: qty × price_USD × fx(USD → display, date)
- *                         OR: qty × fallback_holdingCcy × fx(holdingCcy → display, date)
+ *   costBasis_display  = sum over assets of: assetCost_assetCcy × fx(assetCcy → display, date)
+ *   marketValue_display = sum over assets of: qty × price_USD × fx(USD → display, date)
+ *                         OR: qty × fallback_assetCcy × fx(assetCcy → display, date)
  *
  * Falls back to rate 1.0 for any missing FX pair (graceful degradation, not an error).
  *
@@ -84,12 +84,12 @@ export function buildTimeAxis(period: '1w' | '1m' | '1y' | '5y'): string[] {
 export function computeSeries(
   timeAxis: string[],
   transactions: RawTransaction[],
-  holdings: Holding[],
+  assets: Asset[],
   priceHistory: PriceHistory,
   fxRates: FxRates,
   displayCurrency: string,
 ): SeriesPoint[] {
-  const holdingCurrencyMap = new Map(holdings.map((h) => [h.id, h.currency]))
+  const assetCurrencyMap = new Map(assets.map((h) => [h.id, h.currency]))
   const display = displayCurrency.toUpperCase()
 
   /**
@@ -103,19 +103,19 @@ export function computeSeries(
     return fxRates[`${f}_${t}_${date}`] ?? 1
   }
 
-  // Date of the first transaction per holding (transactions are sorted ascending).
-  // Used as the interpolation start point for manual-price holdings.
+  // Date of the first transaction per asset (transactions are sorted ascending).
+  // Used as the interpolation start point for manual-price assets.
   const firstTxDate: Record<string, string> = {}
   for (const tx of transactions) {
-    if (!firstTxDate[tx.holding_id]) {
-      firstTxDate[tx.holding_id] = tx.executed_at.slice(0, 10)
+    if (!firstTxDate[tx.asset_id]) {
+      firstTxDate[tx.asset_id] = tx.executed_at.slice(0, 10)
     }
   }
 
-  // Running per-holding state (mutated as we advance through transactions)
-  const holdingQty: Record<string, number> = {}
-  /** Cost of currently-held units, accumulated in the holding's own currency */
-  const holdingCostInHoldingCcy: Record<string, number> = {}
+  // Running per-asset state (mutated as we advance through transactions)
+  const assetQty: Record<string, number> = {}
+  /** Cost of currently-held units, accumulated in the asset's own currency */
+  const assetCostInAssetCcy: Record<string, number> = {}
   let txIdx = 0
 
   const all = timeAxis.map((dateStr) => {
@@ -125,37 +125,37 @@ export function computeSeries(
       transactions[txIdx].executed_at.slice(0, 10) <= dateStr
     ) {
       const tx = transactions[txIdx]
-      const holdingCcy = holdingCurrencyMap.get(tx.holding_id) ?? tx.currency
+      const assetCcy = assetCurrencyMap.get(tx.asset_id) ?? tx.currency
       const qty = Number(tx.quantity)
-      // Convert transaction price into the holding's native currency at the transaction date
-      const priceInHoldingCcy =
-        Number(tx.price) * getFx(tx.currency, holdingCcy, tx.executed_at.slice(0, 10))
+      // Convert transaction price into the asset's native currency at the transaction date
+      const priceInAssetCcy =
+        Number(tx.price) * getFx(tx.currency, assetCcy, tx.executed_at.slice(0, 10))
 
       if (tx.transaction_type === 'buy' || tx.transaction_type === 'deposit') {
-        holdingQty[tx.holding_id] = (holdingQty[tx.holding_id] ?? 0) + qty
-        holdingCostInHoldingCcy[tx.holding_id] =
-          (holdingCostInHoldingCcy[tx.holding_id] ?? 0) + qty * priceInHoldingCcy
+        assetQty[tx.asset_id] = (assetQty[tx.asset_id] ?? 0) + qty
+        assetCostInAssetCcy[tx.asset_id] =
+          (assetCostInAssetCcy[tx.asset_id] ?? 0) + qty * priceInAssetCcy
       } else if (tx.transaction_type === 'sell' || tx.transaction_type === 'withdrawal') {
-        const currentQty = holdingQty[tx.holding_id] ?? 0
-        const currentCost = holdingCostInHoldingCcy[tx.holding_id] ?? 0
+        const currentQty = assetQty[tx.asset_id] ?? 0
+        const currentCost = assetCostInAssetCcy[tx.asset_id] ?? 0
         // Reduce cost basis by qty × running avg cost (average-cost method, not sell price)
         const avgCostPerUnit = currentQty > 0 ? currentCost / currentQty : 0
-        holdingQty[tx.holding_id] = currentQty - qty
-        holdingCostInHoldingCcy[tx.holding_id] = currentCost - qty * avgCostPerUnit
+        assetQty[tx.asset_id] = currentQty - qty
+        assetCostInAssetCcy[tx.asset_id] = currentCost - qty * avgCostPerUnit
       }
       txIdx++
     }
 
-    // Aggregate across all holdings, converting each to displayCurrency
+    // Aggregate across all assets, converting each to displayCurrency
     let costBasis = 0
     let marketValue = 0
 
-    for (const h of holdings) {
-      const holdingCcy = h.currency
-      const qty = holdingQty[h.id] ?? 0
-      const holdingCost = holdingCostInHoldingCcy[h.id] ?? 0
+    for (const h of assets) {
+      const assetCcy = h.currency
+      const qty = assetQty[h.id] ?? 0
+      const assetCost = assetCostInAssetCcy[h.id] ?? 0
 
-      costBasis += holdingCost * getFx(holdingCcy, display, dateStr)
+      costBasis += assetCost * getFx(assetCcy, display, dateStr)
 
       if (qty <= 0) continue
 
@@ -173,30 +173,30 @@ export function computeSeries(
         (h.manual_price_date == null || dateStr >= h.manual_price_date)
       ) {
         // At or after manual_price_date: use manual_price directly.
-        // manual_price is in holding.currency → convert to displayCurrency.
-        marketValue += qty * h.manual_price * getFx(holdingCcy, display, dateStr)
+        // manual_price is in asset.currency → convert to displayCurrency.
+        marketValue += qty * h.manual_price * getFx(assetCcy, display, dateStr)
       } else if (h.manual_price != null && h.manual_price_date != null) {
         // Before manual_price_date: linearly interpolate between avg cost per unit
         // and manual_price so the chart rises smoothly rather than jumping at
         // manual_price_date. Interpolation spans [first_tx_date, manual_price_date].
-        const avgCostPerUnit = holdingCost / qty
+        const avgCostPerUnit = assetCost / qty
         const startDate = firstTxDate[h.id]
         if (!startDate || startDate >= h.manual_price_date) {
           // Edge: no tx date or tx after manual date — stay at avg cost
-          marketValue += qty * avgCostPerUnit * getFx(holdingCcy, display, dateStr)
+          marketValue += qty * avgCostPerUnit * getFx(assetCcy, display, dateStr)
         } else {
           const startMs = new Date(startDate + 'T12:00:00Z').getTime()
           const manualMs = new Date(h.manual_price_date + 'T12:00:00Z').getTime()
           const dateMs = new Date(dateStr + 'T12:00:00Z').getTime()
           const t = Math.max(0, Math.min(1, (dateMs - startMs) / (manualMs - startMs)))
           const interpolatedPrice = avgCostPerUnit + (h.manual_price - avgCostPerUnit) * t
-          marketValue += qty * interpolatedPrice * getFx(holdingCcy, display, dateStr)
+          marketValue += qty * interpolatedPrice * getFx(assetCcy, display, dateStr)
         }
       } else {
         // No live or manual price: use the running average cost of held units.
         // This makes marketValue = costBasis for non-priceable assets (the two lines overlap).
-        const runningAvgCost = holdingCost / qty  // qty > 0 is guaranteed by the check above
-        marketValue += qty * runningAvgCost * getFx(holdingCcy, display, dateStr)
+        const runningAvgCost = assetCost / qty  // qty > 0 is guaranteed by the check above
+        marketValue += qty * runningAvgCost * getFx(assetCcy, display, dateStr)
       }
     }
 

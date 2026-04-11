@@ -72,7 +72,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Name / Holding</th>
+                  <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Name / Asset</th>
                   <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Type</th>
                   <th className="px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Amount</th>
                   <th className="hidden sm:table-cell px-4 md:px-5 py-3 text-left font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Frequency</th>
@@ -85,8 +85,8 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
                 {events.map((ev) => (
                   <tr key={ev.id} className="group hover:bg-white/5" style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td className="px-4 md:px-5 py-3 font-medium">
-                      {ev.holding_id ? (
-                        <Link href={`/holdings/${ev.holding_id}`} className="hover:underline" style={{ color: 'var(--color-accent)' }}>
+                      {ev.asset_id ? (
+                        <Link href={`/assets/${ev.asset_id}`} className="hover:underline" style={{ color: 'var(--color-accent)' }}>
                           {ev.name}
                         </Link>
                       ) : ev.name}

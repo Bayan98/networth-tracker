@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@networth/utils'
 import type { Transaction, CurrencyCode } from '@networth/types'
 import { createClient } from '@/lib/supabase/client'
-import { recomputeAndSaveAvgCost } from '@/lib/recompute-holding-avg-cost'
+import { recomputeAndSaveAvgCost } from '@/lib/recompute-asset-avg-cost'
 import { AddTransactionDialog } from '@/components/transactions/add-transaction-dialog'
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
 
@@ -21,12 +21,12 @@ const TX_TYPE_COLORS: Record<string, string> = {
 
 interface Props {
   transactions: Transaction[]
-  holdingId: string
+  assetId: string
   currency: CurrencyCode
   userId: string
 }
 
-export function HoldingTransactionSection({ transactions, holdingId, currency, userId }: Props) {
+export function AssetTransactionSection({ transactions, assetId, currency, userId }: Props) {
   const router = useRouter()
   const [showAdd, setShowAdd] = useState(false)
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
@@ -35,7 +35,7 @@ export function HoldingTransactionSection({ transactions, holdingId, currency, u
     const supabase = createClient()
     const { error } = await supabase.from('transactions').delete().eq('id', id)
     if (!error) {
-      await recomputeAndSaveAvgCost(holdingId, currency, supabase)
+      await recomputeAndSaveAvgCost(assetId, currency, supabase)
       router.refresh()
     }
   }
@@ -145,15 +145,15 @@ export function HoldingTransactionSection({ transactions, holdingId, currency, u
       {showAdd && (
         <AddTransactionDialog
           userId={userId}
-          holdingId={holdingId}
-          holdingCurrency={currency}
+          assetId={assetId}
+          assetCurrency={currency}
           onClose={() => setShowAdd(false)}
         />
       )}
       {editingTx && (
         <EditTransactionDialog
           transaction={editingTx}
-          holdingCurrency={currency}
+          assetCurrency={currency}
           onClose={() => setEditingTx(null)}
         />
       )}

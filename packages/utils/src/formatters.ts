@@ -56,18 +56,18 @@ export const INCOME_FREQUENCY_LABELS: Record<string, string> = {
   annually: 'Annually',
 }
 
-export function resolveHoldingPrice(
-  holding: { symbol: string | null; average_cost_basis: number; manual_price: number | null },
+export function resolveAssetPrice(
+  asset: { symbol: string | null; average_cost_basis: number; manual_price: number | null },
   prices: Record<string, number>,
 ): { price: number; source: 'live' | 'manual' | 'cost_basis' } {
-  if (holding.symbol) {
-    const live = prices[holding.symbol.toUpperCase()]
+  if (asset.symbol) {
+    const live = prices[asset.symbol.toUpperCase()]
     if (live != null) return { price: live, source: 'live' }
   }
-  if (holding.manual_price != null) {
-    return { price: holding.manual_price, source: 'manual' }
+  if (asset.manual_price != null) {
+    return { price: asset.manual_price, source: 'manual' }
   }
-  return { price: Number(holding.average_cost_basis), source: 'cost_basis' }
+  return { price: Number(asset.average_cost_basis), source: 'cost_basis' }
 }
 
 export const POPULAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'RUB', 'KZT', 'CNY', 'JPY', 'CHF', 'CAD', 'AUD']

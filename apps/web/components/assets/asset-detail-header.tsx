@@ -5,23 +5,23 @@ import { useRouter } from 'next/navigation'
 import { Pencil, Trash2 } from 'lucide-react'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { createClient } from '@/lib/supabase/client'
-import type { Holding, Portfolio } from '@networth/types'
-import { EditHoldingDialog } from './edit-holding-dialog'
+import type { Asset, Portfolio } from '@networth/types'
+import { EditAssetDialog } from './edit-asset-dialog'
 
 interface Props {
-  holding: Holding
+  asset: Asset
   portfolios: Portfolio[]
 }
 
-export function HoldingDetailHeader({ holding, portfolios }: Props) {
+export function AssetDetailHeader({ asset, portfolios }: Props) {
   const router = useRouter()
   const [showEdit, setShowEdit] = useState(false)
 
   async function handleDelete() {
-    if (!confirm(`Delete "${holding.asset_name}"? This will also delete all its transactions.`)) return
+    if (!confirm(`Delete "${asset.asset_name}"? This will also delete all its transactions.`)) return
     const supabase = createClient()
-    const { error } = await supabase.from('holdings').delete().eq('id', holding.id)
-    if (!error) router.push('/holdings')
+    const { error } = await supabase.from('assets').delete().eq('id', asset.id)
+    if (!error) router.push('/assets')
   }
 
   return (
@@ -29,16 +29,16 @@ export function HoldingDetailHeader({ holding, portfolios }: Props) {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight">{holding.symbol ?? holding.asset_name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{asset.symbol ?? asset.asset_name}</h1>
             <span
               className="px-2 py-0.5 rounded text-xs font-medium"
               style={{ background: 'var(--color-muted)', color: 'var(--color-muted-foreground)' }}
             >
-              {ASSET_TYPE_LABELS[holding.asset_type] ?? holding.asset_type}
+              {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
             </span>
           </div>
           <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-            {holding.asset_name}
+            {asset.asset_name}
           </p>
         </div>
         <div className="flex items-center gap-2 mt-1">
@@ -60,8 +60,8 @@ export function HoldingDetailHeader({ holding, portfolios }: Props) {
       </div>
 
       {showEdit && (
-        <EditHoldingDialog
-          holding={holding}
+        <EditAssetDialog
+          asset={asset}
           portfolios={portfolios}
           onClose={() => setShowEdit(false)}
         />

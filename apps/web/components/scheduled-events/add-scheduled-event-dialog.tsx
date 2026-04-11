@@ -10,7 +10,7 @@ import { Dialog, DialogFooter, inputStyle } from '@/components/ui/dialog'
 
 interface Props {
   userId: string
-  holdingId?: string
+  assetId?: string
   defaultCurrency: CurrencyCode
   onClose: () => void
 }
@@ -18,7 +18,7 @@ interface Props {
 const FREQUENCIES: IncomeFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'annually']
 const EVENT_TYPES: TransactionType[] = ['dividend', 'deposit', 'withdrawal']
 
-export function AddScheduledEventDialog({ userId, holdingId, defaultCurrency, onClose }: Props) {
+export function AddScheduledEventDialog({ userId, assetId, defaultCurrency, onClose }: Props) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [txType, setTxType] = useState<TransactionType>('dividend')
@@ -38,7 +38,7 @@ export function AddScheduledEventDialog({ userId, holdingId, defaultCurrency, on
     const supabase = createClient()
     const { error } = await supabase.from('scheduled_events').insert({
       user_id: userId,
-      holding_id: holdingId ?? null,
+      asset_id: assetId ?? null,
       name,
       transaction_type: txType,
       amount: parseFloat(amount),

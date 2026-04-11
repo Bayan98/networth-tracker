@@ -2,35 +2,35 @@
 
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
-import { useHoldingAvgCost } from '@/lib/hooks/use-holding-avg-cost'
-import { formatCurrency, formatPercent, resolveHoldingPrice } from '@networth/utils'
+import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
+import { formatCurrency, formatPercent, resolveAssetPrice } from '@networth/utils'
 import { useAppStore } from '@/lib/store'
-import type { Holding, Transaction } from '@networth/types'
+import type { Asset, Transaction } from '@networth/types'
 
 interface Props {
-  holding: Holding
+  asset: Asset
   transactions: Transaction[]
 }
 
-export function HoldingMarketStats({ holding, transactions }: Props) {
+export function AssetMarketStats({ asset, transactions }: Props) {
   const hideAmounts = useAppStore((s) => s.hideAmounts)
 
   const priceItems =
-    holding.symbol
-      ? [{ symbol: holding.symbol, asset_type: holding.asset_type }]
+    asset.symbol
+      ? [{ symbol: asset.symbol, asset_type: asset.asset_type }]
       : []
 
   const { prices } = usePrices(priceItems)
-  const { price: rawPrice, source } = resolveHoldingPrice(holding, prices)
+  const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
 
-  const { fx, loading: fxLoading } = useTodayFx([{ currency: 'USD' }], holding.currency)
-  const { avgCostBasis, loading: costLoading } = useHoldingAvgCost(transactions, holding.currency)
+  const { fx, loading: fxLoading } = useTodayFx([{ currency: 'USD' }], asset.currency)
+  const { avgCostBasis, loading: costLoading } = useAssetAvgCost(transactions, asset.currency)
 
   const price = source === 'live'
     ? rawPrice * fx('USD')
     : source === 'cost_basis' ? avgCostBasis : rawPrice
 
-  const quantity = Number(holding.quantity)
+  const quantity = Number(asset.quantity)
   const marketValueTotal = quantity * price
   const changeAbs = price - avgCostBasis
   const changePct = avgCostBasis > 0 ? (changeAbs / avgCostBasis) * 100 : null
@@ -45,23 +45,23 @@ export function HoldingMarketStats({ holding, transactions }: Props) {
   const stats = [
     {
       label: 'Avg Buy Price',
-      value: hideAmounts ? '••••' : anyLoading ? '…' : formatCurrency(avgCostBasis, holding.currency),
+      value: hideAmounts ? '••••' : anyLoading ? '…' : formatCurrency(avgCostBasis, asset.currency),
     },
     {
       label: 'Market Value / unit',
-      value: hideAmounts ? '••••' : anyLoading ? '…' : formatCurrency(price, holding.currency),
+      value: hideAmounts ? '••••' : anyLoading ? '…' : formatCurrency(price, asset.currency),
       sub: source === 'live' ? 'live' : source === 'manual' ? 'manual price' : 'avg cost basis',
     },
     {
       label: 'Market Value total',
-      value: hideAmounts ? '••••••' : anyLoading ? '…' : formatCurrency(marketValueTotal, holding.currency),
+      value: hideAmounts ? '••••••' : anyLoading ? '…' : formatCurrency(marketValueTotal, asset.currency),
     },
     {
       label: 'Change / unit',
       value: hideAmounts
         ? '••••'
         : hasLiveData
-          ? formatCurrency(changeAbs, holding.currency)
+          ? formatCurrency(changeAbs, asset.currency)
           : '—',
       color: changeColor,
     },

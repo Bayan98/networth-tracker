@@ -11,25 +11,25 @@ apps/web/out
 .env.local
 .env.*.local
 
-# Turbo
-.turbo
-
-# Build outputs
+# Build & Tools (Global)
 dist
 build
 *.tsbuildinfo
+**/.turbo/
+**/.vercel/
 
-# OS
+# OS & Logs
 .DS_Store
 Thumbs.db
+*.log
 
-# Editor
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
-.idea
-.cursor
-.claude
+# Editor / AI Tools
+.vscode/
+.cursor/
+.claude/
+.idea/
 *.swp
-.vercel
-.env*.local
+
+# Supabase
+supabase/.temp/
+supabase/.storage/

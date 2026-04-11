@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { PortfolioClient } from '@/components/portfolio/portfolio-client'
+import { PortfolioClient } from '@/components/assets/portfolio-client'
 import type { CurrencyCode } from '@networth/types'
 
 export const revalidate = 300
@@ -10,23 +10,17 @@ export default async function PortfolioPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: portfolios }, { data: holdings }, { data: profile }] = await Promise.all([
+  const [{ data: portfolios }, { data: assets }, { data: profile }] = await Promise.all([
     supabase.from('portfolios').select('*').eq('user_id', user!.id).order('created_at'),
-    supabase.from('holdings').select('*').eq('user_id', user!.id).order('created_at'),
+    supabase.from('assets').select('*').eq('user_id', user!.id).order('created_at'),
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
   ])
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Holdings</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
-          Manage your assets and positions
-        </p>
-      </div>
       <PortfolioClient
         portfolios={portfolios ?? []}
-        holdings={holdings ?? []}
+        assets={assets ?? []}
         currency={(profile?.default_currency ?? 'USD') as CurrencyCode}
         userId={user!.id}
       />

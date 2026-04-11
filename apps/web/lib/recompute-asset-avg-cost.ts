@@ -1,31 +1,31 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
- * Recomputes and saves the FX-adjusted average cost basis for a holding.
+ * Recomputes and saves the FX-adjusted average cost basis for a asset.
  *
  * Historical FX rates are constants (transaction date never changes), so
- * the result is exact and safe to cache in holdings.average_cost_basis.
+ * the result is exact and safe to cache in assets.average_cost_basis.
  *
  * Call this after any transaction insert / update / delete so the DB stays
  * in sync and all surfaces show the same value without re-fetching transactions.
  */
 export async function recomputeAndSaveAvgCost(
-  holdingId: string,
-  holdingCurrency: string,
+  assetId: string,
+  assetCurrency: string,
   supabase: SupabaseClient,
 ): Promise<void> {
   const { data: txs } = await supabase
     .from('transactions')
     .select('quantity, price, currency, executed_at')
-    .eq('holding_id', holdingId)
+    .eq('asset_id', assetId)
     .in('transaction_type', ['buy', 'deposit'])
 
   if (!txs || txs.length === 0) {
-    await supabase.from('holdings').update({ average_cost_basis: 0 }).eq('id', holdingId)
+    await supabase.from('assets').update({ average_cost_basis: 0 }).eq('id', assetId)
     return
   }
 
-  const to = holdingCurrency.toUpperCase()
+  const to = assetCurrency.toUpperCase()
   const seen = new Set<string>()
   const pairs: { from: string; to: string; date: string }[] = []
 
@@ -59,5 +59,5 @@ export async function recomputeAndSaveAvgCost(
   }
 
   const avgCost = totalQty > 0 ? totalValue / totalQty : 0
-  await supabase.from('holdings').update({ average_cost_basis: avgCost }).eq('id', holdingId)
+  await supabase.from('assets').update({ average_cost_basis: avgCost }).eq('id', assetId)
 }

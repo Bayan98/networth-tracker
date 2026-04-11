@@ -6,28 +6,28 @@ import { MaskedAmount } from '@/components/ui/masked-amount'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, resolveHoldingPrice } from '@networth/utils'
-import type { Holding, Debt, CurrencyCode } from '@networth/types'
+import { formatCurrency, resolveAssetPrice } from '@networth/utils'
+import type { Asset, Debt, CurrencyCode } from '@networth/types'
 
 interface Props {
-  holdings: Holding[]
+  assets: Asset[]
   debts: Debt[]
   portfolioCount: number
   currency: CurrencyCode
 }
 
-export function DashboardStats({ holdings, debts, portfolioCount, currency }: Props) {
+export function DashboardStats({ assets, debts, portfolioCount, currency }: Props) {
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
-  const priceItems = holdings
+  const priceItems = assets
     .filter((h) => h.symbol)
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices, loading: pricesLoading } = usePrices(priceItems)
-  const { fx, loading: fxLoading } = useTodayFx(holdings, selectedCurrency)
+  const { fx, loading: fxLoading } = useTodayFx(assets, selectedCurrency)
   const loading = pricesLoading || fxLoading
 
-  const totalAssets = holdings.reduce((sum, h) => {
-    const { price, source } = resolveHoldingPrice(h, prices)
+  const totalAssets = assets.reduce((sum, h) => {
+    const { price, source } = resolveAssetPrice(h, prices)
     const priceCcy = source === 'live' ? 'USD' : h.currency
     return sum + Number(h.quantity) * price * fx(priceCcy)
   }, 0)
@@ -65,7 +65,7 @@ export function DashboardStats({ holdings, debts, portfolioCount, currency }: Pr
         value={portfolioCount}
         change={
           <span style={{ color: 'var(--color-muted-foreground)' }}>
-            {holdings.length} holdings
+            {assets.length} assets
           </span>
         }
         icon={<PiggyBank size={16} />}

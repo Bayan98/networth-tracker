@@ -4,8 +4,8 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import { useAppStore } from '@/lib/store'
-import { ASSET_TYPE_LABELS, resolveHoldingPrice } from '@networth/utils'
-import type { Holding, CurrencyCode } from '@networth/types'
+import { ASSET_TYPE_LABELS, resolveAssetPrice } from '@networth/utils'
+import type { Asset, CurrencyCode } from '@networth/types'
 
 const ASSET_COLORS: Record<string, string> = {
   stock: '#6366f1',
@@ -20,17 +20,17 @@ const ASSET_COLORS: Record<string, string> = {
 }
 
 interface Props {
-  holdings: Holding[]
+  assets: Asset[]
   currency: CurrencyCode
 }
 
-export function AllocationChart({ holdings, currency }: Props) {
+export function AllocationChart({ assets, currency }: Props) {
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
-  const priceItems = holdings
+  const priceItems = assets
     .filter((h) => h.symbol)
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices } = usePrices(priceItems)
-  const { fx, loading: fxLoading } = useTodayFx(holdings, selectedCurrency)
+  const { fx, loading: fxLoading } = useTodayFx(assets, selectedCurrency)
 
   if (fxLoading) {
     return (
@@ -44,7 +44,7 @@ export function AllocationChart({ holdings, currency }: Props) {
     )
   }
 
-  if (holdings.length === 0) {
+  if (assets.length === 0) {
     return (
       <div
         className="rounded-xl p-5 h-64 flex flex-col"
@@ -55,15 +55,15 @@ export function AllocationChart({ holdings, currency }: Props) {
           className="flex-1 flex items-center justify-center"
           style={{ color: 'var(--color-muted-foreground)' }}
         >
-          <p className="text-sm">Add holdings to see your allocation.</p>
+          <p className="text-sm">Add assets to see your allocation.</p>
         </div>
       </div>
     )
   }
 
   const byType = new Map<string, number>()
-  for (const h of holdings) {
-    const { price, source } = resolveHoldingPrice(h, prices)
+  for (const h of assets) {
+    const { price, source } = resolveAssetPrice(h, prices)
     const priceCcy = source === 'live' ? 'USD' : h.currency
     const value = Number(h.quantity) * price * fx(priceCcy)
     byType.set(h.asset_type, (byType.get(h.asset_type) ?? 0) + value)

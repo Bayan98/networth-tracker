@@ -5,10 +5,10 @@ import { formatCurrency } from '@networth/utils'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { useAppStore } from '@/lib/store'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
-import type { Holding, CurrencyCode } from '@networth/types'
+import type { Asset, CurrencyCode } from '@networth/types'
 
-interface HoldingsListProps {
-  holdings: Holding[]
+interface AssetsListProps {
+  assets: Asset[]
   currency: CurrencyCode
 }
 
@@ -24,23 +24,23 @@ const ASSET_TYPE_COLORS: Record<string, string> = {
   other: '#71717a',
 }
 
-export function HoldingsList({ holdings, currency }: HoldingsListProps) {
+export function AssetsList({ assets, currency }: AssetsListProps) {
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
-  const { fx, loading: fxLoading } = useTodayFx(holdings, selectedCurrency)
+  const { fx, loading: fxLoading } = useTodayFx(assets, selectedCurrency)
 
-  if (holdings.length === 0) {
+  if (assets.length === 0) {
     return (
       <div
         className="rounded-xl p-8 text-center"
         style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
       >
-        <p className="font-medium mb-1">No holdings yet</p>
+        <p className="font-medium mb-1">No assets yet</p>
         <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
           Add your first portfolio and start tracking.
         </p>
         <Link
-          href="/holdings"
+          href="/assets"
           className="inline-block mt-4 px-4 py-2 rounded-lg text-sm font-medium"
           style={{ background: 'var(--color-accent)', color: '#fff' }}
         >
@@ -59,9 +59,9 @@ export function HoldingsList({ holdings, currency }: HoldingsListProps) {
         className="px-5 py-4 border-b flex items-center justify-between"
         style={{ borderColor: 'var(--color-border)' }}
       >
-        <h2 className="text-sm font-semibold">Holdings</h2>
+        <h2 className="text-sm font-semibold">Assets</h2>
         <Link
-          href="/holdings"
+          href="/assets"
           className="text-xs"
           style={{ color: 'var(--color-accent)' }}
         >
@@ -70,32 +70,32 @@ export function HoldingsList({ holdings, currency }: HoldingsListProps) {
       </div>
 
       <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
-        {holdings.map((holding) => (
+        {assets.map((asset) => (
           <Link
-            key={holding.id}
-            href={`/holdings/${holding.id}`}
+            key={asset.id}
+            href={`/assets/${asset.id}`}
             className="flex items-center gap-4 px-5 py-3 hover:bg-white/5 transition-colors"
           >
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-              style={{ background: ASSET_TYPE_COLORS[holding.asset_type] + '22', color: ASSET_TYPE_COLORS[holding.asset_type] }}
+              style={{ background: ASSET_TYPE_COLORS[asset.asset_type] + '22', color: ASSET_TYPE_COLORS[asset.asset_type] }}
             >
-              {(holding.symbol ?? holding.asset_name).slice(0, 2).toUpperCase()}
+              {(asset.symbol ?? asset.asset_name).slice(0, 2).toUpperCase()}
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{holding.symbol ?? holding.asset_name}</p>
+              <p className="text-sm font-medium truncate">{asset.symbol ?? asset.asset_name}</p>
               <p className="text-xs truncate" style={{ color: 'var(--color-muted-foreground)' }}>
-                {holding.asset_name} · {ASSET_TYPE_LABELS[holding.asset_type]}
+                {asset.asset_name} · {ASSET_TYPE_LABELS[asset.asset_type]}
               </p>
             </div>
 
             <div className="text-right shrink-0">
               <p className="text-sm font-medium">
-                {hideAmounts ? '••••••' : fxLoading ? '—' : formatCurrency(Number(holding.quantity) * Number(holding.average_cost_basis) * fx(holding.currency), selectedCurrency)}
+                {hideAmounts ? '••••••' : fxLoading ? '—' : formatCurrency(Number(asset.quantity) * Number(asset.average_cost_basis) * fx(asset.currency), selectedCurrency)}
               </p>
               <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
-                {Number(holding.quantity).toFixed(4)} units
+                {Number(asset.quantity).toFixed(4)} units
               </p>
             </div>
           </Link>

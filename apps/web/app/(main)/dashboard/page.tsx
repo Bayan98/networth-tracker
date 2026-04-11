@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats'
 import { NetWorthChart } from '@/components/dashboard/net-worth-chart'
 import { AllocationChart } from '@/components/dashboard/allocation-chart'
-import { HoldingsList } from '@/components/dashboard/holdings-list'
+import { AssetsList } from '@/components/dashboard/assets-list'
 import type { CurrencyCode } from '@networth/types'
 
 export const revalidate = 300 // 5 min
@@ -13,11 +13,11 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: profile }, { data: portfolios }, { data: holdings }, { data: debts }] =
+  const [{ data: profile }, { data: portfolios }, { data: assets }, { data: debts }] =
     await Promise.all([
       supabase.from('profiles').select('*').eq('id', user!.id).single(),
       supabase.from('portfolios').select('*').eq('user_id', user!.id),
-      supabase.from('holdings').select('*').eq('user_id', user!.id),
+      supabase.from('assets').select('*').eq('user_id', user!.id),
       supabase.from('debts').select('*').eq('user_id', user!.id).eq('is_active', true),
     ])
 
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
       </div>
 
       <DashboardStats
-        holdings={holdings ?? []}
+        assets={assets ?? []}
         debts={debts ?? []}
         portfolioCount={(portfolios ?? []).length}
         currency={currency}
@@ -44,10 +44,10 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2">
           <NetWorthChart currency={currency} />
         </div>
-        <AllocationChart holdings={holdings ?? []} currency={currency} />
+        <AllocationChart assets={assets ?? []} currency={currency} />
       </div>
 
-      <HoldingsList holdings={holdings ?? []} currency={currency} />
+      <AssetsList assets={assets ?? []} currency={currency} />
     </div>
   )
 }

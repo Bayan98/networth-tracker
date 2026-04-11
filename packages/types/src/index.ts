@@ -49,7 +49,7 @@ export interface Portfolio {
   created_at: string
 }
 
-export interface Holding {
+export interface Asset {
   id: string
   portfolio_id: string | null
   user_id: string
@@ -70,7 +70,7 @@ export interface Holding {
 export interface Transaction {
   id: string
   user_id: string
-  holding_id: string | null
+  asset_id: string | null
   transaction_type: TransactionType
   quantity: number
   price: number
@@ -89,7 +89,7 @@ export interface ScheduledEvent {
   amount_type: 'fixed' | 'percent'
   currency: CurrencyCode
   frequency: IncomeFrequency
-  holding_id: string | null
+  asset_id: string | null
   debt_id: string | null
   is_active: boolean
   start_date: string
@@ -117,7 +117,7 @@ export interface Debt {
 
 // ─── Derived / computed types ─────────────────────────────────────────────────
 
-export interface HoldingWithPrice extends Holding {
+export interface AssetWithPrice extends Asset {
   current_price: number | null
   current_value: number | null
   gain_loss: number | null
@@ -130,7 +130,7 @@ export interface PortfolioSummary {
   total_gain_loss: number
   total_gain_loss_pct: number
   currency: CurrencyCode
-  holdings_count: number
+  assets_count: number
 }
 
 export interface NetWorthSummary {
@@ -147,7 +147,7 @@ export interface Database {
     Tables: {
       profiles: { Row: Profile; Insert: Omit<Profile, 'created_at'>; Update: Partial<Profile> }
       portfolios: { Row: Portfolio; Insert: Omit<Portfolio, 'id' | 'created_at'>; Update: Partial<Portfolio> }
-      holdings: { Row: Holding; Insert: Omit<Holding, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Holding> }
+      assets: { Row: Asset; Insert: Omit<Asset, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Asset> }
       transactions: { Row: Transaction; Insert: Omit<Transaction, 'id' | 'created_at'>; Update: Partial<Transaction> }
       scheduled_events: { Row: ScheduledEvent; Insert: Omit<ScheduledEvent, 'id' | 'created_at'>; Update: Partial<ScheduledEvent> }
       debts: { Row: Debt; Insert: Omit<Debt, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Debt> }

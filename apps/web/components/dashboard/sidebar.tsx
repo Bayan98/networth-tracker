@@ -12,7 +12,7 @@ import {
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/holdings', label: 'Holdings', icon: TrendingUp },
+  { href: '/assets', label: 'Assets', icon: TrendingUp },
   { href: '/income', label: 'Income', icon: DollarSign },
   { href: '/debts', label: 'Debts', icon: CreditCard },
 ]

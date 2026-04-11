@@ -2,39 +2,39 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { HoldingTransactionSection } from '@/components/portfolio/holding-transaction-section'
-import { HoldingScheduledEventsSection } from '@/components/portfolio/holding-scheduled-events-section'
-import { HoldingDetailHeader } from '@/components/portfolio/holding-detail-header'
-import { HoldingMarketStats } from '@/components/portfolio/holding-market-stats'
+import { AssetTransactionSection } from '@/components/assets/asset-transaction-section'
+import { AssetScheduledEventsSection } from '@/components/assets/asset-scheduled-events-section'
+import { AssetDetailHeader } from '@/components/assets/asset-detail-header'
+import { AssetMarketStats } from '@/components/assets/asset-market-stats'
 
 interface Props {
-  params: Promise<{ holdingId: string }>
+  params: Promise<{ assetId: string }>
 }
 
-export default async function HoldingDetailPage({ params }: Props) {
-  const { holdingId } = await params
+export default async function AssetDetailPage({ params }: Props) {
+  const { assetId } = await params
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: holding }, { data: transactions }, { data: scheduledEvents }, { data: portfolios }] = await Promise.all([
+  const [{ data: asset }, { data: transactions }, { data: scheduledEvents }, { data: portfolios }] = await Promise.all([
     supabase
-      .from('holdings')
+      .from('assets')
       .select('*')
-      .eq('id', holdingId)
+      .eq('id', assetId)
       .eq('user_id', user!.id)
       .single(),
     supabase
       .from('transactions')
       .select('*')
-      .eq('holding_id', holdingId)
+      .eq('asset_id', assetId)
       .eq('user_id', user!.id)
       .order('executed_at', { ascending: false }),
     supabase
       .from('scheduled_events')
       .select('*')
-      .eq('holding_id', holdingId)
+      .eq('asset_id', assetId)
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false }),
     supabase
@@ -43,19 +43,19 @@ export default async function HoldingDetailPage({ params }: Props) {
       .eq('user_id', user!.id),
   ])
 
-  if (!holding) notFound()
+  if (!asset) notFound()
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <Link
-          href="/holdings"
+          href="/assets"
           className="inline-flex items-center gap-1 text-sm mb-3"
           style={{ color: 'var(--color-muted-foreground)' }}
         >
-          <ChevronLeft size={14} /> Holdings
+          <ChevronLeft size={14} /> Assets
         </Link>
-        <HoldingDetailHeader holding={holding} portfolios={portfolios ?? []} />
+        <AssetDetailHeader asset={asset} portfolios={portfolios ?? []} />
       </div>
 
       {/* Stats */}
@@ -67,24 +67,24 @@ export default async function HoldingDetailPage({ params }: Props) {
         >
           <p className="text-xs mb-1" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</p>
           <p className="font-semibold">
-            {Number(holding.quantity).toLocaleString('en-US', { maximumFractionDigits: 6 })}
+            {Number(asset.quantity).toLocaleString('en-US', { maximumFractionDigits: 6 })}
           </p>
         </div>
         {/* Avg Buy Price + market stats — client component, FX-adjusted from transactions */}
-        <HoldingMarketStats holding={holding} transactions={transactions ?? []} />
+        <AssetMarketStats asset={asset} transactions={transactions ?? []} />
       </div>
 
-      <HoldingScheduledEventsSection
+      <AssetScheduledEventsSection
         events={scheduledEvents ?? []}
-        holdingId={holdingId}
+        assetId={assetId}
         userId={user!.id}
-        currency={holding.currency}
+        currency={asset.currency}
       />
 
-      <HoldingTransactionSection
+      <AssetTransactionSection
         transactions={transactions ?? []}
-        holdingId={holdingId}
-        currency={holding.currency}
+        assetId={assetId}
+        currency={asset.currency}
         userId={user!.id}
       />
     </div>

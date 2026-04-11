@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { recomputeAndSaveAvgCost } from '@/lib/recompute-holding-avg-cost'
+import { recomputeAndSaveAvgCost } from '@/lib/recompute-asset-avg-cost'
 import { useTxFxRate } from '@/lib/hooks/use-tx-fx-rate'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { TransactionType, CurrencyCode } from '@networth/types'
@@ -12,26 +12,26 @@ import { Dialog, DialogFooter, inputStyle } from '@/components/ui/dialog'
 
 interface Props {
   userId: string
-  holdingId?: string
-  holdingCurrency?: CurrencyCode
+  assetId?: string
+  assetCurrency?: CurrencyCode
   onClose: () => void
 }
 
 const TX_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'split']
 
-export function AddTransactionDialog({ userId, holdingId, holdingCurrency, onClose }: Props) {
+export function AddTransactionDialog({ userId, assetId, assetCurrency, onClose }: Props) {
   const router = useRouter()
   const [txType, setTxType] = useState<TransactionType>('buy')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
-  const [currency, setCurrency] = useState<CurrencyCode>(holdingCurrency ?? 'USD')
+  const [currency, setCurrency] = useState<CurrencyCode>(assetCurrency ?? 'USD')
   const [executedAt, setExecutedAt] = useState(new Date().toISOString().slice(0, 16))
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const needsFx = !!holdingId && !!holdingCurrency && currency.toUpperCase() !== holdingCurrency.toUpperCase()
-  const { rate: fxRate, loading: fxLoading } = useTxFxRate(currency, holdingCurrency, executedAt.slice(0, 10))
+  const needsFx = !!assetId && !!assetCurrency && currency.toUpperCase() !== assetCurrency.toUpperCase()
+  const { rate: fxRate, loading: fxLoading } = useTxFxRate(currency, assetCurrency, executedAt.slice(0, 10))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -41,7 +41,7 @@ export function AddTransactionDialog({ userId, holdingId, holdingCurrency, onClo
     const supabase = createClient()
     const { error } = await supabase.from('transactions').insert({
       user_id: userId,
-      holding_id: holdingId ?? null,
+      asset_id: assetId ?? null,
       transaction_type: txType,
       quantity: parseFloat(quantity),
       price: parseFloat(price),
@@ -51,8 +51,8 @@ export function AddTransactionDialog({ userId, holdingId, holdingCurrency, onClo
     })
 
     if (error) { setError(error.message); setLoading(false); return }
-    if (holdingId && holdingCurrency) {
-      await recomputeAndSaveAvgCost(holdingId, holdingCurrency, supabase)
+    if (assetId && assetCurrency) {
+      await recomputeAndSaveAvgCost(assetId, assetCurrency, supabase)
     }
     router.refresh()
     onClose()
@@ -82,7 +82,7 @@ export function AddTransactionDialog({ userId, holdingId, holdingCurrency, onClo
               <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                 {fxLoading
                   ? 'Fetching rate…'
-                  : `≈ ${formatCurrency(convertedPrice, holdingCurrency!)} in ${holdingCurrency}`}
+                  : `≈ ${formatCurrency(convertedPrice, assetCurrency!)} in ${assetCurrency}`}
               </p>
             )}
           </div>

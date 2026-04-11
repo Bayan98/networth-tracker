@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { computeSeries } from './portfolio-series'
 import type { RawTransaction, PriceHistory, FxRates } from './portfolio-series'
-import type { Holding } from '@networth/types'
+import type { Asset } from '@networth/types'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeHolding(overrides: Partial<Holding> & { id: string; currency: string }): Holding {
+function makeAsset(overrides: Partial<Asset> & { id: string; currency: string }): Asset {
   return {
     id: overrides.id,
     portfolio_id: null,
@@ -29,7 +29,7 @@ function makeHolding(overrides: Partial<Holding> & { id: string; currency: strin
 }
 
 function makeTx(overrides: Partial<RawTransaction> & {
-  holding_id: string
+  asset_id: string
   quantity: number
   price: number
   currency: string
@@ -42,25 +42,25 @@ function makeTx(overrides: Partial<RawTransaction> & {
 }
 
 // ---------------------------------------------------------------------------
-// Scenario 1 — Transaction currency → holding currency
+// Scenario 1 — Transaction currency → asset currency
 //
-// A user buys a USD-denominated holding but pays in KZT.
-// The transaction is recorded in KZT; the holding tracks cost in USD.
+// A user buys a USD-denominated asset but pays in KZT.
+// The transaction is recorded in KZT; the asset tracks cost in USD.
 // Expected: cost basis is stored in USD using the KZT→USD FX rate at the tx date.
 // ---------------------------------------------------------------------------
 
-describe('Scenario 1 — transaction currency converts to holding currency', () => {
+describe('Scenario 1 — transaction currency converts to asset currency', () => {
   /**
    * Setup:
-   *   - 1 holding: "AAPL" in USD
+   *   - 1 asset: "AAPL" in USD
    *   - 1 buy transaction: 10 shares @ 450,000 KZT per share (paid in KZT)
    *   - KZT→USD rate on 2024-01-01: 0.00215 (1 KZT ≈ 0.00215 USD)
    *   - Expected price in USD: 450,000 × 0.00215 = 967.50 USD per share
    *   - Expected cost basis: 10 × 967.50 = 9,675 USD
    */
-  const holding = makeHolding({ id: 'h1', symbol: 'AAPL', asset_type: 'stock', currency: 'USD' })
+  const asset = makeAsset({ id: 'h1', symbol: 'AAPL', asset_type: 'stock', currency: 'USD' })
   const transaction = makeTx({
-    holding_id: 'h1',
+    asset_id: 'h1',
     quantity: 10,
     price: 450_000,   // KZT per share
     currency: 'KZT',
@@ -76,7 +76,7 @@ describe('Scenario 1 — transaction currency converts to holding currency', () 
     const series = computeSeries(
       ['2024-01-01'],
       [transaction],
-      [holding],
+      [asset],
       {},          // no price history → falls back to cost basis for market value too
       fxRates,
       'USD',
@@ -92,7 +92,7 @@ describe('Scenario 1 — transaction currency converts to holding currency', () 
     const series = computeSeries(
       ['2024-01-01'],
       [transaction],
-      [holding],
+      [asset],
       {},
       fxRates,
       'USD',
@@ -110,7 +110,7 @@ describe('Scenario 1 — transaction currency converts to holding currency', () 
     const series = computeSeries(
       ['2024-01-01'],
       [transaction],
-      [holding],
+      [asset],
       priceHistory,
       fxRates,
       'USD',
@@ -123,7 +123,7 @@ describe('Scenario 1 — transaction currency converts to holding currency', () 
 
   it('sell transaction reduces cost basis using avg cost (not sell price)', () => {
     const sellTx = makeTx({
-      holding_id: 'h1',
+      asset_id: 'h1',
       quantity: 5,
       price: 460_000,
       currency: 'KZT',
@@ -138,7 +138,7 @@ describe('Scenario 1 — transaction currency converts to holding currency', () 
     const series = computeSeries(
       ['2024-01-01', '2024-02-01'],
       [transaction, sellTx],
-      [holding],
+      [asset],
       {},
       fxWithFeb,
       'USD',
@@ -152,32 +152,32 @@ describe('Scenario 1 — transaction currency converts to holding currency', () 
 })
 
 // ---------------------------------------------------------------------------
-// Scenario 2 — Holdings in different currencies → single display currency
+// Scenario 2 — Assets in different currencies → single display currency
 //
-// A portfolio has two holdings denominated in different currencies.
+// A portfolio has two assets denominated in different currencies.
 // Both must be converted to the display currency before summing.
 // ---------------------------------------------------------------------------
 
-describe('Scenario 2 — multi-currency holdings sum correctly in display currency', () => {
+describe('Scenario 2 — multi-currency assets sum correctly in display currency', () => {
   /**
    * Setup:
-   *   - Holding A: "Car" in KZT  → 1 unit @ 5,000,000 KZT avg cost
-   *   - Holding B: "AAPL" in USD → 10 shares @ 150 USD avg cost
+   *   - Asset A: "Car" in KZT  → 1 unit @ 5,000,000 KZT avg cost
+   *   - Asset B: "AAPL" in USD → 10 shares @ 150 USD avg cost
    *   - Display currency: USD
    *   - KZT→USD rate: 0.00215
    *   - Expected costBasis in USD:
-   *       KZT holding: 5,000,000 × 0.00215 = 10,750 USD
-   *       USD holding: 10 × 150 × 1.0     = 1,500 USD
+   *       KZT asset: 5,000,000 × 0.00215 = 10,750 USD
+   *       USD asset: 10 × 150 × 1.0     = 1,500 USD
    *       Total: 12,250 USD
    */
-  const kztHolding = makeHolding({
+  const kztAsset = makeAsset({
     id: 'h-kzt',
     asset_name: 'Машина',
     asset_type: 'other',
     currency: 'KZT',
     manual_price: 5_000_000, // KZT
   })
-  const usdHolding = makeHolding({
+  const usdAsset = makeAsset({
     id: 'h-usd',
     symbol: 'AAPL',
     asset_type: 'stock',
@@ -185,7 +185,7 @@ describe('Scenario 2 — multi-currency holdings sum correctly in display curren
   })
 
   const kztTx = makeTx({
-    holding_id: 'h-kzt',
+    asset_id: 'h-kzt',
     quantity: 1,
     price: 5_000_000,
     currency: 'KZT',
@@ -193,7 +193,7 @@ describe('Scenario 2 — multi-currency holdings sum correctly in display curren
     transaction_type: 'buy',
   })
   const usdTx = makeTx({
-    holding_id: 'h-usd',
+    asset_id: 'h-usd',
     quantity: 10,
     price: 150,
     currency: 'USD',
@@ -207,11 +207,11 @@ describe('Scenario 2 — multi-currency holdings sum correctly in display curren
     'USD_KZT_2024-01-01': 465.12, // not used in these tests but good to include
   }
 
-  it('cost basis sums KZT and USD holdings converted to USD display currency', () => {
+  it('cost basis sums KZT and USD assets converted to USD display currency', () => {
     const series = computeSeries(
       ['2024-01-01'],
       [kztTx, usdTx],
-      [kztHolding, usdHolding],
+      [kztAsset, usdAsset],
       {},
       fxRates,
       'USD',
@@ -231,7 +231,7 @@ describe('Scenario 2 — multi-currency holdings sum correctly in display curren
     const series = computeSeries(
       ['2024-01-01'],
       [kztTx, usdTx],
-      [kztHolding, usdHolding],
+      [kztAsset, usdAsset],
       priceHistory,
       fxRates,
       'USD',
@@ -243,7 +243,7 @@ describe('Scenario 2 — multi-currency holdings sum correctly in display curren
     expect(marketValue).toBeCloseTo(1_850 + 10_750, 2) // 12,600
   })
 
-  it('display currency KZT: USD holding cost is converted to KZT', () => {
+  it('display currency KZT: USD asset cost is converted to KZT', () => {
     const kztFxRates: FxRates = {
       'KZT_KZT_2024-01-01': 1,
       'USD_KZT_2024-01-01': 465.12,
@@ -251,21 +251,21 @@ describe('Scenario 2 — multi-currency holdings sum correctly in display curren
     const series = computeSeries(
       ['2024-01-01'],
       [kztTx, usdTx],
-      [kztHolding, usdHolding],
+      [kztAsset, usdAsset],
       {},
       kztFxRates,
       'KZT',
     )
 
     const { costBasis } = series[0]
-    // KZT holding: 5,000,000 KZT × 1 = 5,000,000
-    // USD holding: 10 × 150 USD × 465.12 USD→KZT = 697,680
+    // KZT asset: 5,000,000 KZT × 1 = 5,000,000
+    // USD asset: 10 × 150 USD × 465.12 USD→KZT = 697,680
     expect(costBasis).toBeCloseTo(5_000_000 + 697_680, 0)
   })
 
   it('series advances over time as transactions accumulate', () => {
     const usdTx2 = makeTx({
-      holding_id: 'h-usd',
+      asset_id: 'h-usd',
       quantity: 5,
       price: 160,
       currency: 'USD',
@@ -280,7 +280,7 @@ describe('Scenario 2 — multi-currency holdings sum correctly in display curren
     const series = computeSeries(
       ['2024-01-01', '2024-02-01'],
       [kztTx, usdTx, usdTx2],
-      [kztHolding, usdHolding],
+      [kztAsset, usdAsset],
       {},
       fxWithFeb,
       'USD',
@@ -295,19 +295,19 @@ describe('Scenario 2 — multi-currency holdings sum correctly in display curren
 })
 
 // ---------------------------------------------------------------------------
-// Scenario 3 — Transaction in third currency (EUR) buying a USD holding
+// Scenario 3 — Transaction in third currency (EUR) buying a USD asset
 // ---------------------------------------------------------------------------
 
-describe('Scenario 3 — transaction in EUR, holding in USD, display in USD', () => {
+describe('Scenario 3 — transaction in EUR, asset in USD, display in USD', () => {
   /**
    * Buy 2 shares of TSLA at 100 EUR each.
    * EUR→USD rate: 1.08
-   * Holding is denominated in USD.
+   * Asset is denominated in USD.
    * Expected cost basis: 2 × 100 × 1.08 = 216 USD
    */
-  const holding = makeHolding({ id: 'h-tsla', symbol: 'TSLA', asset_type: 'stock', currency: 'USD' })
+  const asset = makeAsset({ id: 'h-tsla', symbol: 'TSLA', asset_type: 'stock', currency: 'USD' })
   const tx = makeTx({
-    holding_id: 'h-tsla',
+    asset_id: 'h-tsla',
     quantity: 2,
     price: 100,
     currency: 'EUR',
@@ -319,11 +319,11 @@ describe('Scenario 3 — transaction in EUR, holding in USD, display in USD', ()
     'USD_USD_2024-03-15': 1,
   }
 
-  it('converts EUR transaction price to USD holding currency then to USD display', () => {
+  it('converts EUR transaction price to USD asset currency then to USD display', () => {
     const series = computeSeries(
       ['2024-03-15'],
       [tx],
-      [holding],
+      [asset],
       {},
       fxRates,
       'USD',
@@ -341,13 +341,13 @@ describe('Scenario 3 — transaction in EUR, holding in USD, display in USD', ()
 
 describe('Leading zero trimming', () => {
   it('trims leading zero-value points before first transaction', () => {
-    const holding = makeHolding({ id: 'h1', currency: 'USD' })
-    const tx = makeTx({ holding_id: 'h1', quantity: 1, price: 100, currency: 'USD', executed_at: '2024-01-03' })
+    const asset = makeAsset({ id: 'h1', currency: 'USD' })
+    const tx = makeTx({ asset_id: 'h1', quantity: 1, price: 100, currency: 'USD', executed_at: '2024-01-03' })
 
     const series = computeSeries(
       ['2024-01-01', '2024-01-02', '2024-01-03'],
       [tx],
-      [holding],
+      [asset],
       {},
       { 'USD_USD_2024-01-01': 1, 'USD_USD_2024-01-02': 1, 'USD_USD_2024-01-03': 1 },
       'USD',

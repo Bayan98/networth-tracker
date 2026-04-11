@@ -4,9 +4,9 @@ export const portfolioKeys = {
   detail: (id: string) => [...portfolioKeys.all, 'detail', id] as const,
 }
 
-export const holdingKeys = {
-  all: ['holdings'] as const,
-  byPortfolio: (pid: string) => [...holdingKeys.all, pid] as const,
+export const assetKeys = {
+  all: ['assets'] as const,
+  byPortfolio: (pid: string) => [...assetKeys.all, pid] as const,
 }
 
 export const transactionKeys = {

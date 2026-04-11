@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import type { Transaction } from '@networth/types'
 import type { FxRates } from '@networth/utils'
 
-export function useHoldingAvgCost(
+export function useAssetAvgCost(
   transactions: Transaction[],
-  holdingCurrency: string,
+  assetCurrency: string,
 ): {
   avgCostBasis: number
   totalIncome: number
@@ -19,7 +19,7 @@ export function useHoldingAvgCost(
   const pairsKey = useMemo(() => {
     const seen = new Set<string>()
     const pairs: Array<{ from: string; to: string; date: string }> = []
-    const to = holdingCurrency.toUpperCase()
+    const to = assetCurrency.toUpperCase()
     for (const tx of transactions) {
       const from = tx.currency.toUpperCase()
       if (from === to) continue
@@ -32,7 +32,7 @@ export function useHoldingAvgCost(
     }
     return { pairs, key: [...seen].sort().join('|') }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transactions.map((t) => `${t.id}:${t.currency}:${t.executed_at}`).join(','), holdingCurrency])
+  }, [transactions.map((t) => `${t.id}:${t.currency}:${t.executed_at}`).join(','), assetCurrency])
 
   useEffect(() => {
     if (pairsKey.pairs.length === 0) {
@@ -52,7 +52,7 @@ export function useHoldingAvgCost(
   }, [pairsKey.key])
 
   return useMemo(() => {
-    const to = holdingCurrency.toUpperCase()
+    const to = assetCurrency.toUpperCase()
 
     function fx(from: string, date: string): number {
       const f = from.toUpperCase()
@@ -83,5 +83,5 @@ export function useHoldingAvgCost(
       totalIncome,
       loading,
     }
-  }, [transactions, holdingCurrency, fxRates, loading])
+  }, [transactions, assetCurrency, fxRates, loading])
 }

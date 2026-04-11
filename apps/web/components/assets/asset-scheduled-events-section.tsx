@@ -12,12 +12,12 @@ import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-sch
 
 interface Props {
   events: ScheduledEvent[]
-  holdingId: string
+  assetId: string
   userId: string
   currency: CurrencyCode
 }
 
-export function HoldingScheduledEventsSection({ events, holdingId, userId, currency }: Props) {
+export function AssetScheduledEventsSection({ events, assetId, userId, currency }: Props) {
   const router = useRouter()
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const [showAdd, setShowAdd] = useState(false)
@@ -51,7 +51,7 @@ export function HoldingScheduledEventsSection({ events, holdingId, userId, curre
       {events.length === 0 ? (
         <div className="p-8 text-center">
           <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-            No scheduled events for this holding.
+            No scheduled events for this asset.
           </p>
         </div>
       ) : (
@@ -127,7 +127,7 @@ export function HoldingScheduledEventsSection({ events, holdingId, userId, curre
       {showAdd && (
         <AddScheduledEventDialog
           userId={userId}
-          holdingId={holdingId}
+          assetId={assetId}
           defaultCurrency={currency}
           onClose={() => setShowAdd(false)}
         />

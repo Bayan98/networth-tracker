@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Loader2, Sparkles, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { AssetType, CurrencyCode, Holding, Portfolio } from '@networth/types'
+import type { AssetType, CurrencyCode, Asset, Portfolio } from '@networth/types'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
@@ -12,26 +12,26 @@ import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-looku
 const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'deposit', 'other']
 
 interface Props {
-  holding: Holding
+  asset: Asset
   portfolios: Portfolio[]
   onClose: () => void
 }
 
-export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
+export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
   const router = useRouter()
   const { lookup, cancel, loading: lookupLoading } = useSymbolLookup()
 
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(holding.portfolio_id)
-  const [assetType, setAssetType] = useState<AssetType>(holding.asset_type)
-  const [symbol, setSymbol] = useState(holding.symbol ?? '')
-  const [assetName, setAssetName] = useState(holding.asset_name)
-  const [currency, setCurrency] = useState<CurrencyCode>(holding.currency)
-  const [notes, setNotes] = useState(holding.notes ?? '')
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(asset.portfolio_id)
+  const [assetType, setAssetType] = useState<AssetType>(asset.asset_type)
+  const [symbol, setSymbol] = useState(asset.symbol ?? '')
+  const [assetName, setAssetName] = useState(asset.asset_name)
+  const [currency, setCurrency] = useState<CurrencyCode>(asset.currency)
+  const [notes, setNotes] = useState(asset.notes ?? '')
   const [manualPrice, setManualPrice] = useState<string>(
-    holding.manual_price != null ? String(holding.manual_price) : ''
+    asset.manual_price != null ? String(asset.manual_price) : ''
   )
   const [manualPriceDate, setManualPriceDate] = useState<string>(
-    holding.manual_price_date ?? ''
+    asset.manual_price_date ?? ''
   )
   const [autoFilled, setAutoFilled] = useState(false)
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle')
@@ -56,7 +56,7 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
 
     const supabase = createClient()
     const { error } = await supabase
-      .from('holdings')
+      .from('assets')
       .update({
         portfolio_id: selectedPortfolioId,
         symbol: symbol ? symbol.toUpperCase() : null,
@@ -67,7 +67,7 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
         manual_price: manualPrice ? Number(manualPrice) : null,
         manual_price_date: manualPriceDate || null,
       })
-      .eq('id', holding.id)
+      .eq('id', asset.id)
 
     if (error) {
       setError(error.message)
@@ -93,9 +93,9 @@ export function EditHoldingDialog({ holding, portfolios, onClose }: Props) {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold">Edit Holding</h2>
+            <h2 className="text-base font-semibold">Edit Asset</h2>
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
-              {holding.symbol ?? holding.asset_name}
+              {asset.symbol ?? asset.asset_name}
             </p>
           </div>
           <button onClick={onClose} style={{ color: 'var(--color-muted-foreground)' }}>

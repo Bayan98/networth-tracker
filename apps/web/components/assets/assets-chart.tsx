@@ -87,7 +87,7 @@ function splitMarketSeries(series: SeriesPoint[]): ChartPoint[] {
   return out
 }
 
-export function HoldingsChart({ series, currency, loading, period, onPeriodChange }: Props) {
+export function AssetsChart({ series, currency, loading, period, onPeriodChange }: Props) {
   const isEmpty = !loading && series.length === 0
   const chartData = splitMarketSeries(series)
   const seriesMin = series.length > 0

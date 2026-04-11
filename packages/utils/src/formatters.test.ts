@@ -4,7 +4,7 @@ import {
   formatPercent,
   formatNumber,
   formatCompact,
-  resolveHoldingPrice,
+  resolveAssetPrice,
   ASSET_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
   INCOME_FREQUENCY_LABELS,
@@ -99,43 +99,43 @@ describe('formatCompact', () => {
   })
 })
 
-describe('resolveHoldingPrice', () => {
+describe('resolveAssetPrice', () => {
   const base = { symbol: 'AAPL', average_cost_basis: 100, manual_price: null }
 
   it('returns live price when symbol matches prices map', () => {
-    const result = resolveHoldingPrice(base, { AAPL: 175 })
+    const result = resolveAssetPrice(base, { AAPL: 175 })
     expect(result).toEqual({ price: 175, source: 'live' })
   })
 
   it('is case-insensitive for symbol lookup', () => {
-    const result = resolveHoldingPrice({ ...base, symbol: 'aapl' }, { AAPL: 175 })
+    const result = resolveAssetPrice({ ...base, symbol: 'aapl' }, { AAPL: 175 })
     expect(result).toEqual({ price: 175, source: 'live' })
   })
 
   it('falls back to manual_price when no live price', () => {
-    const result = resolveHoldingPrice({ ...base, manual_price: 150 }, {})
+    const result = resolveAssetPrice({ ...base, manual_price: 150 }, {})
     expect(result).toEqual({ price: 150, source: 'manual' })
   })
 
   it('falls back to average_cost_basis as last resort', () => {
-    const result = resolveHoldingPrice(base, {})
+    const result = resolveAssetPrice(base, {})
     expect(result).toEqual({ price: 100, source: 'cost_basis' })
   })
 
   it('prefers live price over manual_price', () => {
-    const result = resolveHoldingPrice({ ...base, manual_price: 150 }, { AAPL: 175 })
+    const result = resolveAssetPrice({ ...base, manual_price: 150 }, { AAPL: 175 })
     expect(result).toEqual({ price: 175, source: 'live' })
   })
 
   it('falls back to manual_price when symbol is null', () => {
-    const holding = { symbol: null, average_cost_basis: 100, manual_price: 120 }
-    const result = resolveHoldingPrice(holding, { AAPL: 175 })
+    const asset = { symbol: null, average_cost_basis: 100, manual_price: 120 }
+    const result = resolveAssetPrice(asset, { AAPL: 175 })
     expect(result).toEqual({ price: 120, source: 'manual' })
   })
 
   it('falls back to cost_basis when symbol is null and no manual_price', () => {
-    const holding = { symbol: null, average_cost_basis: 80, manual_price: null }
-    const result = resolveHoldingPrice(holding, {})
+    const asset = { symbol: null, average_cost_basis: 80, manual_price: null }
+    const result = resolveAssetPrice(asset, {})
     expect(result).toEqual({ price: 80, source: 'cost_basis' })
   })
 })

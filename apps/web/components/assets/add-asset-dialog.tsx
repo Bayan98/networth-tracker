@@ -19,7 +19,7 @@ interface Props {
   onClose: () => void
 }
 
-export function AddHoldingDialog({ portfolios, userId, defaultPortfolioId, onClose }: Props) {
+export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose }: Props) {
   const router = useRouter()
   const { lookup, cancel, loading: lookupLoading } = useSymbolLookup()
 
@@ -56,7 +56,7 @@ export function AddHoldingDialog({ portfolios, userId, defaultPortfolioId, onClo
     setError(null)
 
     const supabase = createClient()
-    const { error } = await supabase.from('holdings').insert({
+    const { error } = await supabase.from('assets').insert({
       portfolio_id: selectedPortfolioId,
       user_id: userId,
       symbol: symbol ? symbol.toUpperCase() : null,
@@ -89,7 +89,7 @@ export function AddHoldingDialog({ portfolios, userId, defaultPortfolioId, onClo
         style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Add Holding</h2>
+          <h2 className="text-base font-semibold">Add Asset</h2>
           <button onClick={onClose} style={{ color: 'var(--color-muted-foreground)' }}>
             <X size={16} />
           </button>
