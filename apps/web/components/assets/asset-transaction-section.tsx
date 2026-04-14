@@ -6,7 +6,6 @@ import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@networth/utils'
 import type { Transaction, CurrencyCode } from '@networth/types'
 import { createClient } from '@/lib/supabase/client'
-import { recomputeAndSaveAvgCost } from '@/lib/recompute-asset-avg-cost'
 import { AddTransactionDialog } from '@/components/transactions/add-transaction-dialog'
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
 
@@ -35,7 +34,6 @@ export function AssetTransactionSection({ transactions, assetId, currency, userI
     const supabase = createClient()
     const { error } = await supabase.from('transactions').delete().eq('id', id)
     if (!error) {
-      await recomputeAndSaveAvgCost(assetId, currency, supabase)
       router.refresh()
     }
   }

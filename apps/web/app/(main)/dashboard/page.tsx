@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats'
-import { NetWorthChart } from '@/components/dashboard/net-worth-chart'
+import { PortfolioChart } from '@/components/assets/portfolio-chart'
 import { AllocationChart } from '@/components/dashboard/allocation-chart'
 import { AssetsList } from '@/components/dashboard/assets-list'
 import type { CurrencyCode } from '@networth/types'
@@ -13,13 +13,26 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: profile }, { data: portfolios }, { data: assets }, { data: debts }] =
+  const [{ data: profile }, { data: portfolios }, { data: assets }, { data: debts }, { data: transactions }] =
     await Promise.all([
       supabase.from('profiles').select('*').eq('id', user!.id).single(),
       supabase.from('portfolios').select('*').eq('user_id', user!.id),
       supabase.from('assets').select('*').eq('user_id', user!.id),
       supabase.from('debts').select('*').eq('user_id', user!.id).eq('is_active', true),
+      supabase.from('transactions').select('asset_id, quantity, transaction_type').eq('user_id', user!.id).order('executed_at', { ascending: true }),
     ])
+
+  const quantityPerAsset: Record<string, number> = {}
+  for (const tx of transactions ?? []) {
+    const qty = Number(tx.quantity)
+    if (tx.transaction_type === 'buy' || tx.transaction_type === 'deposit') {
+      quantityPerAsset[tx.asset_id] = (quantityPerAsset[tx.asset_id] ?? 0) + qty
+    } else if (tx.transaction_type === 'sell' || tx.transaction_type === 'withdrawal') {
+      quantityPerAsset[tx.asset_id] = (quantityPerAsset[tx.asset_id] ?? 0) - qty
+    } else if (tx.transaction_type === 'split') {
+      quantityPerAsset[tx.asset_id] = (quantityPerAsset[tx.asset_id] ?? 0) * qty
+    }
+  }
 
   const currency: CurrencyCode = profile?.default_currency ?? 'USD'
 
@@ -37,17 +50,17 @@ export default async function DashboardPage() {
         debts={debts ?? []}
         portfolioCount={(portfolios ?? []).length}
         currency={currency}
+        quantityPerAsset={quantityPerAsset}
       />
 
-      {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <NetWorthChart currency={currency} />
+          <PortfolioChart assets={assets ?? []} currency={currency} />
         </div>
-        <AllocationChart assets={assets ?? []} currency={currency} />
+        <AllocationChart assets={assets ?? []} currency={currency} quantityPerAsset={quantityPerAsset} />
       </div>
 
-      <AssetsList assets={assets ?? []} currency={currency} />
+      <AssetsList assets={assets ?? []} currency={currency} quantityPerAsset={quantityPerAsset} />
     </div>
   )
 }

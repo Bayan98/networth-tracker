@@ -1,18 +1,32 @@
 # Portfolio Tracker
+- Use English for everything in the project
+- Use comments only when really needed
+- Always finish code, don't leave TODOs or comments
 
 ## Supabase
 - **Project ID:** `itdvyquvthxstlybpyrt`
 - **URL:** `https://itdvyquvthxstlybpyrt.supabase.co`
 - **Service role key:** server/Edge Functions only — never in client code
 - **Auth:** always `getUser()` on server, never `getSession()`
+- Always handle Supabase errors: check `error` and show to user or throw
+
+## Enums
+- transaction_type - buy, sell, dividend, deposit, withdrawal, split
+- scheduled_event_amount_type - fixed, percent
 
 ### Schema gotchas
-- `assets.quantity`, `average_cost_basis`, `total_income_earned` — DB-cached by trigger `trg_asset_cache`. **Never set directly — add transactions instead.**
+- Asset quantity and avg cost basis are computed from transactions at query time — never stored on `assets`.
 
 ### Edge Functions
 - `fetch-prices` — prices for `{ symbol, asset_type }[]`. jwt: false.
 - `lookup-symbol` — `{ symbol, asset_type }` → `{ name, price }`. jwt: false.
 - `fetch-fx-rates` — historical FX rates for avg cost basis calculation.
 
-## Git Rules
-- **CRITICAL:** Claude MUST NEVER run `git add`, `git commit`, or `git push` unless explicitly asked by the user for a specific task. Always propose changes and ask for confirmation first.
+## Environment variables
+
+### apps/web/.env.local
+```
+NEXT_PUBLIC_SUPABASE_URL=https://itdvyquvthxstlybpyrt.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+SUPABASE_SERVICE_ROLE_KEY=<secret — never commit>
+```

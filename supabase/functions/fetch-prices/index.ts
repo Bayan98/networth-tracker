@@ -9,8 +9,8 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const CRYPTO_TTL_SECONDS = 10800;
-const STOCK_TTL_SECONDS = 10800;
+const CRYPTO_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
+const STOCK_TTL_MS  = 3 * 60 * 60 * 1000; // 3 hours
 
 interface RequestItem {
   symbol: string;
@@ -20,7 +20,7 @@ interface RequestItem {
 interface CacheRow {
   cache_key: string;
   response: { price: number };
-  updated_at: string;
+  expires_at: string | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -56,15 +56,13 @@ Deno.serve(async (req: Request) => {
     const cacheKeys = items.map((i) => `price:${i.symbol.toUpperCase()}`);
     const { data: cached } = await supabase
       .from("api_cache")
-      .select("cache_key, response, updated_at")
+      .select("cache_key, response, expires_at")
       .in("cache_key", cacheKeys) as { data: CacheRow[] | null };
 
-    const cacheMap = new Map<string, { price: number; updated_at: string }>();
+    const cacheMap = new Map<string, number>();
     for (const row of cached ?? []) {
-      cacheMap.set(row.cache_key, {
-        price: row.response.price,
-        updated_at: row.updated_at,
-      });
+      const notExpired = row.expires_at != null && new Date(row.expires_at).getTime() > now;
+      if (notExpired) cacheMap.set(row.cache_key, row.response.price);
     }
 
     const needCgIds: string[] = [];
@@ -74,12 +72,10 @@ Deno.serve(async (req: Request) => {
     for (const item of items) {
       const sym = item.symbol.toUpperCase();
       const cacheKey = `price:${sym}`;
-      const entry = cacheMap.get(cacheKey);
       const isCrypto = item.asset_type === "crypto";
-      const ttl = isCrypto ? CRYPTO_TTL_SECONDS : STOCK_TTL_SECONDS;
 
-      if (entry && (now - new Date(entry.updated_at).getTime()) / 1000 < ttl) {
-        prices[sym] = entry.price;
+      if (cacheMap.has(cacheKey)) {
+        prices[sym] = cacheMap.get(cacheKey)!;
       } else if (isCrypto) {
         const cgId = symbolToCoinGeckoId(sym);
         needCgIds.push(cgId);
@@ -111,6 +107,7 @@ Deno.serve(async (req: Request) => {
                 cache_key: `price:${sym}`,
                 response: { price: quote.usd },
                 updated_at: new Date().toISOString(),
+                expires_at: new Date(now + CRYPTO_TTL_MS).toISOString(),
               });
             }
           }
@@ -144,6 +141,7 @@ Deno.serve(async (req: Request) => {
                     cache_key: `price:${sym}`,
                     response: { price: data.c },
                     updated_at: new Date().toISOString(),
+                    expires_at: new Date(now + STOCK_TTL_MS).toISOString(),
                   },
                   { onConflict: "cache_key" },
                 );

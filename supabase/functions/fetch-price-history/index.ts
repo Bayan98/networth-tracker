@@ -17,11 +17,11 @@ const PERIOD_DAYS: Record<Period, number> = {
   "5y": 1825,
 };
 
-const PERIOD_TTL: Record<Period, number> = {
-  "1w": 43200,
-  "1m": 43200,
-  "1y": 86400,
-  "5y": 86400,
+const PERIOD_TTL_MS: Record<Period, number> = {
+  "1w": 12 * 60 * 60 * 1000, // 12 hours
+  "1m": 12 * 60 * 60 * 1000, // 12 hours
+  "1y": 24 * 60 * 60 * 1000, // 24 hours
+  "5y": 24 * 60 * 60 * 1000, // 24 hours
 };
 
 interface PricePoint {
@@ -88,19 +88,19 @@ Deno.serve(async (req: Request) => {
     );
 
     const days = PERIOD_DAYS[period];
-    const ttl = PERIOD_TTL[period];
+    const ttlMs = PERIOD_TTL_MS[period];
     const now = Date.now();
 
     const cacheKeys = items.map((i) => `history:${i.symbol.toUpperCase()}:${period}`);
     const { data: cached } = await supabase
       .from("api_cache")
-      .select("cache_key, response, updated_at")
-      .in("cache_key", cacheKeys) as { data: Array<{ cache_key: string; response: { points: PricePoint[] }; updated_at: string }> | null };
+      .select("cache_key, response, expires_at")
+      .in("cache_key", cacheKeys) as { data: Array<{ cache_key: string; response: { points: PricePoint[] }; expires_at: string | null }> | null };
 
     const cacheMap = new Map<string, PricePoint[]>();
     for (const row of cached ?? []) {
-      const age = (now - new Date(row.updated_at).getTime()) / 1000;
-      if (age < ttl && Array.isArray(row.response?.points)) {
+      const notExpired = row.expires_at != null && new Date(row.expires_at).getTime() > now;
+      if (notExpired && Array.isArray(row.response?.points)) {
         cacheMap.set(row.cache_key, row.response.points);
       }
     }
@@ -131,7 +131,7 @@ Deno.serve(async (req: Request) => {
           const points = aggregate(daily, period);
           history[symbol] = points;
           await supabase.from("api_cache").upsert(
-            { cache_key: `history:${symbol}:${period}`, response: { points }, updated_at: new Date().toISOString() },
+            { cache_key: `history:${symbol}:${period}`, response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
             { onConflict: "cache_key" },
           );
         }
@@ -159,7 +159,7 @@ Deno.serve(async (req: Request) => {
               const points = aggregate(daily.sort((a, b) => a.date.localeCompare(b.date)), period);
               history[sym] = points;
               await supabase.from("api_cache").upsert(
-                { cache_key: `history:${sym}:${period}`, response: { points }, updated_at: new Date().toISOString() },
+                { cache_key: `history:${sym}:${period}`, response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
                 { onConflict: "cache_key" },
               );
             }

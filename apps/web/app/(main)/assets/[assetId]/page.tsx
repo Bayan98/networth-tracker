@@ -58,19 +58,7 @@ export default async function AssetDetailPage({ params }: Props) {
         <AssetDetailHeader asset={asset} portfolios={portfolios ?? []} />
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {/* Quantity — static, no FX needed */}
-        <div
-          className="p-4 rounded-xl"
-          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-        >
-          <p className="text-xs mb-1" style={{ color: 'var(--color-muted-foreground)' }}>Quantity</p>
-          <p className="font-semibold">
-            {Number(asset.quantity).toLocaleString('en-US', { maximumFractionDigits: 6 })}
-          </p>
-        </div>
-        {/* Avg Buy Price + market stats — client component, FX-adjusted from transactions */}
         <AssetMarketStats asset={asset} transactions={transactions ?? []} />
       </div>
 

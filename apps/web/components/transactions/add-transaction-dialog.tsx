@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { recomputeAndSaveAvgCost } from '@/lib/recompute-asset-avg-cost'
 import { useTxFxRate } from '@/lib/hooks/use-tx-fx-rate'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { TransactionType, CurrencyCode } from '@networth/types'
@@ -51,9 +50,6 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, onClose }
     })
 
     if (error) { setError(error.message); setLoading(false); return }
-    if (assetId && assetCurrency) {
-      await recomputeAndSaveAvgCost(assetId, assetCurrency, supabase)
-    }
     router.refresh()
     onClose()
   }

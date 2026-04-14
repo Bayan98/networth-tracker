@@ -36,17 +36,16 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Check cache (1 hour TTL for name lookups)
     const cacheKey = `lookup:${sym}`;
     const { data: cached } = await supabase
       .from("api_cache")
-      .select("response, updated_at")
+      .select("response, expires_at")
       .eq("cache_key", cacheKey)
       .single();
 
     if (cached) {
-      const age = (Date.now() - new Date(cached.updated_at).getTime()) / 1000;
-      if (age < 3600) {
+      const notExpired = cached.expires_at != null && new Date(cached.expires_at).getTime() > Date.now();
+      if (notExpired) {
         return json(cached.response as { name: string | null; price: number | null });
       }
     }
@@ -123,7 +122,7 @@ Deno.serve(async (req: Request) => {
 
     // Cache result
     await supabase.from("api_cache").upsert(
-      { cache_key: cacheKey, response: result, updated_at: new Date().toISOString() },
+      { cache_key: cacheKey, response: result, updated_at: new Date().toISOString(), expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() },
       { onConflict: "cache_key" },
     );
 

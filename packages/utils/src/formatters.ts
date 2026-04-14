@@ -6,6 +6,7 @@ export function formatCurrency(
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
+    currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
     ...options,
@@ -28,6 +29,7 @@ export function formatCompact(amount: number, currency: string = 'USD'): string 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
+    currencyDisplay: 'narrowSymbol',
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(amount)
@@ -57,7 +59,7 @@ export const INCOME_FREQUENCY_LABELS: Record<string, string> = {
 }
 
 export function resolveAssetPrice(
-  asset: { symbol: string | null; average_cost_basis: number; manual_price: number | null },
+  asset: { symbol: string | null; manual_price: number | null },
   prices: Record<string, number>,
 ): { price: number; source: 'live' | 'manual' | 'cost_basis' } {
   if (asset.symbol) {
@@ -67,10 +69,10 @@ export function resolveAssetPrice(
   if (asset.manual_price != null) {
     return { price: asset.manual_price, source: 'manual' }
   }
-  return { price: Number(asset.average_cost_basis), source: 'cost_basis' }
+  return { price: 0, source: 'cost_basis' }
 }
 
-export const POPULAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'RUB', 'KZT', 'CNY', 'JPY', 'CHF', 'CAD', 'AUD']
+export const POPULAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'RUB', 'KZT', 'CNY']
 
 export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   buy: 'Buy',

@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
-import { PortfolioClient } from '@/components/assets/portfolio-client'
+import { AssetsClient } from '@/components/assets/assets-client'
 import type { CurrencyCode } from '@networth/types'
 
 export const revalidate = 300
 
-export default async function PortfolioPage() {
+export default async function AssetsPage() {
   const supabase = await createClient()
   const {
     data: { user },
@@ -18,7 +18,7 @@ export default async function PortfolioPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <PortfolioClient
+      <AssetsClient
         portfolios={portfolios ?? []}
         assets={assets ?? []}
         currency={(profile?.default_currency ?? 'USD') as CurrencyCode}

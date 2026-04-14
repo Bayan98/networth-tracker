@@ -22,9 +22,10 @@ const ASSET_COLORS: Record<string, string> = {
 interface Props {
   assets: Asset[]
   currency: CurrencyCode
+  quantityPerAsset: Record<string, number>
 }
 
-export function AllocationChart({ assets, currency }: Props) {
+export function AllocationChart({ assets, currency, quantityPerAsset }: Props) {
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const priceItems = assets
     .filter((h) => h.symbol)
@@ -65,7 +66,7 @@ export function AllocationChart({ assets, currency }: Props) {
   for (const h of assets) {
     const { price, source } = resolveAssetPrice(h, prices)
     const priceCcy = source === 'live' ? 'USD' : h.currency
-    const value = Number(h.quantity) * price * fx(priceCcy)
+    const value = (quantityPerAsset[h.id] ?? 0) * price * fx(priceCcy)
     byType.set(h.asset_type, (byType.get(h.asset_type) ?? 0) + value)
   }
 

@@ -7,9 +7,10 @@ import type { FxRates } from '@networth/utils'
 export function useTodayFx(
   assets: Array<{ currency: string }>,
   displayCurrency: string,
-): { fx: (from: string) => number; loading: boolean } {
+): { fx: (from: string) => number; loading: boolean; fxError: string | null } {
   const [rates, setRates] = useState<FxRates>({})
   const [loading, setLoading] = useState(true)
+  const [fxError, setFxError] = useState<string | null>(null)
 
   const currenciesKey = useMemo(() => {
     const set = new Set<string>([
@@ -36,14 +37,30 @@ export function useTodayFx(
     }
 
     setLoading(true)
+    setFxError(null)
     const supabase = createClient()
     supabase.functions
       .invoke('fetch-fx-rates', { body: { pairs } })
       .then(({ data, error }) => {
-        if (!error && data?.rates) setRates(data.rates as FxRates)
+        if (error || !data?.rates) {
+          console.error('[FX] fetch-fx-rates failed:', error)
+          setFxError('Failed to load exchange rates')
+        } else {
+          const fetched = data.rates as FxRates
+          const missing = pairs.filter((p) => !(`${p.from}_${p.to}_${p.date}` in fetched))
+          if (missing.length > 0) {
+            console.error('[FX] Missing rates for pairs:', missing)
+            setFxError('Some exchange rates are unavailable — asset values may be incorrect')
+          }
+          setRates(fetched)
+        }
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch((err) => {
+        console.error('[FX] fetch-fx-rates exception:', err)
+        setFxError('Failed to load exchange rates')
+        setLoading(false)
+      })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currenciesKey, displayCurrency])
 
@@ -57,5 +74,5 @@ export function useTodayFx(
     }
   }, [rates, displayCurrency])
 
-  return { fx, loading }
+  return { fx, loading, fxError }
 }

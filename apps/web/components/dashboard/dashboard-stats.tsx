@@ -14,9 +14,10 @@ interface Props {
   debts: Debt[]
   portfolioCount: number
   currency: CurrencyCode
+  quantityPerAsset: Record<string, number>
 }
 
-export function DashboardStats({ assets, debts, portfolioCount, currency }: Props) {
+export function DashboardStats({ assets, debts, portfolioCount, currency, quantityPerAsset }: Props) {
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const priceItems = assets
@@ -29,7 +30,7 @@ export function DashboardStats({ assets, debts, portfolioCount, currency }: Prop
   const totalAssets = assets.reduce((sum, h) => {
     const { price, source } = resolveAssetPrice(h, prices)
     const priceCcy = source === 'live' ? 'USD' : h.currency
-    return sum + Number(h.quantity) * price * fx(priceCcy)
+    return sum + (quantityPerAsset[h.id] ?? 0) * price * fx(priceCcy)
   }, 0)
 
   const totalDebt = debts.reduce((sum, d) => sum + Number(d.current_balance) * fx(d.currency), 0)

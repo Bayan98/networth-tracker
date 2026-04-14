@@ -56,9 +56,6 @@ export interface Asset {
   symbol: string | null
   asset_name: string
   asset_type: AssetType
-  quantity: number
-  average_cost_basis: number
-  total_income_earned: number
   currency: CurrencyCode
   notes: string | null
   manual_price: number | null
