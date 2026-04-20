@@ -27,14 +27,20 @@ export function DashboardStats({ assets, debts, portfolioCount, currency, quanti
   const { fx, loading: fxLoading } = useTodayFx(assets, selectedCurrency)
   const loading = pricesLoading || fxLoading
 
-  const totalAssets = assets.reduce((sum, h) => {
+  const totalAssets = assets.reduce<number | null>((sum, h) => {
+    if (sum === null) return null
     const { price, source } = resolveAssetPrice(h, prices)
     const priceCcy = source === 'live' ? 'USD' : h.currency
-    return sum + (quantityPerAsset[h.id] ?? 0) * price * fx(priceCcy)
+    const rate = fx(priceCcy)
+    return rate !== null ? sum + (quantityPerAsset[h.id] ?? 0) * price * rate : null
   }, 0)
 
-  const totalDebt = debts.reduce((sum, d) => sum + Number(d.current_balance) * fx(d.currency), 0)
-  const netWorth = totalAssets - totalDebt
+  const totalDebt = debts.reduce<number | null>((sum, d) => {
+    if (sum === null) return null
+    const rate = fx(d.currency)
+    return rate !== null ? sum + Number(d.current_balance) * rate : null
+  }, 0)
+  const netWorth = totalAssets !== null && totalDebt !== null ? totalAssets - totalDebt : null
 
   const usingLivePrices = !loading && Object.keys(prices).length > 0
   const skeleton = <span className="inline-block w-20 h-4 rounded animate-pulse" style={{ background: 'var(--color-muted)' }} />
@@ -43,22 +49,22 @@ export function DashboardStats({ assets, debts, portfolioCount, currency, quanti
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
         label="Total Assets"
-        value={loading ? skeleton : <MaskedAmount amount={totalAssets} currency={selectedCurrency} />}
+        value={loading ? skeleton : totalAssets !== null ? <MaskedAmount amount={totalAssets} currency={selectedCurrency} /> : '—'}
         change={usingLivePrices ? <span style={{ color: 'var(--color-muted-foreground)' }}>live</span> : undefined}
         icon={<TrendingUp size={16} />}
       />
       <StatCard
         label="Total Debt"
-        value={loading ? skeleton : <MaskedAmount amount={totalDebt} currency={selectedCurrency} />}
+        value={loading ? skeleton : totalDebt !== null ? <MaskedAmount amount={totalDebt} currency={selectedCurrency} /> : '—'}
         icon={<TrendingDown size={16} />}
       />
       <StatCard
         label="Net Worth"
-        value={loading ? skeleton : (
+        value={loading ? skeleton : netWorth !== null ? (
           <span style={{ color: netWorth >= 0 ? 'var(--color-accent)' : '#ef4444' }}>
             <MaskedAmount amount={netWorth} currency={selectedCurrency} />
           </span>
-        )}
+        ) : '—'}
         icon={<Wallet size={16} />}
       />
       <StatCard

@@ -81,7 +81,8 @@ export function AssetsList({ assets, currency, quantityPerAsset }: AssetsListPro
           const qty = quantityPerAsset[asset.id] ?? 0
           const { price, source } = resolveAssetPrice(asset, prices)
           const priceCcy = source === 'live' ? 'USD' : asset.currency
-          const value = qty * price * fx(priceCcy)
+          const rate = fx(priceCcy)
+          const value: number | null = rate !== null ? qty * price * rate : null
 
           return (
             <Link
@@ -105,7 +106,7 @@ export function AssetsList({ assets, currency, quantityPerAsset }: AssetsListPro
 
               <div className="text-right shrink-0">
                 <p className="text-sm font-medium">
-                  {hideAmounts ? '••••••' : loading ? '—' : formatCurrency(value, selectedCurrency)}
+                  {hideAmounts ? '••••••' : loading ? '—' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}
                 </p>
                 <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                   {qty.toLocaleString('en-US', { maximumFractionDigits: 4 })} units

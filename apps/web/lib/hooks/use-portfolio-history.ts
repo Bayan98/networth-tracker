@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Asset } from '@networth/types'
-import { buildTimeAxis, computeSeries, PRICEABLE_TYPES } from '@networth/utils'
+import { buildTimeAxis, computeSeries, lookupFxRate, nearestPriceForDate, PRICEABLE_TYPES } from '@networth/utils'
 import type { SeriesPoint, PriceHistory, RawTransaction, FxRates } from '@networth/utils'
 import type { Period } from '@/components/ui/area-chart'
 
@@ -15,18 +15,20 @@ export function usePortfolioHistory(
   displayCurrency: string,
 ): {
   series: SeriesPoint[]
-  startPrices: Record<string, number>
   avgCostPerAsset: Record<string, number>
   quantityPerAsset: Record<string, number>
+  startPricePerAsset: Record<string, number | null>
   loading: boolean
   fxError: string | null
-  todayFx: (from: string) => number
-  startFx: (from: string) => number
+  priceError: string | null
+  todayFx: (from: string) => number | null
 } {
   const [priceHistory, setPriceHistory] = useState<PriceHistory>({})
   const [rawTransactions, setRawTransactions] = useState<RawTransaction[]>([])
   const [fxRates, setFxRates] = useState<FxRates>({})
+  const [fxContext, setFxContext] = useState<{ period: Period; currency: string } | null>(null)
   const [priceLoading, setPriceLoading] = useState(true)
+  const [priceError, setPriceError] = useState<string | null>(null)
   const [txLoading, setTxLoading] = useState(true)
   const [fxLoading, setFxLoading] = useState(true)
   const [fxError, setFxError] = useState<string | null>(null)
@@ -50,6 +52,7 @@ export function usePortfolioHistory(
       setTxLoading(false)
       return
     }
+    let cancelled = false
     setTxLoading(true)
     const supabase = createClient()
     supabase
@@ -58,10 +61,12 @@ export function usePortfolioHistory(
       .in('asset_id', assets.map((h) => h.id))
       .order('executed_at', { ascending: true })
       .then(({ data }) => {
+        if (cancelled) return
         setRawTransactions(data ?? [])
         setTxLoading(false)
-        setFxLoading(true) // transactions may introduce new date/currency pairs — keep loading until FX re-fetches
+        setFxLoading(true)
       })
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetIdsKey])
 
@@ -71,15 +76,31 @@ export function usePortfolioHistory(
       setPriceLoading(false)
       return
     }
+    let cancelled = false
     setPriceLoading(true)
     const supabase = createClient()
     supabase.functions
       .invoke('fetch-price-history', { body: { items: priceableItems, period } })
       .then(({ data, error }) => {
-        setPriceHistory(!error && data?.history ? data.history as PriceHistory : {})
+        if (cancelled) return
+        if (error || !data?.history) {
+          console.error('[Prices] fetch-price-history failed:', error)
+          setPriceError('Failed to load price history — chart and period changes may be unavailable')
+          setPriceHistory({})
+        } else {
+          setPriceError(null)
+          setPriceHistory(data.history as PriceHistory)
+        }
         setPriceLoading(false)
       })
-      .catch(() => { setPriceHistory({}); setPriceLoading(false) })
+      .catch((err) => {
+        if (cancelled) return
+        console.error('[Prices] fetch-price-history exception:', err)
+        setPriceError('Failed to load price history — chart and period changes may be unavailable')
+        setPriceHistory({})
+        setPriceLoading(false)
+      })
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, priceableKey])
 
@@ -124,16 +145,19 @@ export function usePortfolioHistory(
 
     if (pairs.length === 0) {
       setFxRates({})
+      setFxContext({ period, currency: displayCurrency })
       setFxLoading(false)
       return
     }
 
+    let cancelled = false
     setFxLoading(true)
     setFxError(null)
     const supabase = createClient()
     supabase.functions
       .invoke('fetch-fx-rates', { body: { pairs } })
       .then(({ data, error }) => {
+        if (cancelled) return
         if (error || !data?.rates) {
           console.error('[FX] fetch-fx-rates failed:', error)
           setFxError('Failed to load exchange rates')
@@ -151,51 +175,33 @@ export function usePortfolioHistory(
             setFxError(`Historical rates for ${pairs} are unavailable before ${from} — values before that date use ${from} rates`)
           }
           setFxRates(rates)
+          setFxContext({ period, currency: displayCurrency })
         }
         setFxLoading(false)
       })
       .catch((err) => {
+        if (cancelled) return
         console.error('[FX] fetch-fx-rates exception:', err)
         setFxError('Failed to load exchange rates')
         setFxRates({})
+        setFxContext({ period, currency: displayCurrency })
         setFxLoading(false)
       })
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawTransactions, assetIdsKey, assetCcyKey, period, displayCurrency, priceableKey])
 
-  const series = useMemo(
-    () => computeSeries(buildTimeAxis(period), rawTransactions, assets, priceHistory, fxRates, displayCurrency),
-    [rawTransactions, assets, period, priceHistory, fxRates, displayCurrency],
-  )
+  const fxReady = !fxLoading && fxContext?.period === period && fxContext?.currency === displayCurrency
 
-  const startPrices = useMemo<Record<string, number>>(() => {
-    const sp: Record<string, number> = {}
-    for (const [sym, points] of Object.entries(priceHistory)) {
-      if (points.length > 0) sp[sym] = points[0].price
-    }
-    return sp
-  }, [priceHistory])
+  const series = useMemo(
+    () => fxReady ? computeSeries(buildTimeAxis(period), rawTransactions, assets, priceHistory, fxRates, displayCurrency) : [],
+    [fxReady, rawTransactions, assets, period, priceHistory, fxRates, displayCurrency],
+  )
 
   const todayFx = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
-    return (from: string): number => {
-      const f = from.toUpperCase()
-      const t = displayCurrency.toUpperCase()
-      if (f === t) return 1.0
-      return fxRates[`${f}_${t}_${today}`] ?? 1.0
-    }
+    return (from: string): number | null => lookupFxRate(fxRates, from, displayCurrency, today)
   }, [fxRates, displayCurrency])
-
-  const startFx = useMemo(() => {
-    const timeAxis = buildTimeAxis(period)
-    const startDate = timeAxis[0] ?? new Date().toISOString().slice(0, 10)
-    return (from: string): number => {
-      const f = from.toUpperCase()
-      const t = displayCurrency.toUpperCase()
-      if (f === t) return 1.0
-      return fxRates[`${f}_${t}_${startDate}`] ?? 1.0
-    }
-  }, [fxRates, displayCurrency, period])
 
   const avgCostPerAsset = useMemo<Record<string, number>>(() => {
     const assetCurrencyMap = new Map(assets.map((h) => [h.id, h.currency]))
@@ -212,9 +218,9 @@ export function usePortfolioHistory(
       const assetCcy = assetCurrencyMap.get(tx.asset_id)
       if (!assetCcy) continue
       const from = tx.currency.toUpperCase()
-      const to = assetCcy.toUpperCase()
       const date = tx.executed_at.slice(0, 10)
-      const rate = from === to ? 1 : (fxRates[`${from}_${to}_${date}`] ?? 1)
+      const rate = lookupFxRate(fxRates, from, assetCcy, date)
+      if (rate === null) continue
       totalValue[tx.asset_id] = (totalValue[tx.asset_id] ?? 0) + qty * Number(tx.price) * rate
       totalQty[tx.asset_id] = (totalQty[tx.asset_id] ?? 0) + qty
     }
@@ -225,6 +231,20 @@ export function usePortfolioHistory(
     }
     return result
   }, [rawTransactions, assets, fxRates])
+
+  const startPricePerAsset = useMemo<Record<string, number | null>>(() => {
+    const timeAxis = buildTimeAxis(period)
+    const startDate = timeAxis[0]
+    const result: Record<string, number | null> = {}
+    for (const asset of assets) {
+      if (!asset.symbol || !PRICEABLE_TYPES.has(asset.asset_type)) continue
+      const sym = asset.symbol.toUpperCase()
+      const history = priceHistory[sym]
+      // Fall back to earliest available price if period start falls on a non-trading day
+      result[asset.id] = nearestPriceForDate(history, startDate) ?? history?.[0]?.price ?? null
+    }
+    return result
+  }, [assets, priceHistory, period])
 
   const quantityPerAsset = useMemo<Record<string, number>>(() => {
     const result: Record<string, number> = {}
@@ -243,12 +263,12 @@ export function usePortfolioHistory(
 
   return {
     series,
-    startPrices,
     avgCostPerAsset,
     quantityPerAsset,
-    loading: priceLoading || txLoading || fxLoading,
+    startPricePerAsset,
+    loading: priceLoading || txLoading || fxLoading || !fxReady,
     fxError,
+    priceError,
     todayFx,
-    startFx,
   }
 }

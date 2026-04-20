@@ -121,51 +121,87 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const toTs = Math.floor(now / 1000);
+    const fromTs = toTs - days * 86400;
+
     for (const { symbol, cgId } of needCrypto) {
+      let points: PricePoint[] | null = null;
+
       try {
         const url = `https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${days}&interval=daily`;
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (res.ok) {
           const data = await res.json() as { prices: [number, number][] };
           const daily = cgToDailyPoints(data.prices ?? []);
-          const points = aggregate(daily, period);
-          history[symbol] = points;
-          await supabase.from("api_cache").upsert(
-            { cache_key: `history:${symbol}:${period}`, response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
-            { onConflict: "cache_key" },
-          );
+          if (daily.length > 0) points = aggregate(daily, period);
+        } else {
+          console.warn(`CoinGecko ${cgId} returned ${res.status} — falling back to Yahoo Finance`);
         }
       } catch (e) {
         console.error(`CoinGecko history error for ${cgId}:`, e);
       }
-    }
 
-    const finnhubToken = Deno.env.get("FINNHUB_API_KEY");
-    if (needStocks.length > 0 && finnhubToken) {
-      const toTs = Math.floor(now / 1000);
-      const fromTs = toTs - days * 86400;
-
-      await Promise.all(needStocks.map(async (sym) => {
+      if (!points) {
         try {
-          const url = `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${fromTs}&to=${toTs}&token=${finnhubToken}`;
-          const res = await fetch(url);
+          const yahooSym = `${symbol}-USD`;
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=1d&period1=${fromTs}&period2=${toTs}`;
+          const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
           if (res.ok) {
-            const data = await res.json() as { c: number[]; t: number[]; s: string };
-            if (data.s === "ok" && Array.isArray(data.c) && data.c.length > 0) {
-              const daily: PricePoint[] = data.t.map((ts, i) => ({
-                date: new Date(ts * 1000).toISOString().slice(0, 10),
-                price: data.c[i],
-              }));
-              const points = aggregate(daily.sort((a, b) => a.date.localeCompare(b.date)), period);
-              history[sym] = points;
-              await supabase.from("api_cache").upsert(
-                { cache_key: `history:${sym}:${period}`, response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
-                { onConflict: "cache_key" },
-              );
+            const data = await res.json() as {
+              chart: { result: Array<{ timestamp: number[]; indicators: { quote: Array<{ close: (number | null)[] }> } }> | null };
+            };
+            const result = data.chart?.result?.[0];
+            const closes = result?.indicators?.quote?.[0]?.close;
+            if (result?.timestamp && closes) {
+              const daily: PricePoint[] = result.timestamp
+                .map((ts, i) => ({ date: new Date(ts * 1000).toISOString().slice(0, 10), price: closes[i] }))
+                .filter((p): p is PricePoint => p.price != null);
+              if (daily.length > 0) points = aggregate(daily.sort((a, b) => a.date.localeCompare(b.date)), period);
             }
           }
         } catch (e) {
-          console.error(`Finnhub history error for ${sym}:`, e);
+          console.error(`Yahoo Finance fallback error for ${symbol}-USD:`, e);
+        }
+      }
+
+      if (points && points.length > 0) {
+        history[symbol] = points;
+        await supabase.from("api_cache").upsert(
+          { cache_key: `history:${symbol}:${period}`, response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
+          { onConflict: "cache_key" },
+        );
+      }
+    }
+
+    if (needStocks.length > 0) {
+      await Promise.all(needStocks.map(async (sym) => {
+        try {
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&period1=${fromTs}&period2=${toTs}`;
+          const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+          if (res.ok) {
+            const data = await res.json() as {
+              chart: {
+                result: Array<{ timestamp: number[]; indicators: { quote: Array<{ close: (number | null)[] }> } }> | null;
+              };
+            };
+            const result = data.chart?.result?.[0];
+            const closes = result?.indicators?.quote?.[0]?.close;
+            if (result?.timestamp && closes) {
+              const daily: PricePoint[] = result.timestamp
+                .map((ts, i) => ({ date: new Date(ts * 1000).toISOString().slice(0, 10), price: closes[i] }))
+                .filter((p): p is PricePoint => p.price != null);
+              if (daily.length > 0) {
+                const points = aggregate(daily.sort((a, b) => a.date.localeCompare(b.date)), period);
+                history[sym] = points;
+                await supabase.from("api_cache").upsert(
+                  { cache_key: `history:${sym}:${period}`, response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
+                  { onConflict: "cache_key" },
+                );
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`Yahoo Finance history error for ${sym}:`, e);
         }
       }));
     }

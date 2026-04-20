@@ -75,6 +75,18 @@ export function nearestRateForDate(
   return rateMap.get(sortedDates[0]) ?? null
 }
 
+export function lookupFxRate(
+  rates: Record<string, number>,
+  from: string,
+  to: string,
+  date: string,
+): number | null {
+  const f = from.toUpperCase()
+  const t = to.toUpperCase()
+  if (f === t) return 1
+  return rates[`${f}_${t}_${date}`] ?? null
+}
+
 /**
  * Find the most-recent price on or before `dateStr` from a sorted array of
  * price points. Returns null when no point exists on or before the date.

@@ -55,7 +55,7 @@ export function PortfolioClient({ portfolios, selectedId, onSelect, userId }: Pr
 
         {open && (
           <div
-            className="absolute left-0 top-full mt-1 z-50 rounded-lg shadow-xl py-1 min-w-[180px]"
+            className="absolute left-0 top-full mt-1 z-50 rounded-lg shadow-xl py-1 min-w-45"
             style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
             onMouseLeave={() => setOpen(false)}
           >

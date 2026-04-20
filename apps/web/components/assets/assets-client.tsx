@@ -67,7 +67,7 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices } = usePrices(priceItems)
 
-  const { series, startPrices, avgCostPerAsset, quantityPerAsset, loading: histLoading, fxError, todayFx, startFx } =
+  const { series, avgCostPerAsset, quantityPerAsset, startPricePerAsset, loading: histLoading, fxError, priceError, todayFx } =
     usePortfolioHistory(visible, period, selectedCurrency)
 
   function handlePortfolioSelect(id: string | null) {
@@ -90,25 +90,26 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
     const avgCost = avgCostPerAsset[h.id] ?? 0
     const priceCcy = source === 'live' ? 'USD' : h.currency
     const price = source === 'cost_basis' ? avgCost : rawPrice
-    const value = qty * price * todayFx(priceCcy)
-    const costBasis = qty * avgCost * todayFx(h.currency)
-    const startPrice = h.symbol && source !== 'cost_basis' ? startPrices[h.symbol] : undefined
-    const currentUnitValue = price * todayFx(priceCcy)
-    const startUnitValue = startPrice !== undefined ? startPrice * startFx('USD') : undefined
-    const changeAbs = startUnitValue !== undefined
-      ? qty * (currentUnitValue - startUnitValue)
-      : (source !== 'cost_basis' && costBasis > 0 ? value - costBasis : null)
-    const changePct = startUnitValue !== undefined && startUnitValue > 0
-      ? (currentUnitValue - startUnitValue) / startUnitValue * 100
-      : (changeAbs !== null && costBasis > 0 ? changeAbs / costBasis * 100 : null)
-    return { h, source, qty, avgCost, value, costBasis, changeAbs, changePct }
+    const fxToday = todayFx(priceCcy)
+    const fxAsset = todayFx(h.currency)
+    const value: number | null = fxToday !== null ? qty * price * fxToday : null
+    const costBasis: number | null = fxAsset !== null ? qty * avgCost * fxAsset : null
+    const startPriceUSD = source === 'live' ? (startPricePerAsset[h.id] ?? null) : null
+    const startValue: number | null = startPriceUSD !== null && fxToday !== null
+      ? qty * startPriceUSD * fxToday
+      : null
+    const changeAbs: number | null = source === 'live' && value !== null && startValue !== null
+      ? value - startValue : null
+    const changePct: number | null = changeAbs !== null && startValue !== null && startValue !== 0
+      ? (changeAbs / startValue) * 100 : null
+    return { h, source, qty, avgCost, value, costBasis, startValue, changeAbs, changePct }
   })
 
   const sorted = [...enriched].sort((a, b) => {
     switch (sortBy) {
       case 'alpha':      return a.h.asset_name.localeCompare(b.h.asset_name)
-      case 'value-desc': return b.value - a.value
-      case 'value-asc':  return a.value - b.value
+      case 'value-desc': return (b.value ?? 0) - (a.value ?? 0)
+      case 'value-asc':  return (a.value ?? 0) - (b.value ?? 0)
       case 'abs-gain':   return (b.changeAbs ?? 0) - (a.changeAbs ?? 0)
       case 'abs-loss':   return (a.changeAbs ?? 0) - (b.changeAbs ?? 0)
       case 'rel-gain':   return (b.changePct ?? 0) - (a.changePct ?? 0)
@@ -116,16 +117,24 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
     }
   })
 
-  const totalValue = enriched.reduce((sum, e) => sum + e.value, 0)
-  const totalCostBasis = enriched.reduce((sum, e) => sum + e.costBasis, 0)
-  const totalChangeAbs = totalValue - totalCostBasis
-  const totalChangePct = totalCostBasis > 0 ? (totalChangeAbs / totalCostBasis) * 100 : null
+  const totalValue = enriched.reduce<number | null>((sum, e) =>
+    sum !== null && e.value !== null ? sum + e.value : null, 0)
+  // For period-based total: use start-of-period value for live assets, cost basis for others
+  const totalBaseline = enriched.reduce<number | null>((sum, e) => {
+    if (sum === null) return null
+    const baseline = e.startValue ?? e.costBasis
+    return baseline !== null ? sum + baseline : null
+  }, 0)
+  const totalChangeAbs = totalValue !== null && totalBaseline !== null ? totalValue - totalBaseline : null
+  const totalChangePct = totalChangeAbs !== null && totalBaseline !== null && totalBaseline > 0
+    ? (totalChangeAbs / totalBaseline) * 100 : null
 
   return (
     <div className="space-y-4">
-      {fxError && (
-        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400">
-          {fxError}
+      {(fxError || priceError) && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400 space-y-1">
+          {fxError && <p>{fxError}</p>}
+          {priceError && <p>{priceError}</p>}
         </div>
       )}
 
@@ -236,9 +245,9 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
           {visible.length > 0 && (
             <div className="text-right shrink-0">
               <p className="text-sm font-semibold">
-                {hideAmounts ? '••••••' : histLoading ? '—' : formatCurrency(totalValue, selectedCurrency)}
+                {hideAmounts ? '••••••' : histLoading ? '—' : totalValue !== null ? formatCurrency(totalValue, selectedCurrency) : '—'}
               </p>
-              {!hideAmounts && !histLoading && totalChangePct !== null && (
+              {!hideAmounts && !histLoading && totalChangePct !== null && totalChangeAbs !== null && (
                 <p className="text-xs tabular-nums" style={{ color: totalChangeAbs >= 0 ? '#22c55e' : '#ef4444' }}>
                   {totalChangeAbs >= 0 ? '+' : ''}{formatCurrency(totalChangeAbs, selectedCurrency)}
                   <span className="mx-1 opacity-50">·</span>
@@ -297,7 +306,7 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
 
                       <td className="px-4 md:px-5 py-3.5 text-right whitespace-nowrap">
                         <p className="font-semibold text-sm tabular-nums">
-                          {hideAmounts ? '••••••' : histLoading ? '—' : formatCurrency(value, selectedCurrency)}
+                          {hideAmounts ? '••••••' : histLoading ? '—' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}
                         </p>
                         {!hideAmounts && !histLoading && changeAbs !== null && changePct !== null ? (
                           <p className="text-xs mt-0.5 tabular-nums" style={{ color: changeColor }}>

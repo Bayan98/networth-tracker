@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { lookupFxRate } from '@networth/utils'
 import type { FxRates } from '@networth/utils'
 
 export function useTodayFx(
   assets: Array<{ currency: string }>,
   displayCurrency: string,
-): { fx: (from: string) => number; loading: boolean; fxError: string | null } {
+): { fx: (from: string) => number | null; loading: boolean; fxError: string | null } {
   const [rates, setRates] = useState<FxRates>({})
   const [loading, setLoading] = useState(true)
   const [fxError, setFxError] = useState<string | null>(null)
@@ -66,12 +67,7 @@ export function useTodayFx(
 
   const fx = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
-    return (from: string): number => {
-      const f = from.toUpperCase()
-      const t = displayCurrency.toUpperCase()
-      if (f === t) return 1
-      return rates[`${f}_${t}_${today}`] ?? 1
-    }
+    return (from: string): number | null => lookupFxRate(rates, from, displayCurrency, today)
   }, [rates, displayCurrency])
 
   return { fx, loading, fxError }

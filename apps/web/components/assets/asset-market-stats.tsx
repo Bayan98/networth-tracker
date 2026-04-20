@@ -24,13 +24,14 @@ export function AssetMarketStats({ asset, transactions }: Props) {
 
   const { avgCostBasis, quantity, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
 
-  const price = source === 'live'
-    ? rawPrice * fx('USD')
+  const fxRate = source === 'live' ? fx('USD') : null
+  const price: number | null = source === 'live'
+    ? (fxRate !== null ? rawPrice * fxRate : null)
     : source === 'cost_basis' ? avgCostBasis : rawPrice
 
-  const marketValueTotal = quantity * price
-  const changeAbs = price - avgCostBasis
-  const changePct = avgCostBasis > 0 ? (changeAbs / avgCostBasis) * 100 : null
+  const marketValueTotal = price !== null ? quantity * price : null
+  const changeAbs = price !== null ? price - avgCostBasis : null
+  const changePct = changeAbs !== null && avgCostBasis > 0 ? (changeAbs / avgCostBasis) * 100 : null
   const hasLiveData = source !== 'cost_basis'
 
   const changeColor = !hasLiveData || changePct === null
@@ -48,18 +49,18 @@ export function AssetMarketStats({ asset, transactions }: Props) {
     },
     {
       label: 'Market Value / unit',
-      value: hideAmounts ? '••••' : loading ? '…' : formatCurrency(price, asset.currency),
+      value: hideAmounts ? '••••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—',
       sub: source === 'live' ? 'live' : source === 'manual' ? 'manual price' : 'avg cost basis',
     },
     {
       label: 'Market Value total',
-      value: hideAmounts ? '••••••' : loading ? '…' : formatCurrency(marketValueTotal, asset.currency),
+      value: hideAmounts ? '••••••' : loading ? '…' : marketValueTotal !== null ? formatCurrency(marketValueTotal, asset.currency) : '—',
     },
     {
       label: 'Change / unit',
       value: hideAmounts
         ? '••••'
-        : hasLiveData
+        : hasLiveData && changeAbs !== null
           ? formatCurrency(changeAbs, asset.currency)
           : '—',
       color: changeColor,

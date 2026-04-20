@@ -66,7 +66,9 @@ export function AllocationChart({ assets, currency, quantityPerAsset }: Props) {
   for (const h of assets) {
     const { price, source } = resolveAssetPrice(h, prices)
     const priceCcy = source === 'live' ? 'USD' : h.currency
-    const value = (quantityPerAsset[h.id] ?? 0) * price * fx(priceCcy)
+    const rate = fx(priceCcy)
+    if (rate === null) continue
+    const value = (quantityPerAsset[h.id] ?? 0) * price * rate
     byType.set(h.asset_type, (byType.get(h.asset_type) ?? 0) + value)
   }
 

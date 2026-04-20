@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Transaction } from '@networth/types'
+import { lookupFxRate } from '@networth/utils'
 import type { FxRates } from '@networth/utils'
 
 export function useAssetAvgCost(
@@ -12,12 +13,12 @@ export function useAssetAvgCost(
   avgCostBasis: number
   totalIncome: number
   quantity: number
-  fx: (from: string) => number
+  fx: (from: string) => number | null
   loading: boolean
   fxError: string | null
 } {
   const [fxRates, setFxRates] = useState<FxRates>({})
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [fxError, setFxError] = useState<string | null>(null)
 
   const pairsKey = useMemo(() => {
@@ -26,7 +27,6 @@ export function useAssetAvgCost(
     const to = assetCurrency.toUpperCase()
     const today = new Date().toISOString().slice(0, 10)
 
-    // today's USD → assetCurrency for live price conversion
     if ('USD' !== to) {
       const key = `USD_${to}_${today}`
       seen.add(key)
@@ -50,6 +50,7 @@ export function useAssetAvgCost(
   useEffect(() => {
     if (pairsKey.pairs.length === 0) {
       setFxRates({})
+      setLoading(false)
       return
     }
     setLoading(true)
@@ -86,19 +87,13 @@ export function useAssetAvgCost(
     const to = assetCurrency.toUpperCase()
     const today = new Date().toISOString().slice(0, 10)
 
-    function fxAt(from: string, date: string): number {
-      const f = from.toUpperCase()
-      if (f === to) return 1
-      return fxRates[`${f}_${to}_${date}`] ?? 1
+    function fxAt(from: string, date: string): number | null {
+      return lookupFxRate(fxRates, from, to, date)
     }
 
-    function fx(from: string): number {
+    function fx(from: string): number | null {
       return fxAt(from, today)
     }
-
-    function getAvgCostBasis(totalBuyValue: number, totalBuyQty: number): number {
-      return totalBuyQty > 0 ? totalBuyValue / totalBuyQty : 0
-    } 
 
     let totalBuyValue = 0
     let totalBuyQty = 0
@@ -113,8 +108,10 @@ export function useAssetAvgCost(
       const rate = fxAt(tx.currency, date)
 
       if (tx.transaction_type === 'buy' || tx.transaction_type === 'deposit') {
-        totalBuyValue += qty * price * rate
-        totalBuyQty += qty
+        if (rate !== null) {
+          totalBuyValue += qty * price * rate
+          totalBuyQty += qty
+        }
         quantity += qty
       } else if (tx.transaction_type === 'sell' || tx.transaction_type === 'withdrawal') {
         quantity -= qty
@@ -122,12 +119,12 @@ export function useAssetAvgCost(
         quantity *= qty
         totalBuyQty *= qty
       } else if (tx.transaction_type === 'dividend') {
-        totalIncome += qty * price * rate
+        if (rate !== null) totalIncome += qty * price * rate
       }
     }
 
     return {
-      avgCostBasis: getAvgCostBasis(totalBuyValue, totalBuyQty),
+      avgCostBasis: totalBuyQty > 0 ? totalBuyValue / totalBuyQty : 0,
       totalIncome,
       quantity,
       fx,
