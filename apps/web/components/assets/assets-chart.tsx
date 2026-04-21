@@ -20,13 +20,13 @@ interface Props {
   loading: boolean
   period: Period
   onPeriodChange: (p: Period) => void
+  totalValue?: number | null
+  hideAmounts?: boolean
 }
 
 const PERIODS: Period[] = ['1w', '1m', '1y', '5y']
 const PERIOD_LABELS: Record<Period, string> = { '1w': '1W', '1m': '1M', '1y': '1Y', '5y': '5Y' }
-
-const GREEN = '#22c55e'
-const RED   = '#ef4444'
+const PERIOD_HEADER_LABELS: Record<Period, string> = { '1w': 'Past 1W', '1m': 'Past 1M', '1y': 'Past 1Y', '5y': 'Past 5Y' }
 
 type ChartPoint = SeriesPoint & {
   timestamp: number
@@ -87,31 +87,61 @@ function splitMarketSeries(series: SeriesPoint[]): ChartPoint[] {
   return out
 }
 
-export function AssetsChart({ series, currency, loading, period, onPeriodChange }: Props) {
+export function AssetsChart({ series, currency, loading, period, onPeriodChange, totalValue, hideAmounts }: Props) {
   const isEmpty = !loading && series.length === 0
   const chartData = splitMarketSeries(series)
   const seriesMin = series.length > 0
     ? Math.min(...series.flatMap((p) => [p.costBasis, p.marketValue])) * 0.99
     : 0
 
+  const showNetworth = totalValue !== undefined
+
   return (
-    <div
-      className="rounded-xl p-5"
-      style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold">Portfolio Performance</h2>
-        <div className="flex items-center gap-1">
+    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{
+        padding: 'var(--density-pad-y) var(--density-pad-x) 20px',
+        display: 'flex',
+        alignItems: showNetworth ? 'flex-end' : 'center',
+        justifyContent: 'space-between',
+        gap: 16,
+      }}>
+        <div>
+          {showNetworth ? (
+            <>
+              <div className="empty-label">
+                Net worth · {currency} · {PERIOD_HEADER_LABELS[period]}
+              </div>
+              <div style={{
+                marginTop: 6,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 32,
+                fontWeight: 700,
+                letterSpacing: '-0.03em',
+                lineHeight: 1,
+                color: 'var(--ink)',
+              }}>
+                {hideAmounts
+                  ? '•••••'
+                  : loading
+                  ? '—'
+                  : totalValue !== null
+                  ? formatCurrency(totalValue, currency)
+                  : '—'}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.005em' }}>
+              Portfolio Performance
+            </div>
+          )}
+        </div>
+
+        <div className="segmented" style={{ flexShrink: 0 }}>
           {PERIODS.map((p) => (
             <button
               key={p}
               onClick={() => onPeriodChange(p)}
-              className="px-2.5 py-1 rounded-md text-xs font-medium transition-opacity hover:opacity-80 active:opacity-60"
-              style={{
-                background: period === p ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : 'transparent',
-                color: period === p ? 'var(--color-accent)' : 'var(--color-muted-foreground)',
-                border: `1px solid ${period === p ? 'color-mix(in srgb, var(--color-accent) 35%, transparent)' : 'transparent'}`,
-              }}
+              className={period === p ? 'active' : ''}
             >
               {PERIOD_LABELS[p]}
             </button>
@@ -119,51 +149,67 @@ export function AssetsChart({ series, currency, loading, period, onPeriodChange 
         </div>
       </div>
 
-      <div style={{ height: '180px' }}>
+      <div style={{ height: 260, paddingBottom: 20 }}>
         {loading ? (
-          <div className="w-full rounded-lg animate-pulse" style={{ height: '180px', background: 'var(--color-muted)' }} />
+          <div style={{
+            height: '100%',
+            margin: '0 var(--density-pad-x)',
+            background: 'var(--surface-2)',
+            borderRadius: 'var(--radius)',
+            opacity: 0.6,
+          }} />
         ) : isEmpty ? (
-          <div className="w-full flex items-center justify-center" style={{ height: '180px', color: 'var(--color-muted-foreground)' }}>
-            <p className="text-sm">Add transactions to see performance.</p>
+          <div style={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--ink-faint)',
+            fontSize: 13,
+          }}>
+            Add transactions to see performance.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 4, right: 24, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="cbFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="var(--color-muted-foreground)" stopOpacity={0.10} />
-                  <stop offset="95%" stopColor="var(--color-muted-foreground)" stopOpacity={0} />
+                  <stop offset="5%"  stopColor="var(--ink-faint)" stopOpacity={0.08} />
+                  <stop offset="95%" stopColor="var(--ink-faint)" stopOpacity={0} />
                 </linearGradient>
-
                 <linearGradient id="mvFillGreen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={GREEN} stopOpacity={0.22} />
-                  <stop offset="100%" stopColor={GREEN} stopOpacity={0.04} />
+                  <stop offset="0%" stopColor="var(--pos)" stopOpacity={0.18} />
+                  <stop offset="100%" stopColor="var(--pos)" stopOpacity={0.02} />
                 </linearGradient>
                 <linearGradient id="mvFillRed" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={RED} stopOpacity={0.22} />
-                  <stop offset="100%" stopColor={RED} stopOpacity={0.04} />
+                  <stop offset="0%" stopColor="var(--neg)" stopOpacity={0.18} />
+                  <stop offset="100%" stopColor="var(--neg)" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--border)"
+                vertical={false}
+                strokeOpacity={0.7}
+              />
               <XAxis
                 type="number"
                 dataKey="timestamp"
                 domain={['dataMin', 'dataMax']}
                 scale="time"
                 tickFormatter={(v: number) => formatChartDate(new Date(v).toISOString().slice(0, 10), period)}
-                tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }}
+                tick={{ fontSize: 10, fill: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono, monospace)' }}
                 axisLine={false}
                 tickLine={false}
-                minTickGap={48}
+                minTickGap={52}
               />
               <YAxis
                 tickFormatter={(v: number) => formatCompact(v, currency)}
-                tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }}
+                tick={{ fontSize: 10, fill: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono, monospace)' }}
                 axisLine={false}
                 tickLine={false}
-                width={58}
+                width={60}
                 domain={[seriesMin, 'auto']}
               />
               <Tooltip
@@ -174,35 +220,32 @@ export function AssetsChart({ series, currency, loading, period, onPeriodChange 
                   name === 'costBasis' ? 'Invested' : 'Market Value',
                 ]}
               />
-
               <Area
                 type="monotone"
                 dataKey="costBasis"
-                stroke="var(--color-muted-foreground)"
+                stroke="var(--border-strong)"
                 strokeWidth={1.5}
                 strokeDasharray="4 3"
-                strokeOpacity={0.55}
+                strokeOpacity={0.7}
                 fill="url(#cbFill)"
                 baseValue={seriesMin}
                 dot={false}
               />
-
               <Area
                 type="monotone"
                 dataKey="mvAbove"
                 connectNulls={false}
-                stroke={GREEN}
+                stroke="var(--pos)"
                 strokeWidth={2}
                 fill="url(#mvFillGreen)"
                 baseValue={seriesMin}
                 dot={false}
               />
-
               <Area
                 type="monotone"
                 dataKey="mvBelow"
                 connectNulls={false}
-                stroke={RED}
+                stroke="var(--neg)"
                 strokeWidth={2}
                 fill="url(#mvFillRed)"
                 baseValue={seriesMin}

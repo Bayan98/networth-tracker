@@ -20,18 +20,10 @@ export default async function IncomePage() {
   ])
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Scheduled Events</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
-          Recurring income and payment schedules
-        </p>
-      </div>
-      <ScheduledEventsClient
-        events={events ?? []}
-        userId={user!.id}
-        currency={(profile?.default_currency ?? 'USD') as CurrencyCode}
-      />
-    </div>
+    <ScheduledEventsClient
+      events={events ?? []}
+      userId={user!.id}
+      currency={(profile?.default_currency ?? 'USD') as CurrencyCode}
+    />
   )
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -8,68 +9,131 @@ import {
   DollarSign,
   CreditCard,
   Settings,
+  Plus,
 } from 'lucide-react'
+import type { Profile, Portfolio } from '@networth/types'
+import { AddPortfolioDialog } from '@/components/assets/add-portfolio-dialog'
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/assets', label: 'Assets', icon: TrendingUp },
-  { href: '/income', label: 'Income', icon: DollarSign },
-  { href: '/debts', label: 'Debts', icon: CreditCard },
+  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, countKey: null },
+  { href: '/assets', label: 'Assets', icon: TrendingUp, countKey: 'assets' as const },
+  { href: '/income', label: 'Income', icon: DollarSign, countKey: 'income' as const },
+  { href: '/debts', label: 'Debts', icon: CreditCard, countKey: 'debts' as const },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  user: Profile | null
+  portfolios: Portfolio[]
+  counts: { assets: number; income: number; debts: number }
+  portfolioAssetCounts: Record<string, number>
+}
+
+function getInitials(name: string | null | undefined, email: string | null | undefined) {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  if (email) return email.slice(0, 2).toUpperCase()
+  return '?'
+}
+
+export function Sidebar({ user, portfolios, counts, portfolioAssetCounts }: SidebarProps) {
   const pathname = usePathname()
+  const initials = getInitials(user?.full_name, user?.email)
+  const [showAddPortfolio, setShowAddPortfolio] = useState(false)
 
   return (
-    <aside
-      className="w-60 hidden md:flex flex-col border-r shrink-0"
-      style={{
-        background: 'var(--color-card)',
-        borderColor: 'var(--color-border)',
-      }}
-    >
-      {/* Logo */}
-      <div
-        className="h-16 flex items-center px-6 border-b"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
-        <span className="font-bold text-lg tracking-tight">
-          Networth <span style={{ color: 'var(--color-accent)' }}>Tracker</span>
-        </span>
-      </div>
+    <>
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark">N</div>
+          <div className="brand-name">Net<em>worth</em></div>
+        </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
-          return (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                background: isActive ? 'var(--color-muted)' : 'transparent',
-                color: isActive ? 'var(--color-foreground)' : 'var(--color-muted-foreground)',
-              }}
+        <div className="nav-group">
+          <div className="nav-label">Workspace</div>
+          {NAV_ITEMS.map(({ href, label, icon: Icon, countKey }) => {
+            const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href) && !pathname.startsWith('/portfolios'))
+            const count = countKey ? counts[countKey] : null
+            return (
+              <Link key={href} href={href} className={`nav-item ${isActive ? 'active' : ''}`}>
+                <Icon size={16} />
+                <span>{label}</span>
+                {count != null && count > 0 && <span className="nav-count">{count}</span>}
+              </Link>
+            )
+          })}
+        </div>
+
+        <div className="nav-group">
+          {/* Header row: label + add button on the same line */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '0 10px 8px' }}>
+            <span style={{ fontSize: 11, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', flex: 1 }}>
+              Portfolios
+            </span>
+            <button
+              onClick={() => setShowAddPortfolio(true)}
+              className="iconbtn"
+              style={{ width: 20, height: 20, flexShrink: 0 }}
+              title="New portfolio"
             >
-              <Icon size={16} />
-              {label}
-            </Link>
-          )
-        })}
-      </nav>
+              <Plus size={11} />
+            </button>
+          </div>
 
-      {/* Settings link */}
-      <div className="px-3 py-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-          style={{ color: 'var(--color-muted-foreground)' }}
-        >
-          <Settings size={16} />
-          Settings
-        </Link>
-      </div>
-    </aside>
+          {portfolios.map((p) => {
+            const isActive = pathname.startsWith(`/portfolios/${p.id}`)
+            const assetCount = portfolioAssetCounts[p.id] ?? 0
+            return (
+              <Link
+                key={p.id}
+                href={`/portfolios/${p.id}`}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                style={{ fontSize: 13 }}
+              >
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: isActive ? 'var(--accent)' : 'var(--border-strong)',
+                  marginLeft: 5, marginRight: 4, flexShrink: 0,
+                }} />
+                <span style={{ color: isActive ? 'var(--ink)' : 'var(--ink-muted)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {p.name}
+                </span>
+                {assetCount > 0 && (
+                  <span className="nav-count">{assetCount}</span>
+                )}
+              </Link>
+            )
+          })}
+
+          {portfolios.length === 0 && (
+            <button
+              onClick={() => setShowAddPortfolio(true)}
+              className="nav-item"
+              style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', fontSize: 12, color: 'var(--ink-faint)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
+            >
+              <Plus size={13} style={{ opacity: 0.5 }} />
+              <span>New portfolio</span>
+            </button>
+          )}
+        </div>
+
+        <div className="sidebar-foot">
+          <div className="user-avatar">{initials}</div>
+          <div className="user-info">
+            {user?.full_name && <div className="user-name">{user.full_name}</div>}
+            {user?.email && <div className="user-email">{user.email}</div>}
+          </div>
+          <Link href="/settings" className="iconbtn" style={{ marginLeft: 'auto' }} title="Settings">
+            <Settings size={15} />
+          </Link>
+        </div>
+      </aside>
+
+      {showAddPortfolio && user && (
+        <AddPortfolioDialog userId={user.id} onClose={() => setShowAddPortfolio(false)} />
+      )}
+    </>
   )
 }

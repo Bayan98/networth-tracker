@@ -20,18 +20,10 @@ export default async function DebtsPage() {
   ])
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Debts</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
-          Track loans, credit cards, and other liabilities
-        </p>
-      </div>
-      <DebtsClient
-        debts={debts ?? []}
-        userId={user!.id}
-        currency={(profile?.default_currency ?? 'USD') as CurrencyCode}
-      />
-    </div>
+    <DebtsClient
+      debts={debts ?? []}
+      userId={user!.id}
+      currency={(profile?.default_currency ?? 'USD') as CurrencyCode}
+    />
   )
 }

@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Loader2, Sparkles, AlertCircle } from 'lucide-react'
+import { Loader2, Sparkles, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { AssetType, CurrencyCode, Portfolio } from '@networth/types'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
+import { Dialog, DialogFooter, inputStyle } from '@/components/ui/dialog'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 
-// Asset types that don't need a ticker symbol
 const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'other']
 
 interface Props {
@@ -36,7 +36,6 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
 
   const needsSymbol = assetType && !NO_SYMBOL_TYPES.includes(assetType as AssetType)
 
-  // Trigger lookup whenever symbol or assetType changes
   useEffect(() => {
     if (!assetType || !needsSymbol || !symbol.trim()) {
       cancel()
@@ -76,181 +75,140 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
     onClose()
   }
 
-  const inputStyle = {
-    background: 'var(--color-muted)',
-    border: '1px solid var(--color-border)',
-    color: 'var(--color-foreground)',
-  }
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)', display: 'block', marginBottom: 5 }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div
-        className="w-full max-w-sm rounded-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
-        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Add Asset</h2>
-          <button onClick={onClose} style={{ color: 'var(--color-muted-foreground)' }}>
-            <X size={16} />
-          </button>
+    <Dialog title="Add Asset" onClose={onClose}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div>
+          <label style={labelStyle}>Type</label>
+          <select
+            value={assetType}
+            onChange={(e) => {
+              setAssetType(e.target.value as AssetType)
+              setSymbol('')
+              setAssetName('')
+              setAutoFilled(false)
+            }}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+            style={inputStyle}
+            required
+          >
+            <option value="">— Select type —</option>
+            {Object.entries(ASSET_TYPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Type always shown first */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Type</label>
-            <select
-              value={assetType}
-              onChange={(e) => {
-                setAssetType(e.target.value as AssetType)
-                setSymbol('')
-                setAssetName('')
-                setAutoFilled(false)
-              }}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-              style={inputStyle}
-              required
-            >
-              <option value="">— Select type —</option>
-              {Object.entries(ASSET_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
+        {assetType && (
+          <>
+            {portfolios.length > 0 && (
+              <div>
+                <label style={labelStyle}>Portfolio</label>
+                <select
+                  value={selectedPortfolioId ?? ''}
+                  onChange={(e) => setSelectedPortfolioId(e.target.value || null)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                >
+                  <option value="">— No portfolio —</option>
+                  {portfolios.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {/* Rest appears only after type is selected */}
-          {assetType && (
-            <>
-              {portfolios.length > 0 && (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Portfolio</label>
-                  <select
-                    value={selectedPortfolioId ?? ''}
-                    onChange={(e) => setSelectedPortfolioId(e.target.value || null)}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+            {needsSymbol && (
+              <div>
+                <label style={labelStyle}>Symbol</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    value={symbol}
+                    onChange={(e) => {
+                      setSymbol(e.target.value)
+                      setAutoFilled(false)
+                      setLookupStatus('idle')
+                    }}
+                    placeholder="AAPL"
+                    autoFocus
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none uppercase"
                     style={inputStyle}
-                  >
-                    <option value="">— No portfolio —</option>
-                    {portfolios.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {needsSymbol && (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Symbol</label>
-                  <div className="relative">
-                    <input
-                      value={symbol}
-                      onChange={(e) => {
-                        setSymbol(e.target.value)
-                        setAutoFilled(false)
-                        setLookupStatus('idle')
-                      }}
-                      placeholder="AAPL"
-                      autoFocus
-                      className="w-full px-3 py-2 rounded-lg text-sm outline-none uppercase"
-                      style={inputStyle}
-                    />
-                    {lookupLoading && (
-                      <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--color-muted-foreground)' }} />
-                    )}
-                    {!lookupLoading && lookupStatus === 'not_found' && (
-                      <AlertCircle size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-warning, #f59e0b)' }} />
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {lookupStatus === 'not_found' && (
-                <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-warning, #f59e0b)' }}>
-                  <AlertCircle size={11} />
-                  Symbol not found — fill in the name manually
-                </p>
-              )}
-
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-sm font-medium">
-                  Name
-                  {autoFilled && assetName && (
-                    <span className="flex items-center gap-1 text-xs font-normal" style={{ color: 'var(--color-accent)' }}>
-                      <Sparkles size={10} /> auto-filled
-                    </span>
+                  />
+                  {lookupLoading && (
+                    <Loader2 size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-faint)', animation: 'spin 1s linear infinite' }} />
                   )}
-                </label>
-                <input
-                  value={assetName}
-                  onChange={(e) => setAssetName(e.target.value)}
-                  placeholder="Apple Inc."
-                  required
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={inputStyle}
-                />
+                  {!lookupLoading && lookupStatus === 'not_found' && (
+                    <AlertCircle size={13} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--warn)' }} />
+                  )}
+                </div>
               </div>
+            )}
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Currency</label>
-                <CurrencyPicker
-                  value={currency}
-                  onChange={(c) => setCurrency(c as CurrencyCode)}
-                  style={inputStyle}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Notes</label>
-                <input
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional"
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={inputStyle}
-                />
-              </div>
-
-              <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
-                Quantity and cost basis are calculated automatically from transactions.
+            {lookupStatus === 'not_found' && (
+              <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--warn)' }}>
+                <AlertCircle size={11} />
+                Symbol not found — fill in the name manually
               </p>
+            )}
 
-              {error && (
-                <p className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p>
-              )}
+            <div>
+              <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 6 }}>
+                Name
+                {autoFilled && assetName && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 400, color: 'var(--accent)' }}>
+                    <Sparkles size={10} /> auto-filled
+                  </span>
+                )}
+              </label>
+              <input
+                value={assetName}
+                onChange={(e) => setAssetName(e.target.value)}
+                placeholder="Apple Inc."
+                required
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={inputStyle}
+              />
+            </div>
 
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 py-2 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--color-muted)', color: 'var(--color-foreground)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-                  style={{ background: 'var(--color-accent)', color: '#fff' }}
-                >
-                  {loading ? 'Adding…' : 'Add'}
-                </button>
-              </div>
-            </>
-          )}
+            <div>
+              <label style={labelStyle}>Currency</label>
+              <CurrencyPicker value={currency} onChange={(c) => setCurrency(c as CurrencyCode)} style={inputStyle} />
+            </div>
 
-          {!assetType && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full py-2 rounded-lg text-sm font-medium"
-              style={{ background: 'var(--color-muted)', color: 'var(--color-foreground)' }}
-            >
-              Cancel
-            </button>
-          )}
-        </form>
-      </div>
-    </div>
+            <div>
+              <label style={labelStyle}>Notes</label>
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Optional"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={inputStyle}
+              />
+            </div>
+
+            <p style={{ fontSize: 11, color: 'var(--ink-faint)' }}>
+              Quantity and cost basis are calculated automatically from transactions.
+            </p>
+
+            {error && <p style={{ fontSize: 13, color: 'var(--neg)' }}>{error}</p>}
+
+            <DialogFooter onClose={onClose} loading={loading} saveLabel="Add" />
+          </>
+        )}
+
+        {!assetType && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-secondary"
+            style={{ justifyContent: 'center' }}
+          >
+            Cancel
+          </button>
+        )}
+      </form>
+    </Dialog>
   )
 }

@@ -18,12 +18,15 @@ export function usePortfolioHistory(
   avgCostPerAsset: Record<string, number>
   quantityPerAsset: Record<string, number>
   startPricePerAsset: Record<string, number | null>
+  prevDayValue: number | null
   loading: boolean
   fxError: string | null
   priceError: string | null
   todayFx: (from: string) => number | null
 } {
   const [priceHistory, setPriceHistory] = useState<PriceHistory>({})
+  // Daily price history — always 1w resolution, used for the "Today" change stat
+  const [dailyPriceHistory, setDailyPriceHistory] = useState<PriceHistory>({})
   const [rawTransactions, setRawTransactions] = useState<RawTransaction[]>([])
   const [fxRates, setFxRates] = useState<FxRates>({})
   const [fxContext, setFxContext] = useState<{ period: Period; currency: string } | null>(null)
@@ -100,6 +103,31 @@ export function usePortfolioHistory(
         setPriceHistory({})
         setPriceLoading(false)
       })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, priceableKey])
+
+  // Always fetch daily (1w) price history so "Today" stat can compare live vs yesterday
+  // regardless of which chart period is selected.
+  useEffect(() => {
+    if (priceableItems.length === 0) {
+      setDailyPriceHistory({})
+      return
+    }
+    // 1w/1m already return daily data — reuse priceHistory via dailyPriceHistory sync below
+    if (period === '1w' || period === '1m') {
+      setDailyPriceHistory({})
+      return
+    }
+    let cancelled = false
+    const supabase = createClient()
+    supabase.functions
+      .invoke('fetch-price-history', { body: { items: priceableItems, period: '1w' } })
+      .then(({ data }) => {
+        if (cancelled) return
+        setDailyPriceHistory((data?.history ?? {}) as PriceHistory)
+      })
+      .catch(() => { if (!cancelled) setDailyPriceHistory({}) })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, priceableKey])
@@ -241,7 +269,7 @@ export function usePortfolioHistory(
       const sym = asset.symbol.toUpperCase()
       const history = priceHistory[sym]
       // Fall back to earliest available price if period start falls on a non-trading day
-      result[asset.id] = nearestPriceForDate(history, startDate) ?? history?.[0]?.price ?? null
+      result[asset.id] = nearestPriceForDate(history, startDate)
     }
     return result
   }, [assets, priceHistory, period])
@@ -261,11 +289,38 @@ export function usePortfolioHistory(
     return result
   }, [rawTransactions])
 
+  // Previous-day portfolio value for the "Today" change stat.
+  // Uses daily price history (1w fetch for 1y/5y periods, main priceHistory otherwise).
+  const prevDayValue = useMemo<number | null>(() => {
+    const daily = (period === '1w' || period === '1m') ? priceHistory : dailyPriceHistory
+    if (Object.keys(daily).length === 0 && priceableItems.length > 0) return null
+    const today = new Date().toISOString().slice(0, 10)
+    let total = 0
+    for (const h of assets) {
+      const qty = quantityPerAsset[h.id] ?? 0
+      if (qty <= 0) continue
+      const sym = h.symbol?.toUpperCase()
+      if (sym && PRICEABLE_TYPES.has(h.asset_type)) {
+        const hist = daily[sym]
+        const prevPrice = hist ? [...hist].filter((p) => p.date < today).slice(-1)[0]?.price : undefined
+        if (prevPrice == null) return null
+        const fx = lookupFxRate(fxRates, 'USD', displayCurrency, today) ?? 1
+        total += qty * prevPrice * fx
+      } else {
+        const price = h.manual_price ?? 0
+        const fx = lookupFxRate(fxRates, h.currency, displayCurrency, today) ?? 1
+        total += qty * price * fx
+      }
+    }
+    return total
+  }, [assets, quantityPerAsset, priceHistory, dailyPriceHistory, period, fxRates, displayCurrency, priceableItems.length])
+
   return {
     series,
     avgCostPerAsset,
     quantityPerAsset,
     startPricePerAsset,
+    prevDayValue,
     loading: priceLoading || txLoading || fxLoading || !fxReady,
     fxError,
     priceError,

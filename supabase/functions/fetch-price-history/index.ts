@@ -38,7 +38,7 @@ function aggregate(points: PricePoint[], period: Period): PricePoint[] {
     const key = period === "1y"
       ? isoWeekKey(d)
       : `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-    grouped.set(key, p);
+    if (!grouped.has(key)) grouped.set(key, p);
   }
   return Array.from(grouped.values());
 }

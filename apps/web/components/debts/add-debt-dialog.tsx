@@ -49,38 +49,38 @@ export function AddDebtDialog({ userId, defaultCurrency, onClose }: Props) {
 
   return (
     <Dialog title="Add Debt" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Home Mortgage" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div>
+          <label className="dlg-label">Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Home Mortgage" required className="dlg-field" style={inputStyle} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Original amount</label>
-            <input type="number" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="100000" min="0" step="any" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+        <div className="dlg-grid">
+          <div>
+            <label className="dlg-label">Original amount</label>
+            <input type="number" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="100000" min="0" step="any" required className="dlg-field" style={inputStyle} />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Current balance</label>
-            <input type="number" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="85000" min="0" step="any" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+          <div>
+            <label className="dlg-label">Current balance</label>
+            <input type="number" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="85000" min="0" step="any" required className="dlg-field" style={inputStyle} />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Interest rate (%)</label>
-            <input type="number" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="5.5" min="0" step="any" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+          <div>
+            <label className="dlg-label">Interest rate (%)</label>
+            <input type="number" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="5.5" min="0" step="any" required className="dlg-field" style={inputStyle} />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Min. payment</label>
-            <input type="number" value={minPayment} onChange={(e) => setMinPayment(e.target.value)} placeholder="500" min="0" step="any" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+          <div>
+            <label className="dlg-label">Min. payment</label>
+            <input type="number" value={minPayment} onChange={(e) => setMinPayment(e.target.value)} placeholder="500" min="0" step="any" className="dlg-field" style={inputStyle} />
           </div>
         </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Currency</label>
+        <div>
+          <label className="dlg-label">Currency</label>
           <CurrencyPicker value={currency} onChange={(c) => setCurrency(c as CurrencyCode)} style={inputStyle} />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Notes</label>
-          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+        <div>
+          <label className="dlg-label">Notes</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className="dlg-field" style={inputStyle} />
         </div>
-        {error && <p className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p>}
+        {error && <p style={{ fontSize: 13, color: 'var(--neg)' }}>{error}</p>}
         <DialogFooter onClose={onClose} loading={loading} />
       </form>
     </Dialog>

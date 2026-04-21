@@ -36,16 +36,16 @@ export function AddPortfolioDialog({ userId, onClose }: Props) {
 
   return (
     <Dialog title="New Portfolio" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Main Portfolio" required className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div>
+          <label className="dlg-label">Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Main Portfolio" required className="dlg-field" style={inputStyle} />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Description</label>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+        <div>
+          <label className="dlg-label">Description</label>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="dlg-field" style={inputStyle} />
         </div>
-        {error && <p className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p>}
+        {error && <p style={{ fontSize: 13, color: 'var(--neg)' }}>{error}</p>}
         <DialogFooter onClose={onClose} loading={loading} saveLabel="Create" />
       </form>
     </Dialog>

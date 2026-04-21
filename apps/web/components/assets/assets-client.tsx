@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Plus, SlidersHorizontal } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { formatCurrency, formatPercent, ASSET_TYPE_LABELS, resolveAssetPrice, PRICEABLE_TYPES } from '@networth/utils'
 import type { Portfolio, Asset, CurrencyCode, AssetType } from '@networth/types'
@@ -30,9 +30,25 @@ interface Props {
   assets: Asset[]
   currency: CurrencyCode
   userId: string
+  initialPortfolioId?: string | null
+  portfolioName?: string
 }
 
-export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
+function MiniStat({ label, value, sub, trend }: {
+  label: string; value: string; sub: string; trend?: 'pos' | 'neg'
+}) {
+  return (
+    <div className="kpi">
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-val" style={{ fontSize: 20, marginBottom: 4 }}>{value}</div>
+      <div className="kpi-sub" style={{ color: trend === 'pos' ? 'var(--pos)' : trend === 'neg' ? 'var(--neg)' : 'var(--ink-faint)' }}>
+        {sub}
+      </div>
+    </div>
+  )
+}
+
+export function AssetsClient({ portfolios, assets, currency, userId, initialPortfolioId, portfolioName }: Props) {
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const setSelectedCurrency = useAppStore((s) => s.setSelectedCurrency)
@@ -45,11 +61,11 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
     }
   }, [])
 
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null)
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(initialPortfolioId ?? null)
   const [selectedTypes, setSelectedTypes] = useState<Set<AssetType>>(new Set())
   const [sortOpen, setSortOpen] = useState(false)
   const [sortBy, setSortBy] = useState<SortKey>('value-desc')
-  const [period, setPeriod] = useState<Period>('1y')
+  const [period, setPeriod] = useState<Period>('1m')
   const [showAddAsset, setShowAddAsset] = useState(false)
 
   const byPortfolio = selectedPortfolioId
@@ -67,7 +83,7 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices } = usePrices(priceItems)
 
-  const { series, avgCostPerAsset, quantityPerAsset, startPricePerAsset, loading: histLoading, fxError, priceError, todayFx } =
+  const { series, avgCostPerAsset, quantityPerAsset, startPricePerAsset, prevDayValue, loading: histLoading, fxError, priceError, todayFx } =
     usePortfolioHistory(visible, period, selectedCurrency)
 
   function handlePortfolioSelect(id: string | null) {
@@ -102,7 +118,7 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
       ? value - startValue : null
     const changePct: number | null = changeAbs !== null && startValue !== null && startValue !== 0
       ? (changeAbs / startValue) * 100 : null
-    return { h, source, qty, avgCost, value, costBasis, startValue, changeAbs, changePct }
+    return { h, source, qty, avgCost, price, value, costBasis, startValue, changeAbs, changePct }
   })
 
   const sorted = [...enriched].sort((a, b) => {
@@ -117,41 +133,98 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
     }
   })
 
+  // ── aggregates ────────────────────────────────────────────────────────────────
   const totalValue = enriched.reduce<number | null>((sum, e) =>
     sum !== null && e.value !== null ? sum + e.value : null, 0)
-  // For period-based total: use start-of-period value for live assets, cost basis for others
-  const totalBaseline = enriched.reduce<number | null>((sum, e) => {
-    if (sum === null) return null
-    const baseline = e.startValue ?? e.costBasis
-    return baseline !== null ? sum + baseline : null
-  }, 0)
-  const totalChangeAbs = totalValue !== null && totalBaseline !== null ? totalValue - totalBaseline : null
-  const totalChangePct = totalChangeAbs !== null && totalBaseline !== null && totalBaseline > 0
-    ? (totalChangeAbs / totalBaseline) * 100 : null
+
+  const totalCostBasis = enriched.reduce<number | null>((sum, e) =>
+    sum !== null && e.costBasis !== null ? sum + e.costBasis : null, 0)
+
+  // All-time gain vs cost basis (shown under total value card)
+  const totalGainAbs = totalValue !== null && totalCostBasis !== null ? totalValue - totalCostBasis : null
+  const totalGainPct = totalGainAbs !== null && totalCostBasis !== null && totalCostBasis > 0
+    ? (totalGainAbs / totalCostBasis) * 100 : null
+
+  // Replace last series point with live-price values so chart tip matches the total value card
+  const liveSeries = useMemo(() => {
+    if (series.length === 0 || totalValue === null || totalCostBasis === null) return series
+    const today = new Date().toISOString().slice(0, 10)
+    const last = series[series.length - 1]
+    if (last.date !== today) return series
+    return [...series.slice(0, -1), { ...last, marketValue: totalValue, costBasis: totalCostBasis }]
+  }, [series, totalValue, totalCostBasis])
+
+  // Period change: live value vs first chart data point
+  const firstChartPt = liveSeries.length > 0 ? liveSeries[0] : null
+  const lastPt = liveSeries.length > 0 ? liveSeries[liveSeries.length - 1] : null
+  const periodChangeAbs = lastPt && firstChartPt ? lastPt.marketValue - firstChartPt.marketValue : null
+  const periodChangePct = periodChangeAbs !== null && firstChartPt && firstChartPt.marketValue > 0
+    ? (periodChangeAbs / firstChartPt.marketValue) * 100 : null
+
+  // Today: live value vs yesterday's closing price (always daily, period-independent)
+  const todayChangeAbs = totalValue !== null && prevDayValue !== null ? totalValue - prevDayValue : null
+  const todayChangePct = todayChangeAbs !== null && prevDayValue !== null && prevDayValue > 0
+    ? (todayChangeAbs / prevDayValue) * 100 : null
+
+  const portfolioMap = Object.fromEntries(portfolios.map((p) => [p.id, p.name]))
+  const portfolioCount = new Set(visible.map((h) => h.portfolio_id).filter(Boolean)).size
+
+  const fmt = (v: number | null, withSign = false) => {
+    if (hideAmounts) return '••••••'
+    if (histLoading || v === null) return '—'
+    return withSign
+      ? `${v >= 0 ? '+' : ''}${formatCurrency(v, selectedCurrency)}`
+      : formatCurrency(v, selectedCurrency)
+  }
+  const fmtPct = (v: number | null) => {
+    if (hideAmounts || histLoading || v === null) return '—'
+    return formatPercent(v)
+  }
 
   return (
-    <div className="space-y-4">
+    <>
+      {/* Page head */}
+      <div className="page-head">
+        <div>
+          <div className="empty-label">{portfolioName ? 'Portfolio' : 'Holdings'}</div>
+          <h1>
+            {portfolioName ?? 'Assets'} <em>{portfolioName ? '& positions.' : '& portfolios.'}</em>
+          </h1>
+          <p>
+            {visible.length} holding{visible.length !== 1 ? 's' : ''}{' '}
+            {!portfolioName && portfolioCount > 0 && `across ${portfolioCount} portfolio${portfolioCount !== 1 ? 's' : ''}`}.
+            {' '}Prices update every 15 minutes.
+          </p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowAddAsset(true)}>
+          <Plus size={14} /> Add asset
+        </button>
+      </div>
+
       {(fxError || priceError) && (
-        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400 space-y-1">
+        <div style={{ padding: '10px 14px', borderRadius: 'var(--radius)', background: 'color-mix(in oklch, var(--warn) 12%, transparent)', border: '1px solid color-mix(in oklch, var(--warn) 30%, transparent)', fontSize: 13, color: 'var(--warn)' }}>
           {fxError && <p>{fxError}</p>}
           {priceError && <p>{priceError}</p>}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Category type filter + portfolio selector */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         {allTypes.length > 1 && (
-          <div className="order-first sm:order-2 w-full sm:w-auto flex items-center gap-2 flex-wrap">
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {allTypes.map((t) => {
               const active = selectedTypes.has(t)
               return (
                 <button
                   key={t}
                   onClick={() => toggleType(t)}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 active:opacity-70"
+                  className="btn"
                   style={{
-                    background: active ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)' : 'var(--color-card)',
-                    color: active ? 'var(--color-accent)' : 'var(--color-muted-foreground)',
-                    border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                    fontSize: 12,
+                    padding: '5px 10px',
+                    background: active ? 'color-mix(in oklch, var(--accent) 12%, transparent)' : 'var(--surface)',
+                    color: active ? 'var(--accent)' : 'var(--ink-muted)',
+                    border: `1px solid ${active ? 'color-mix(in oklch, var(--accent) 35%, transparent)' : 'var(--border)'}`,
                   }}
                 >
                   {ASSET_TYPE_LABELS[t] ?? t}
@@ -160,172 +233,194 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
             })}
           </div>
         )}
+        <PortfolioClient
+          portfolios={portfolios}
+          selectedId={selectedPortfolioId}
+          onSelect={handlePortfolioSelect}
+          userId={userId}
+        />
+      </div>
 
-        <div className="order-2 sm:order-1">
-          <PortfolioClient
-            portfolios={portfolios}
-            selectedId={selectedPortfolioId}
-            onSelect={handlePortfolioSelect}
-            userId={userId}
-          />
-        </div>
-
-        <div className="ml-auto order-last">
-          <button
-            onClick={() => setShowAddAsset(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium hover:opacity-90 active:opacity-75 transition-opacity"
-            style={{ background: 'var(--color-accent)', color: '#fff' }}
-          >
-            <Plus size={14} /> Add asset
-          </button>
-        </div>
+      {/* Mini stats — below categories, above chart */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--density-gap)' }}>
+        <MiniStat
+          label="Total value"
+          value={fmt(totalValue)}
+          sub={fmtPct(totalGainPct)}
+          trend={totalGainPct !== null ? (totalGainPct >= 0 ? 'pos' : 'neg') : undefined}
+        />
+        <MiniStat
+          label="Cost basis"
+          value={fmt(totalCostBasis)}
+          sub="Invested"
+        />
+        <MiniStat
+          label="Period change"
+          value={fmt(periodChangeAbs, true)}
+          sub={fmtPct(periodChangePct)}
+          trend={periodChangeAbs !== null ? (periodChangeAbs >= 0 ? 'pos' : 'neg') : undefined}
+        />
+        <MiniStat
+          label="Today"
+          value={fmt(todayChangeAbs, true)}
+          sub={fmtPct(todayChangePct)}
+          trend={todayChangeAbs !== null ? (todayChangeAbs >= 0 ? 'pos' : 'neg') : undefined}
+        />
       </div>
 
       <AssetsChart
-        series={series}
+        series={liveSeries}
         currency={selectedCurrency}
         loading={histLoading}
         period={period}
         onPeriodChange={setPeriod}
       />
 
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-      >
-        <div
-          className="flex items-center justify-between px-5 py-3 border-b gap-3"
-          style={{ borderColor: 'var(--color-border)', background: 'var(--color-muted)' }}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="text-xs font-semibold uppercase tracking-wider shrink-0" style={{ color: 'var(--color-muted-foreground)' }}>
-              {visible.length} asset{visible.length !== 1 ? 's' : ''}
-            </span>
+      {/* Holdings table */}
+      <div className="table-wrap">
+        <div className="table-head">
+          <h3>Holdings</h3>
 
-            {visible.length > 1 && (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setSortOpen((o) => !o)}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs hover:opacity-80 active:opacity-60 transition-opacity"
-                  style={{
-                    color: sortBy !== 'value-desc' ? 'var(--color-accent)' : 'var(--color-muted-foreground)',
-                    background: sortBy !== 'value-desc' ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
-                    border: `1px solid ${sortBy !== 'value-desc' ? 'color-mix(in srgb, var(--color-accent) 30%, transparent)' : 'var(--color-border)'}`,
-                  }}
-                >
-                  {SORT_LABELS[sortBy]}
-                </button>
-
-                {sortOpen && (
-                  <div
-                    className="absolute left-0 top-full mt-1 z-50 rounded-lg shadow-xl py-1 min-w-40"
-                    style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-                    onMouseLeave={() => setSortOpen(false)}
-                  >
-                    {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => { setSortBy(key); setSortOpen(false) }}
-                        className="w-full px-3 py-1.5 text-sm text-left transition-colors hover:opacity-80"
-                        style={{
-                          color: sortBy === key ? 'var(--color-accent)' : 'var(--color-foreground)',
-                          background: sortBy === key ? 'color-mix(in srgb, var(--color-accent) 8%, transparent)' : 'transparent',
-                        }}
-                      >
-                        {SORT_LABELS[key]}
-                      </button>
-                    ))}
-                  </div>
+          {visible.length > 1 && (
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setSortOpen((o) => !o)}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: 12,
+                  padding: '5px 10px',
+                  color: sortBy !== 'value-desc' ? 'var(--accent)' : undefined,
+                }}
+              >
+                <SlidersHorizontal size={11} />
+                Sort
+                {sortBy !== 'value-desc' && (
+                  <span style={{ fontSize: 10, opacity: 0.65 }}>· {SORT_LABELS[sortBy]}</span>
                 )}
-              </div>
-            )}
-          </div>
+              </button>
 
-          {visible.length > 0 && (
-            <div className="text-right shrink-0">
-              <p className="text-sm font-semibold">
-                {hideAmounts ? '••••••' : histLoading ? '—' : totalValue !== null ? formatCurrency(totalValue, selectedCurrency) : '—'}
-              </p>
-              {!hideAmounts && !histLoading && totalChangePct !== null && totalChangeAbs !== null && (
-                <p className="text-xs tabular-nums" style={{ color: totalChangeAbs >= 0 ? '#22c55e' : '#ef4444' }}>
-                  {totalChangeAbs >= 0 ? '+' : ''}{formatCurrency(totalChangeAbs, selectedCurrency)}
-                  <span className="mx-1 opacity-50">·</span>
-                  {formatPercent(totalChangePct)}
-                </p>
+              {sortOpen && (
+                <div
+                  style={{
+                    position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                    zIndex: 50, borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)',
+                    padding: '4px 0', minWidth: 160,
+                    background: 'var(--surface)', border: '1px solid var(--border)',
+                  }}
+                  onMouseLeave={() => setSortOpen(false)}
+                >
+                  {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => { setSortBy(key); setSortOpen(false) }}
+                      style={{
+                        display: 'block', width: '100%', padding: '6px 14px',
+                        textAlign: 'left', fontSize: 13, border: 'none',
+                        cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                        color: sortBy === key ? 'var(--accent)' : 'var(--ink)',
+                        background: sortBy === key ? 'color-mix(in oklch, var(--accent) 8%, transparent)' : 'transparent',
+                      } as React.CSSProperties}
+                    >
+                      {SORT_LABELS[key]}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}
         </div>
 
         {visible.length === 0 ? (
-          <div className="p-12 text-center">
-            <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-              {assets.length === 0
-                ? 'No assets yet. Add your first position.'
-                : 'No assets match the selected filters.'}
+          <div style={{ padding: '36px 20px', textAlign: 'center' }}>
+            <p className="empty-label">
+              {assets.length === 0 ? 'No assets yet. Add your first position.' : 'No assets match the selected filters.'}
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <tbody>
-                {sorted.map(({ h: asset, source, qty, avgCost, value, changeAbs, changePct }) => {
-                  const isPositive = changeAbs !== null && changeAbs >= 0
-                  const changeColor = isPositive ? '#22c55e' : '#ef4444'
-                  return (
-                    <tr
-                      key={asset.id}
-                      className="group transition-colors hover:bg-white/3"
-                      style={{ borderBottom: '1px solid var(--color-border)' }}
-                    >
-                      <td className="px-4 md:px-5 py-3.5 w-full">
-                        <Link href={`/assets/${asset.id}`} className="block">
-                          <p className="font-semibold text-sm leading-snug flex items-baseline gap-0">
-                            <span>{asset.asset_name}</span>
-                            <span className="mx-1.5 opacity-30 font-normal">·</span>
-                            <span className="text-xs font-normal" style={{ color: 'var(--color-muted-foreground)' }}>
-                              {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
+          <table>
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Portfolio</th>
+                <th className="num">Price</th>
+                <th className="num">Change</th>
+                <th className="num">Value</th>
+                <th className="num">Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map(({ h: asset, source, qty, price, value, changeAbs, changePct }) => {
+                const portfolio = asset.portfolio_id ? portfolioMap[asset.portfolio_id] : null
+                const isPositive = changeAbs !== null && changeAbs >= 0
+                const share = totalValue && value !== null ? (value / totalValue) * 100 : null
+                const priceCcy = source === 'live' ? 'USD' : asset.currency
+                return (
+                  <tr
+                    key={asset.id}
+                    onClick={() => window.location.href = `/assets/${asset.id}`}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: 8,
+                          background: 'var(--surface-2)', border: '1px solid var(--border)',
+                          display: 'grid', placeItems: 'center',
+                          fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
+                          color: 'var(--ink-2)', flexShrink: 0,
+                        }}>
+                          {(asset.symbol ?? asset.asset_name).slice(0, 4).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 500, fontSize: 13 }}>
+                            {asset.symbol ?? asset.asset_name}
+                            {asset.symbol && (
+                              <span style={{ fontWeight: 400, color: 'var(--ink-muted)', marginLeft: 6, fontSize: 12 }}>
+                                {asset.asset_name}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2 }}>
+                            {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+                      {portfolio ?? '—'}
+                    </td>
+                    <td className="num" style={{ fontSize: 12 }}>
+                      {hideAmounts ? '••••' : histLoading ? '…' : (
+                        <>
+                          {qty !== 1 && (
+                            <span style={{ color: 'var(--ink-faint)', marginRight: 4 }}>
+                              {qty.toLocaleString('en-US', { maximumFractionDigits: 4 })}
+                              <span style={{ margin: '0 3px', opacity: 0.45 }}>|</span>
                             </span>
-                          </p>
-                          {asset.symbol && (
-                            <p className="text-xs mt-0.5 font-mono tracking-wide" style={{ color: 'var(--color-muted-foreground)' }}>
-                              {asset.symbol}
-                            </p>
                           )}
-                          {!hideAmounts && (
-                            <p className="text-xs mt-1 tabular-nums" style={{ color: 'var(--color-muted-foreground)' }}>
-                              {histLoading ? '…' : qty !== 1
-                                ? <>{qty.toLocaleString('en-US', { maximumFractionDigits: 6 })}<span className="mx-1 opacity-40">·</span>{formatCurrency(avgCost, asset.currency)}</>
-                                : formatCurrency(avgCost, asset.currency)
-                              }
-                            </p>
-                          )}
-                        </Link>
-                      </td>
-
-                      <td className="px-4 md:px-5 py-3.5 text-right whitespace-nowrap">
-                        <p className="font-semibold text-sm tabular-nums">
-                          {hideAmounts ? '••••••' : histLoading ? '—' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}
-                        </p>
-                        {!hideAmounts && !histLoading && changeAbs !== null && changePct !== null ? (
-                          <p className="text-xs mt-0.5 tabular-nums" style={{ color: changeColor }}>
-                            {isPositive ? '+' : ''}{formatCurrency(changeAbs, selectedCurrency)}
-                            <span className="mx-1 opacity-50">·</span>
-                            {formatPercent(changePct)}
-                          </p>
-                        ) : source === 'manual' && asset.manual_price_date ? (
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
-                            manual · {formatManualPriceAge(asset.manual_price_date)}
-                          </p>
-                        ) : null}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                          {formatCurrency(price, priceCcy)}
+                        </>
+                      )}
+                    </td>
+                    <td className="num">
+                      {!hideAmounts && changeAbs !== null && changePct !== null ? (
+                        <span className={`delta-pill ${isPositive ? 'pos' : 'neg'}`}>
+                          {formatPercent(changePct)}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="num" style={{ fontWeight: 600 }}>
+                      {hideAmounts ? '••••••' : histLoading ? '—' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}
+                    </td>
+                    <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+                      {share !== null ? `${share.toFixed(1)}%` : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
@@ -337,14 +432,6 @@ export function AssetsClient({ portfolios, assets, currency, userId }: Props) {
           onClose={() => setShowAddAsset(false)}
         />
       )}
-    </div>
+    </>
   )
-}
-
-function formatManualPriceAge(dateStr: string): string {
-  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000)
-  if (days === 0) return 'today'
-  if (days === 1) return '1d ago'
-  if (days < 30) return `${days}d ago`
-  return `${Math.floor(days / 30)}mo ago`
 }

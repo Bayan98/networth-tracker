@@ -1,83 +1,65 @@
 'use client'
 
-import { Eye, EyeOff, LogOut } from 'lucide-react'
+import { Eye, EyeOff, Search } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import type { Profile } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
+import { usePathname } from 'next/navigation'
+import type { Profile } from '@networth/types'
 
 interface HeaderProps {
   user: Profile | null
 }
 
-export function Header({ user }: HeaderProps) {
-  const router = useRouter()
+const CRUMBS: Record<string, { kicker: string; title: string }> = {
+  '/dashboard': { kicker: 'Workspace', title: 'Overview' },
+  '/assets':    { kicker: 'Workspace', title: 'Assets' },
+  '/income':    { kicker: 'Workspace', title: 'Income' },
+  '/debts':     { kicker: 'Workspace', title: 'Debts' },
+  '/settings':  { kicker: 'Account',   title: 'Settings' },
+}
+
+export function Header({ user: _user }: HeaderProps) {
+  const pathname = usePathname()
   const { hideAmounts, toggleHideAmounts, selectedCurrency, setSelectedCurrency } = useAppStore()
 
-  async function handleSignOut() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
-  }
+  const crumb = CRUMBS[pathname] ?? { kicker: '', title: '' }
 
   return (
-    <header
-      className="h-14 md:h-16 flex items-center justify-between px-4 md:px-6 border-b shrink-0"
-      style={{
-        background: 'var(--color-card)',
-        borderColor: 'var(--color-border)',
-      }}
-    >
-      {/* Logo on mobile (sidebar hidden) */}
-      <span className="font-bold text-base tracking-tight md:hidden">
-        Networth <span style={{ color: 'var(--color-accent)' }}>Tracker</span>
-      </span>
-      <div className="hidden md:block" />
-
-      <div className="flex items-center gap-2 md:gap-3">
-        {/* Currency selector */}
-        <CurrencyPicker
-          value={selectedCurrency}
-          onChange={(c) => setSelectedCurrency(c)}
-          className="w-20"
-          align="right"
-        />
-
-        {/* Hide amounts toggle */}
-        <button
-          onClick={toggleHideAmounts}
-          className="p-2 rounded-lg transition-colors"
-          style={{
-            background: 'var(--color-muted)',
-            color: 'var(--color-muted-foreground)',
-          }}
-          title={hideAmounts ? 'Show amounts' : 'Hide amounts'}
-        >
-          {hideAmounts ? <EyeOff size={16} /> : <Eye size={16} />}
-        </button>
-
-        {/* User name — hidden on mobile */}
-        {user?.full_name && (
-          <span className="hidden sm:inline text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-            {user.full_name}
-          </span>
-        )}
-
-        {/* Sign out */}
-        <button
-          onClick={handleSignOut}
-          className="p-2 rounded-lg transition-colors"
-          style={{
-            background: 'var(--color-muted)',
-            color: 'var(--color-muted-foreground)',
-          }}
-          title="Sign out"
-        >
-          <LogOut size={16} />
-        </button>
+    <header className="topbar">
+      <div className="topbar-mobile-brand">
+        <div className="brand-mark" style={{ width: 24, height: 24, fontSize: 13 }}>N</div>
+        <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.015em' }}>
+          Net<em style={{ fontFamily: 'var(--font-display)', fontStyle: 'normal', fontWeight: 500, color: 'var(--ink-2)' }}>worth</em>
+        </span>
       </div>
+
+      <div className="topbar-crumb">
+        <span className="crumb-kicker">{crumb.kicker}</span>
+        <span className="crumb-title">{crumb.title}</span>
+      </div>
+
+      <div className="topbar-spacer" />
+
+      <div className="topbar-search">
+        <Search size={14} />
+        <span>Search assets, tickers…</span>
+        <kbd>⌘K</kbd>
+      </div>
+
+      <CurrencyPicker
+        value={selectedCurrency}
+        onChange={(c) => setSelectedCurrency(c)}
+        className="w-20"
+        align="right"
+      />
+
+      <button
+        className="iconbtn"
+        onClick={toggleHideAmounts}
+        title={hideAmounts ? 'Show amounts' : 'Hide amounts'}
+      >
+        {hideAmounts ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
     </header>
   )
 }
