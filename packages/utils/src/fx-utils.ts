@@ -88,8 +88,11 @@ export function lookupFxRate(
 }
 
 /**
- * Find the most-recent price on or before `dateStr` from a sorted array of
- * price points. Returns null when no point exists on or before the date.
+ * Find the price nearest to `dateStr` from a sorted array of price points.
+ * Prefers the most-recent price on or before the date (carry-forward semantics).
+ * Falls back to the earliest available price if no prior price exists — this
+ * handles period-start dates that fall on weekends or market holidays where
+ * the price history only starts from the next trading day.
  */
 export function nearestPriceForDate(
   history: Array<{ date: string; price: number }> | undefined,
@@ -98,8 +101,11 @@ export function nearestPriceForDate(
   if (!history || history.length === 0) return null
   let last: number | null = null
   for (const p of history) {
-    if (p.date <= dateStr) last = p.price
-    else break
+    if (p.date <= dateStr) {
+      last = p.price
+    } else {
+      return last ?? p.price
+    }
   }
   return last
 }

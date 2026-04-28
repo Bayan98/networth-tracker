@@ -65,7 +65,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
   const [selectedTypes, setSelectedTypes] = useState<Set<AssetType>>(new Set())
   const [sortOpen, setSortOpen] = useState(false)
   const [sortBy, setSortBy] = useState<SortKey>('value-desc')
-  const [period, setPeriod] = useState<Period>('1m')
+  const [period, setPeriod] = useState<Period>('1w')
   const [showAddAsset, setShowAddAsset] = useState(false)
 
   const byPortfolio = selectedPortfolioId
@@ -83,7 +83,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
   const { prices } = usePrices(priceItems)
 
-  const { series, avgCostPerAsset, quantityPerAsset, startPricePerAsset, prevDayValue, loading: histLoading, fxError, priceError, todayFx } =
+  const { series, avgCostPerAsset, quantityPerAsset, startPricePerAsset, prevDayValue, loading: baseLoading, chartLoading, fxError, priceError, todayFx } =
     usePortfolioHistory(visible, period, selectedCurrency)
 
   function handlePortfolioSelect(id: string | null) {
@@ -154,12 +154,16 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
     return [...series.slice(0, -1), { ...last, marketValue: totalValue, costBasis: totalCostBasis }]
   }, [series, totalValue, totalCostBasis])
 
-  // Period change: live value vs first chart data point
-  const firstChartPt = liveSeries.length > 0 ? liveSeries[0] : null
-  const lastPt = liveSeries.length > 0 ? liveSeries[liveSeries.length - 1] : null
-  const periodChangeAbs = lastPt && firstChartPt ? lastPt.marketValue - firstChartPt.marketValue : null
-  const periodChangePct = periodChangeAbs !== null && firstChartPt && firstChartPt.marketValue > 0
-    ? (periodChangeAbs / firstChartPt.marketValue) * 100 : null
+  // Period change: sum of per-asset price appreciation from their effective start
+  // (first buy date if after period start, else period start). Non-priceable assets
+  // are excluded — their value only changes when the user manually updates it.
+  const periodChangeAbs = enriched.some((e) => e.changeAbs !== null)
+    ? enriched.reduce<number>((sum, e) => sum + (e.changeAbs ?? 0), 0)
+    : null
+  const periodStartValue = enriched.reduce<number>((sum, e) => sum + (e.startValue ?? 0), 0)
+  const periodChangePct = periodChangeAbs !== null && periodStartValue > 0
+    ? (periodChangeAbs / periodStartValue) * 100
+    : null
 
   // Today: live value vs yesterday's closing price (always daily, period-independent)
   const todayChangeAbs = totalValue !== null && prevDayValue !== null ? totalValue - prevDayValue : null
@@ -169,15 +173,15 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
   const portfolioMap = Object.fromEntries(portfolios.map((p) => [p.id, p.name]))
   const portfolioCount = new Set(visible.map((h) => h.portfolio_id).filter(Boolean)).size
 
-  const fmt = (v: number | null, withSign = false) => {
+  const fmt = (v: number | null, withSign = false, loading = baseLoading) => {
     if (hideAmounts) return '••••••'
-    if (histLoading || v === null) return '—'
+    if (loading || v === null) return '—'
     return withSign
       ? `${v >= 0 ? '+' : ''}${formatCurrency(v, selectedCurrency)}`
       : formatCurrency(v, selectedCurrency)
   }
-  const fmtPct = (v: number | null) => {
-    if (hideAmounts || histLoading || v === null) return '—'
+  const fmtPct = (v: number | null, loading = baseLoading) => {
+    if (hideAmounts || loading || v === null) return '—'
     return formatPercent(v)
   }
 
@@ -256,9 +260,9 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
         />
         <MiniStat
           label="Period change"
-          value={fmt(periodChangeAbs, true)}
-          sub={fmtPct(periodChangePct)}
-          trend={periodChangeAbs !== null ? (periodChangeAbs >= 0 ? 'pos' : 'neg') : undefined}
+          value={fmt(periodChangeAbs, true, chartLoading)}
+          sub={fmtPct(periodChangePct, chartLoading)}
+          trend={!chartLoading && periodChangeAbs !== null ? (periodChangeAbs >= 0 ? 'pos' : 'neg') : undefined}
         />
         <MiniStat
           label="Today"
@@ -271,7 +275,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
       <AssetsChart
         series={liveSeries}
         currency={selectedCurrency}
-        loading={histLoading}
+        loading={chartLoading}
         period={period}
         onPeriodChange={setPeriod}
       />
@@ -391,7 +395,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
                       {portfolio ?? '—'}
                     </td>
                     <td className="num" style={{ fontSize: 12 }}>
-                      {hideAmounts ? '••••' : histLoading ? '…' : (
+                      {hideAmounts ? '••••' : baseLoading ? '…' : (
                         <>
                           {qty !== 1 && (
                             <span style={{ color: 'var(--ink-faint)', marginRight: 4 }}>
@@ -411,7 +415,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
                       ) : '—'}
                     </td>
                     <td className="num" style={{ fontWeight: 600 }}>
-                      {hideAmounts ? '••••••' : histLoading ? '—' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}
+                      {hideAmounts ? '••••••' : baseLoading ? '—' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}
                     </td>
                     <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                       {share !== null ? `${share.toFixed(1)}%` : '—'}

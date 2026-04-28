@@ -336,6 +336,57 @@ describe('Scenario 3 — transaction in EUR, asset in USD, display in USD', () =
 // Scenario 4 — Leading zeros trimmed
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Scenario 5 — Period start on weekend (price history starts from next trading day)
+//
+// When the 1m period start falls on a Sunday, Yahoo Finance returns data starting
+// from Monday. Without the forward-looking fallback in nearestPriceForDate, the
+// first series point would use cost basis instead of market price, making the
+// "period change" stat show the all-time unrealized gain instead of the actual
+// 1m change.
+// ---------------------------------------------------------------------------
+
+describe('Scenario 5 — period start on weekend uses first available trading day price', () => {
+  const asset = makeAsset({ id: 'h1', symbol: 'AAPL', asset_type: 'stock', currency: 'USD' })
+  const tx = makeTx({ asset_id: 'h1', quantity: 10, price: 100, currency: 'USD', executed_at: '2023-01-01' })
+
+  it('uses forward price when period-start date has no price (e.g. Sunday)', () => {
+    // Time axis starts on "2024-01-07" (Sunday). Price history starts from
+    // "2024-01-08" (Monday — first trading day). Without forward fallback,
+    // marketValue on Jan 7 would fall back to cost basis (1000) instead of
+    // using the Monday price (150).
+    const priceHistory: PriceHistory = {
+      AAPL: [
+        { date: '2024-01-08', price: 150 }, // Monday — first available
+        { date: '2024-01-09', price: 155 },
+      ],
+    }
+    const fxRates: FxRates = {
+      'USD_USD_2024-01-07': 1,
+      'USD_USD_2024-01-08': 1,
+      'USD_USD_2024-01-09': 1,
+    }
+    const series = computeSeries(
+      ['2024-01-07', '2024-01-08', '2024-01-09'],
+      [tx],
+      [asset],
+      priceHistory,
+      fxRates,
+      'USD',
+    )
+
+    // Jan 7 (Sunday): forward fallback → Monday's price ($150) used, not cost basis ($100)
+    expect(series[0].date).toBe('2024-01-07')
+    expect(series[0].marketValue).toBeCloseTo(10 * 150, 2)
+    // Jan 8 (Monday): exact match
+    expect(series[1].marketValue).toBeCloseTo(10 * 150, 2)
+    // Jan 9: exact match
+    expect(series[2].marketValue).toBeCloseTo(10 * 155, 2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+
 describe('Leading zero trimming', () => {
   it('trims leading zero-value points before first transaction', () => {
     const asset = makeAsset({ id: 'h1', currency: 'USD' })

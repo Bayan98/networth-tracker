@@ -174,8 +174,18 @@ describe('nearestPriceForDate', () => {
     expect(nearestPriceForDate(history, '2025-01-05')).toBe(110)
   })
 
-  it('returns null for dates before the series starts', () => {
-    expect(nearestPriceForDate(history, '2024-12-31')).toBeNull()
+  it('returns the earliest price for dates before the series starts (forward fallback)', () => {
+    // Handles period-start dates that fall on weekends/holidays where price
+    // history only begins from the next trading day.
+    expect(nearestPriceForDate(history, '2024-12-31')).toBe(100)
+  })
+
+  it('returns first available price when history starts after the requested date', () => {
+    const futureOnly = [
+      { date: '2025-01-10', price: 200 },
+      { date: '2025-01-11', price: 210 },
+    ]
+    expect(nearestPriceForDate(futureOnly, '2025-01-08')).toBe(200)
   })
 
   it('returns last price for dates after series end', () => {

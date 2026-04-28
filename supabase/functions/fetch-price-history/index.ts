@@ -35,10 +35,19 @@ function aggregate(points: PricePoint[], period: Period): PricePoint[] {
   const grouped = new Map<string, PricePoint>();
   for (const p of points) {
     const d = new Date(p.date + "T12:00:00Z");
-    const key = period === "1y"
-      ? isoWeekKey(d)
-      : `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-    if (!grouped.has(key)) grouped.set(key, p);
+    if (period === "1y") {
+      const key = isoWeekKey(d);
+      if (!grouped.has(key)) grouped.set(key, p);
+    } else {
+      // Normalize to the 1st of the month so prices align exactly with the time
+      // axis dates produced by buildTimeAxis("5y"). Without this, the first
+      // trading day of each month (e.g. Jan 3) would sit after the axis date
+      // (Jan 1) and nearestPriceForDate would return December's price instead.
+      const year = d.getUTCFullYear();
+      const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const key = `${year}-${month}`;
+      if (!grouped.has(key)) grouped.set(key, { date: `${year}-${month}-01`, price: p.price });
+    }
   }
   return Array.from(grouped.values());
 }
@@ -91,7 +100,9 @@ Deno.serve(async (req: Request) => {
     const ttlMs = PERIOD_TTL_MS[period];
     const now = Date.now();
 
-    const cacheKeys = items.map((i) => `history:${i.symbol.toUpperCase()}:${period}`);
+    // 5y:v2 — bumped when monthly aggregate switched to month-start date normalization
+    const keyFor = (sym: string) => `history:${sym}:${period === "5y" ? "5y:v2" : period}`;
+    const cacheKeys = items.map((i) => keyFor(i.symbol.toUpperCase()));
     const { data: cached } = await supabase
       .from("api_cache")
       .select("cache_key, response, expires_at")
@@ -111,7 +122,7 @@ Deno.serve(async (req: Request) => {
 
     for (const item of items) {
       const sym = item.symbol.toUpperCase();
-      const cacheKey = `history:${sym}:${period}`;
+      const cacheKey = keyFor(sym);
       if (cacheMap.has(cacheKey)) {
         history[sym] = cacheMap.get(cacheKey)!;
       } else if (item.asset_type === "crypto") {
@@ -167,7 +178,7 @@ Deno.serve(async (req: Request) => {
       if (points && points.length > 0) {
         history[symbol] = points;
         await supabase.from("api_cache").upsert(
-          { cache_key: `history:${symbol}:${period}`, response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
+          { cache_key: keyFor(symbol), response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
           { onConflict: "cache_key" },
         );
       }
@@ -194,7 +205,7 @@ Deno.serve(async (req: Request) => {
                 const points = aggregate(daily.sort((a, b) => a.date.localeCompare(b.date)), period);
                 history[sym] = points;
                 await supabase.from("api_cache").upsert(
-                  { cache_key: `history:${sym}:${period}`, response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
+                  { cache_key: keyFor(sym), response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
                   { onConflict: "cache_key" },
                 );
               }

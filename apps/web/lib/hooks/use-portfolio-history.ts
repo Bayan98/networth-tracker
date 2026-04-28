@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Asset } from '@networth/types'
 import { buildTimeAxis, computeSeries, lookupFxRate, nearestPriceForDate, PRICEABLE_TYPES } from '@networth/utils'
@@ -20,6 +20,7 @@ export function usePortfolioHistory(
   startPricePerAsset: Record<string, number | null>
   prevDayValue: number | null
   loading: boolean
+  chartLoading: boolean
   fxError: string | null
   priceError: string | null
   todayFx: (from: string) => number | null
@@ -36,6 +37,10 @@ export function usePortfolioHistory(
   const [fxLoading, setFxLoading] = useState(true)
   const [fxError, setFxError] = useState<string | null>(null)
 
+  // Client-side caches — keyed by period so switching back is instant
+  const priceCache = useRef<Map<Period, PriceHistory>>(new Map())
+  const fxCache = useRef<Map<string, FxRates>>(new Map())
+
   const assetIdsKey = assets.map((h) => h.id).join(',')
   const assetCcyKey = assets.map((h) => h.currency).join(',')
 
@@ -48,6 +53,10 @@ export function usePortfolioHistory(
   )
 
   const priceableKey = priceableItems.map((i) => i.symbol).join(',')
+
+  // Invalidate caches when the asset set changes
+  useEffect(() => { priceCache.current.clear() }, [priceableKey])
+  useEffect(() => { fxCache.current.clear() }, [assetIdsKey])
 
   useEffect(() => {
     if (assets.length === 0) {
@@ -79,6 +88,13 @@ export function usePortfolioHistory(
       setPriceLoading(false)
       return
     }
+    const cached = priceCache.current.get(period)
+    if (cached) {
+      setPriceHistory(cached)
+      setPriceError(null)
+      setPriceLoading(false)
+      return
+    }
     let cancelled = false
     setPriceLoading(true)
     const supabase = createClient()
@@ -92,7 +108,9 @@ export function usePortfolioHistory(
           setPriceHistory({})
         } else {
           setPriceError(null)
-          setPriceHistory(data.history as PriceHistory)
+          const history = data.history as PriceHistory
+          priceCache.current.set(period, history)
+          setPriceHistory(history)
         }
         setPriceLoading(false)
       })
@@ -107,15 +125,10 @@ export function usePortfolioHistory(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, priceableKey])
 
-  // Always fetch daily (1w) price history so "Today" stat can compare live vs yesterday
-  // regardless of which chart period is selected.
+  // Fetch 1w daily price history once per asset set for the "Today" stat.
+  // Not re-fetched on period change — daily prices don't depend on the chart period.
   useEffect(() => {
     if (priceableItems.length === 0) {
-      setDailyPriceHistory({})
-      return
-    }
-    // 1w/1m already return daily data — reuse priceHistory via dailyPriceHistory sync below
-    if (period === '1w' || period === '1m') {
       setDailyPriceHistory({})
       return
     }
@@ -130,11 +143,21 @@ export function usePortfolioHistory(
       .catch(() => { if (!cancelled) setDailyPriceHistory({}) })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, priceableKey])
+  }, [priceableKey])
 
   useEffect(() => {
     if (assets.length === 0) {
       setFxRates({})
+      setFxLoading(false)
+      return
+    }
+
+    const fxCacheKey = `${period}:${displayCurrency}:${assetCcyKey}`
+    const cachedFx = fxCache.current.get(fxCacheKey)
+    if (cachedFx) {
+      setFxRates(cachedFx)
+      setFxContext({ period, currency: displayCurrency })
+      setFxError(null)
       setFxLoading(false)
       return
     }
@@ -202,6 +225,7 @@ export function usePortfolioHistory(
             console.warn(`[FX] Rates for ${pairs} unavailable before ${from} — using ${from} rates as fallback`)
             setFxError(`Historical rates for ${pairs} are unavailable before ${from} — values before that date use ${from} rates`)
           }
+          fxCache.current.set(fxCacheKey, rates)
           setFxRates(rates)
           setFxContext({ period, currency: displayCurrency })
         }
@@ -261,18 +285,30 @@ export function usePortfolioHistory(
   }, [rawTransactions, assets, fxRates])
 
   const startPricePerAsset = useMemo<Record<string, number | null>>(() => {
+    if (priceLoading) return {}
     const timeAxis = buildTimeAxis(period)
     const startDate = timeAxis[0]
+
+    const firstBuyDate: Record<string, string> = {}
+    for (const tx of rawTransactions) {
+      if (tx.transaction_type === 'buy' || tx.transaction_type === 'deposit') {
+        const d = tx.executed_at.slice(0, 10)
+        if (!firstBuyDate[tx.asset_id] || d < firstBuyDate[tx.asset_id]) firstBuyDate[tx.asset_id] = d
+      }
+    }
+
     const result: Record<string, number | null> = {}
     for (const asset of assets) {
       if (!asset.symbol || !PRICEABLE_TYPES.has(asset.asset_type)) continue
       const sym = asset.symbol.toUpperCase()
       const history = priceHistory[sym]
-      // Fall back to earliest available price if period start falls on a non-trading day
-      result[asset.id] = nearestPriceForDate(history, startDate)
+      const refDate = firstBuyDate[asset.id] && firstBuyDate[asset.id] > startDate
+        ? firstBuyDate[asset.id]
+        : startDate
+      result[asset.id] = nearestPriceForDate(history, refDate)
     }
     return result
-  }, [assets, priceHistory, period])
+  }, [assets, priceHistory, period, rawTransactions, priceLoading])
 
   const quantityPerAsset = useMemo<Record<string, number>>(() => {
     const result: Record<string, number> = {}
@@ -290,9 +326,9 @@ export function usePortfolioHistory(
   }, [rawTransactions])
 
   // Previous-day portfolio value for the "Today" change stat.
-  // Uses daily price history (1w fetch for 1y/5y periods, main priceHistory otherwise).
+  // Always uses the 1w daily fetch so Today is stable across period switches.
   const prevDayValue = useMemo<number | null>(() => {
-    const daily = (period === '1w' || period === '1m') ? priceHistory : dailyPriceHistory
+    const daily = Object.keys(dailyPriceHistory).length > 0 ? dailyPriceHistory : priceHistory
     if (Object.keys(daily).length === 0 && priceableItems.length > 0) return null
     const today = new Date().toISOString().slice(0, 10)
     let total = 0
@@ -307,13 +343,16 @@ export function usePortfolioHistory(
         const fx = lookupFxRate(fxRates, 'USD', displayCurrency, today) ?? 1
         total += qty * prevPrice * fx
       } else {
-        const price = h.manual_price ?? 0
+        // Use avg cost basis to match how totalValue counts non-priceable assets.
+        // manual_price is often null, which would make these assets contribute 0
+        // to prevDayValue while still appearing in totalValue — inflating "Today".
+        const price = avgCostPerAsset[h.id] ?? (h.manual_price ?? 0)
         const fx = lookupFxRate(fxRates, h.currency, displayCurrency, today) ?? 1
         total += qty * price * fx
       }
     }
     return total
-  }, [assets, quantityPerAsset, priceHistory, dailyPriceHistory, period, fxRates, displayCurrency, priceableItems.length])
+  }, [assets, quantityPerAsset, avgCostPerAsset, priceHistory, dailyPriceHistory, fxRates, displayCurrency, priceableItems.length])
 
   return {
     series,
@@ -321,7 +360,8 @@ export function usePortfolioHistory(
     quantityPerAsset,
     startPricePerAsset,
     prevDayValue,
-    loading: priceLoading || txLoading || fxLoading || !fxReady,
+    loading: txLoading,
+    chartLoading: priceLoading || fxLoading || !fxReady,
     fxError,
     priceError,
     todayFx,
