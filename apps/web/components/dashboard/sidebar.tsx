@@ -107,16 +107,9 @@ export function Sidebar({ user, portfolios, counts, portfolioAssetCounts }: Side
             )
           })}
 
-          {portfolios.length === 0 && (
-            <button
-              onClick={() => setShowAddPortfolio(true)}
-              className="nav-item"
-              style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', fontSize: 12, color: 'var(--ink-faint)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
-            >
-              <Plus size={13} style={{ opacity: 0.5 }} />
-              <span>New portfolio</span>
-            </button>
-          )}
+          <button className="nav-add" onClick={() => setShowAddPortfolio(true)}>
+            <Plus size={12} /> New portfolio
+          </button>
         </div>
 
         <div className="sidebar-foot">

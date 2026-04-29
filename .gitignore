@@ -29,6 +29,7 @@ Thumbs.db
 .claude/
 .idea/
 *.swp
+.playwright-mcp/
 
 # Supabase
 supabase/.temp/

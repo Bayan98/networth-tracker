@@ -52,13 +52,13 @@ interface Props {
 }
 
 // SVG donut matching the design file's Donut component exactly
-function Donut({ segments, size = 160, thickness = 10, center }: {
+function Donut({ segments, size = 160, thickness = 10, formatValue }: {
   segments: { color: string; value: number; label: string }[]
   size?: number
   thickness?: number
-  center?: React.ReactNode
+  formatValue?: (v: number) => string
 }) {
-  const [hovered, setHovered] = useState<number | null>(null)
+  const [hovered, setHovered] = useState<number>(0)
   const total = segments.reduce((s, x) => s + x.value, 0)
   if (total === 0) return null
 
@@ -82,13 +82,17 @@ function Donut({ segments, size = 160, thickness = 10, center }: {
       color: seg.color,
       pct: (seg.value / total) * 100,
       label: seg.label,
+      value: seg.value,
     }
   })
 
-  const hoveredSeg = hovered !== null ? arcs[hovered] : null
+  const active = arcs[Math.min(hovered, arcs.length - 1)]
 
   return (
-    <div style={{ position: 'relative', width: size, height: size }}>
+    <div
+      style={{ position: 'relative', width: size, height: size }}
+      onMouseLeave={() => setHovered(0)}
+    >
       <svg width={size} height={size} style={{ overflow: 'visible' }}>
         {arcs.map((a, i) => (
           <path
@@ -100,7 +104,6 @@ function Donut({ segments, size = 160, thickness = 10, center }: {
             strokeLinecap="butt"
             style={{ cursor: 'pointer', transition: 'stroke-width .12s' }}
             onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered(null)}
           />
         ))}
       </svg>
@@ -109,16 +112,17 @@ function Donut({ segments, size = 160, thickness = 10, center }: {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         textAlign: 'center', pointerEvents: 'none',
       }}>
-        {hoveredSeg ? (
-          <>
-            <div style={{ fontSize: 11, color: 'var(--ink-faint)', fontWeight: 500, letterSpacing: '0.02em', maxWidth: r * 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {hoveredSeg.label}
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em', marginTop: 2, color: hoveredSeg.color }}>
-              {hoveredSeg.pct.toFixed(1)}%
-            </div>
-          </>
-        ) : center}
+        <div style={{ fontSize: 10, color: 'var(--ink-faint)', fontWeight: 500, letterSpacing: '0.02em', maxWidth: r * 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {active.label}
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em', marginTop: 2, color: active.color }}>
+          {active.pct.toFixed(1)}%
+        </div>
+        {formatValue && (
+          <div style={{ fontSize: 11, color: 'var(--ink-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.01em', marginTop: 1 }}>
+            {formatValue(active.value)}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -333,14 +337,7 @@ function AllocationCard({ title, sub, data, total, hideAmounts, selectedCurrency
       <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 16px' }}>
         <Donut
           segments={data.map((d) => ({ color: d.color, value: d.value, label: d.label }))}
-          center={
-            <>
-              <div className="empty-label">Total</div>
-              <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-mono)', letterSpacing: '-0.01em', marginTop: 3 }}>
-                {hideAmounts ? '•••' : formatCurrency(total, selectedCurrency)}
-              </div>
-            </>
-          }
+          formatValue={(v) => hideAmounts ? '•••' : formatCurrency(v, selectedCurrency)}
         />
       </div>
 
@@ -475,7 +472,10 @@ function AllocationByAssets({ enriched, totalValue, hideAmounts, selectedCurrenc
       ) : (
         <>
           <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 16px' }}>
-            <Donut segments={segments} />
+            <Donut
+              segments={segments}
+              formatValue={(v) => hideAmounts ? '•••' : formatCurrency(v, selectedCurrency)}
+            />
           </div>
 
           <div className="alloc-list">

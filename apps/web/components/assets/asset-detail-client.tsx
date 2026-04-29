@@ -3,26 +3,63 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil, Trash2, ChevronLeft } from 'lucide-react'
+import { Plus, Calendar, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, formatPercent, resolveAssetPrice, ASSET_TYPE_LABELS, INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
-import type { Asset, Portfolio, Transaction, ScheduledEvent, CurrencyCode } from '@networth/types'
+import {
+  formatCurrency,
+  formatPercent,
+  resolveAssetPrice,
+  ASSET_TYPE_LABELS,
+  INCOME_FREQUENCY_LABELS,
+  TRANSACTION_TYPE_LABELS,
+} from '@networth/utils'
+import type { Asset, Portfolio, Transaction, ScheduledEvent } from '@networth/types'
 import { EditAssetDialog } from './edit-asset-dialog'
 import { AddTransactionDialog } from '@/components/transactions/add-transaction-dialog'
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
 
-const TX_TYPE_COLOR: Record<string, string> = {
+const ASSET_TYPE_COLOR: Record<string, string> = {
+  stock: 'var(--cat-stocks)',
+  etf: 'var(--cat-stocks)',
+  bond: 'var(--cat-stocks)',
+  mutual_fund: 'var(--cat-stocks)',
+  crypto: 'var(--cat-crypto)',
+  cash: 'var(--cat-cash)',
+  deposit: 'var(--cat-cash)',
+  real_estate: 'var(--cat-real)',
+  commodity: 'var(--cat-other)',
+  business: 'var(--cat-other)',
+  transport: 'var(--cat-other)',
+  other: 'var(--cat-other)',
+}
+
+const TX_BG: Record<string, string> = {
+  buy: 'color-mix(in oklch, var(--pos) 12%, transparent)',
+  sell: 'color-mix(in oklch, var(--neg) 12%, transparent)',
+  dividend: 'var(--surface-2)',
+  deposit: 'color-mix(in oklch, var(--pos) 12%, transparent)',
+  withdrawal: 'color-mix(in oklch, var(--neg) 12%, transparent)',
+  split: 'var(--surface-2)',
+}
+
+const TX_INK: Record<string, string> = {
   buy: 'var(--pos)',
   sell: 'var(--neg)',
-  dividend: 'var(--cat-stocks)',
+  dividend: 'var(--ink-2)',
   deposit: 'var(--pos)',
   withdrawal: 'var(--neg)',
   split: 'var(--ink-muted)',
+}
+
+type Tab = 'Overview' | 'Transactions' | 'Scheduled' | 'Notes'
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 interface Props {
@@ -36,7 +73,12 @@ interface Props {
 export function AssetDetailClient({ asset, transactions, scheduledEvents, portfolios, userId }: Props) {
   const router = useRouter()
   const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const [tab, setTab] = useState<Tab>('Overview')
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [notes, setNotes] = useState(asset.notes ?? '')
+  const [notesSaving, setNotesSaving] = useState(false)
+  const [notesError, setNotesError] = useState<string | null>(null)
   const [showAddTx, setShowAddTx] = useState(false)
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [showAddEvent, setShowAddEvent] = useState(false)
@@ -52,14 +94,21 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
     ? (fxRate !== null ? rawPrice * fxRate : null)
     : source === 'cost_basis' ? avgCostBasis : rawPrice
 
-  const marketValueTotal = price !== null ? quantity * price : null
-  const changeAbs = price !== null && avgCostBasis > 0 ? price - avgCostBasis : null
-  const changePct = changeAbs !== null && avgCostBasis > 0 ? (changeAbs / avgCostBasis) * 100 : null
-  const hasLiveData = source !== 'cost_basis'
-  const changeColor = !hasLiveData || changePct === null ? undefined : changePct >= 0 ? 'var(--pos)' : 'var(--neg)'
+  const marketValue = price !== null ? quantity * price : null
+  const costBasis = quantity * avgCostBasis
+  const unrealized = marketValue !== null && costBasis > 0 ? marketValue - costBasis : null
+  const unrealizedPct = unrealized !== null && costBasis > 0 ? (unrealized / costBasis) * 100 : null
+
+  const typeColor = ASSET_TYPE_COLOR[asset.asset_type] ?? 'var(--cat-other)'
+  const portfolio = portfolios.find((p) => p.id === asset.portfolio_id)
+  const displaySymbol = asset.symbol ?? asset.asset_name.slice(0, 4).toUpperCase()
+
+  const firstTx = transactions.length > 0 ? transactions[transactions.length - 1] : null
+  const lastTx = transactions.length > 0 ? transactions[0] : null
 
   async function handleDelete() {
     if (!confirm(`Delete "${asset.asset_name}"? This will also delete all its transactions.`)) return
+    setShowMoreMenu(false)
     const supabase = createClient()
     const { error } = await supabase.from('assets').delete().eq('id', asset.id)
     if (!error) router.push('/assets')
@@ -71,209 +120,501 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
     if (!error) router.refresh()
   }
 
+  async function handleSaveNotes() {
+    setNotesSaving(true)
+    setNotesError(null)
+    const supabase = createClient()
+    const { error } = await supabase.from('assets').update({ notes: notes.trim() || null }).eq('id', asset.id)
+    if (error) setNotesError(error.message)
+    setNotesSaving(false)
+  }
+
   async function handleDeleteEvent(id: string) {
     const supabase = createClient()
     const { error } = await supabase.from('scheduled_events').delete().eq('id', id)
     if (!error) router.refresh()
   }
 
-  const stats = [
-    { label: 'Quantity', value: hideAmounts ? '••••' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(quantity) },
-    { label: 'Avg buy price', value: hideAmounts ? '••••' : loading ? '…' : formatCurrency(avgCostBasis, asset.currency) },
-    {
-      label: 'Market price',
-      value: hideAmounts ? '••••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—',
-      sub: source === 'live' ? 'live' : source === 'manual' ? 'manual' : 'est. from cost basis',
-    },
-    { label: 'Market value', value: hideAmounts ? '••••••' : loading ? '…' : marketValueTotal !== null ? formatCurrency(marketValueTotal, asset.currency) : '—' },
-    {
-      label: 'Gain / unit',
-      value: hideAmounts ? '••••' : hasLiveData && changeAbs !== null ? formatCurrency(changeAbs, asset.currency) : '—',
-      color: changeColor,
-    },
-    {
-      label: 'Total return',
-      value: hideAmounts ? '••••' : hasLiveData && changePct !== null ? formatPercent(changePct) : '—',
-      color: changeColor,
-    },
-  ]
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
-      {/* Page head */}
-      <div className="page-head">
-        <div>
-          <Link
-            href="/assets"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}
-          >
-            <ChevronLeft size={12} />
-            Assets
-          </Link>
-          <div className="empty-label">{ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}</div>
-          <h1 style={{ marginTop: 4 }}>
-            {asset.symbol ?? asset.asset_name}
-            {asset.symbol && <> <em>{asset.asset_name}</em></>}
-          </h1>
+      {/* Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-muted)' }}>
+        <Link href="/assets" className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12, gap: 4 }}>
+          ← Assets
+        </Link>
+        <span style={{ color: 'var(--ink-faint)' }}>/</span>
+        <span>{displaySymbol}</span>
+      </div>
+
+      {/* Header */}
+      <div className="page-head" style={{ alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, minWidth: 0, flexWrap: 'wrap' }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 14,
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            display: 'grid', placeItems: 'center',
+            fontFamily: 'var(--font-mono)', fontSize: 17, fontWeight: 600,
+            color: typeColor, letterSpacing: '-0.02em', flexShrink: 0,
+          }}>
+            {displaySymbol.slice(0, 4)}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0, fontSize: 'clamp(24px, 3vw, 36px)' }}>{displaySymbol}</h1>
+              <span className="pill-ghost" style={{ borderColor: 'var(--border-strong)', color: 'var(--ink-2)' }}>
+                {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
+              </span>
+              {source === 'live' && (
+                <span className="pill-ghost" style={{ color: 'var(--pos)' }}>● live price</span>
+              )}
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--ink-muted)', marginTop: 4 }}>
+              {asset.asset_name}{portfolio ? ` · ${portfolio.name}` : ''}
+            </div>
+          </div>
         </div>
+
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button onClick={() => setShowEdit(true)} className="btn btn-secondary">
-            <Pencil size={13} /> Edit
+          <button className="btn btn-secondary" onClick={() => setShowAddTx(true)}>
+            <Plus size={13} /> Transaction
           </button>
-          <button onClick={handleDelete} className="btn btn-secondary" style={{ color: 'var(--neg)' }}>
-            <Trash2 size={13} /> Delete
+          <button className="btn btn-secondary" onClick={() => setShowAddEvent(true)}>
+            <Calendar size={13} /> Schedule
           </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowMoreMenu((v) => !v)}
+            >
+              <MoreVertical size={13} />
+            </button>
+            {showMoreMenu && (
+              <>
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: 10 }}
+                  onClick={() => setShowMoreMenu(false)}
+                />
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)',
+                  zIndex: 20, minWidth: 148, overflow: 'hidden',
+                }}>
+                  {[
+                    { label: 'Edit asset', icon: <Pencil size={13} />, action: () => { setShowMoreMenu(false); setShowEdit(true) }, color: 'var(--ink)' },
+                    { label: 'Delete asset', icon: <Trash2 size={13} />, action: handleDelete, color: 'var(--neg)' },
+                  ].map(({ label, icon, action, color }) => (
+                    <button
+                      key={label}
+                      onClick={action}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color, textAlign: 'left' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-2)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+                    >
+                      {icon} {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Stats */}
       {fxError && (
         <div style={{ padding: '10px 14px', borderRadius: 'var(--radius)', background: 'color-mix(in oklch, var(--warn) 12%, transparent)', border: '1px solid color-mix(in oklch, var(--warn) 30%, transparent)', fontSize: 13, color: 'var(--warn)' }}>
           {fxError}
         </div>
       )}
-      <div className="asset-stats-grid">
-        {stats.map(({ label, value, sub, color }) => (
-          <div key={label} className="kpi">
-            <div className="kpi-label">{label}</div>
-            <div className="kpi-val" style={color ? { color, fontSize: 20 } : { fontSize: 20 }}>{value}</div>
-            {sub && <div className="kpi-sub">{sub}</div>}
-          </div>
-        ))}
-      </div>
 
-      {/* Scheduled events */}
-      <div className="table-wrap">
-        <div className="table-head">
-          <h3>Scheduled events</h3>
-          <button onClick={() => setShowAddEvent(true)} className="btn btn-secondary" style={{ fontSize: 12, padding: '6px 11px' }}>
-            <Plus size={12} /> Add event
-          </button>
+      {/* Hero */}
+      <div className="hero">
+        <div className="hero-2col">
+          <div>
+            <div className="hero-label">
+              <span className="hero-label-dot" />
+              Market price · {asset.currency}
+            </div>
+            <div className="hero-big">
+              {hideAmounts ? '••••••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—'}
+            </div>
+            <span className="hero-delta neutral">
+              {source === 'live' ? '● live' : source === 'manual' ? 'manual' : 'est. from cost basis'}
+            </span>
+          </div>
+          <div>
+            <div className="hero-label">
+              <span className="hero-label-dot" style={{ background: 'var(--ink-faint)' }} />
+              Your position
+            </div>
+            <div className="hero-big">
+              {hideAmounts ? '••••••' : loading ? '…' : marketValue !== null ? formatCurrency(marketValue, asset.currency) : '—'}
+            </div>
+            {unrealized !== null && unrealizedPct !== null ? (
+              <span className={`hero-delta ${unrealized < 0 ? 'neg' : ''}`}>
+                {unrealized >= 0 ? '↑' : '↓'}
+                {hideAmounts ? ' •••' : ` ${formatCurrency(Math.abs(unrealized), asset.currency)} · ${formatPercent(Math.abs(unrealizedPct))}`}
+              </span>
+            ) : (
+              <span className="hero-delta neutral">no cost basis yet</span>
+            )}
+          </div>
         </div>
-        {scheduledEvents.length === 0 ? (
-          <div style={{ padding: '28px 20px', textAlign: 'center' }}>
-            <p className="empty-label">No scheduled events</p>
-          </div>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th className="num">Amount</th>
-                <th>Frequency</th>
-                <th>Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {scheduledEvents.map((ev) => (
-                <tr key={ev.id}>
-                  <td style={{ fontWeight: 500 }}>{ev.name}</td>
-                  <td style={{ color: 'var(--ink-muted)' }}>{TRANSACTION_TYPE_LABELS[ev.transaction_type] ?? ev.transaction_type}</td>
-                  <td className="num">
-                    {hideAmounts ? '••••' : `${formatCurrency(Number(ev.amount), ev.currency)}${ev.amount_type === 'percent' ? '%' : ''}`}
-                  </td>
-                  <td style={{ color: 'var(--ink-muted)' }}>{INCOME_FREQUENCY_LABELS[ev.frequency]}</td>
-                  <td>
-                    <span className={`delta-pill ${ev.is_active ? 'pos' : ''}`} style={!ev.is_active ? { color: 'var(--ink-faint)', background: 'var(--surface-2)' } : undefined}>
-                      {ev.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td style={{ width: 64, textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                      <button onClick={() => setEditingEvent(ev)} className="iconbtn" style={{ width: 28, height: 28 }} title="Edit">
-                        <Pencil size={12} />
-                      </button>
-                      <button onClick={() => handleDeleteEvent(ev.id)} className="iconbtn" style={{ width: 28, height: 28, color: 'var(--neg)' }} title="Delete">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
 
-      {/* Transactions */}
-      <div className="table-wrap">
-        <div className="table-head">
-          <h3>Transaction history</h3>
-          <button onClick={() => setShowAddTx(true)} className="btn btn-secondary" style={{ fontSize: 12, padding: '6px 11px' }}>
-            <Plus size={12} /> Add transaction
-          </button>
+        <div className="hero-stats">
+          <div>
+            <div className="hero-stat-k">Quantity</div>
+            <div className="hero-stat-v">
+              {hideAmounts ? '••••' : loading ? '…' : quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+            </div>
+          </div>
+          <div>
+            <div className="hero-stat-k">Avg buy price</div>
+            <div className="hero-stat-v">
+              {hideAmounts ? '•••' : loading ? '…' : avgCostBasis > 0 ? formatCurrency(avgCostBasis, asset.currency) : '—'}
+            </div>
+          </div>
+          <div>
+            <div className="hero-stat-k">Cost basis</div>
+            <div className="hero-stat-v">
+              {hideAmounts ? '••••••' : loading ? '…' : costBasis > 0 ? formatCurrency(costBasis, asset.currency) : '—'}
+            </div>
+          </div>
+          <div>
+            <div className="hero-stat-k">Unrealized</div>
+            <div className="hero-stat-v" style={{ color: unrealized !== null ? (unrealized >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined }}>
+              {hideAmounts ? '•••' : loading ? '…' : unrealized !== null
+                ? (unrealized >= 0 ? '+' : '') + formatCurrency(unrealized, asset.currency)
+                : '—'}
+            </div>
+          </div>
         </div>
-        {transactions.length === 0 ? (
-          <div style={{ padding: '28px 20px', textAlign: 'center' }}>
-            <p className="empty-label">No transactions recorded</p>
-          </div>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th className="num">Qty</th>
-                <th className="num">Price</th>
-                <th className="num">Total</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => {
-                const isCrossRate = tx.currency.toUpperCase() !== asset.currency.toUpperCase()
-                const total = Number(tx.quantity) * Number(tx.price)
-                return (
-                  <tr key={tx.id}>
-                    <td style={{ color: 'var(--ink-muted)' }}>
-                      {new Date(tx.executed_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </td>
-                    <td>
-                      <span style={{ fontWeight: 500, color: TX_TYPE_COLOR[tx.transaction_type] ?? 'inherit', textTransform: 'capitalize' }}>
-                        {tx.transaction_type.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="num">{Number(tx.quantity).toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
-                    <td className="num">
-                      {formatCurrency(Number(tx.price), tx.currency)}
-                      {isCrossRate && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--ink-faint)' }}>{tx.currency}</span>}
-                    </td>
-                    <td className="num" style={{ fontWeight: 500 }}>{formatCurrency(total, tx.currency)}</td>
-                    <td style={{ width: 64, textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                        <button onClick={() => setEditingTx(tx)} className="iconbtn" style={{ width: 28, height: 28 }} title="Edit">
-                          <Pencil size={12} />
-                        </button>
-                        <button onClick={() => handleDeleteTx(tx.id)} className="iconbtn" style={{ width: 28, height: 28, color: 'var(--neg)' }} title="Delete">
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
       </div>
 
-      {showEdit && (
-        <EditAssetDialog asset={asset} portfolios={portfolios} onClose={() => setShowEdit(false)} />
-      )}
-      {showAddTx && (
-        <AddTransactionDialog userId={userId} assetId={asset.id} assetCurrency={asset.currency} onClose={() => setShowAddTx(false)} />
-      )}
-      {editingTx && (
-        <EditTransactionDialog transaction={editingTx} assetCurrency={asset.currency} onClose={() => setEditingTx(null)} />
-      )}
-      {showAddEvent && (
-        <AddScheduledEventDialog userId={userId} assetId={asset.id} defaultCurrency={asset.currency} onClose={() => setShowAddEvent(false)} />
-      )}
-      {editingEvent && (
-        <EditScheduledEventDialog event={editingEvent} onClose={() => setEditingEvent(null)} />
-      )}
+      {/* Tabbed card */}
+      <div className="table-wrap" style={{ padding: 0 }}>
+        <div className="tabs">
+          {(['Overview', 'Transactions', 'Scheduled', 'Notes'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              className={`tab-btn ${tab === t ? 'active' : ''}`}
+              onClick={() => setTab(t)}
+            >
+              {t}
+              {t === 'Transactions' && <span className="tab-chip">{transactions.length}</span>}
+              {t === 'Scheduled' && <span className="tab-chip">{scheduledEvents.length}</span>}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding: 'var(--density-pad-y) var(--density-pad-x)' }}>
+          {tab === 'Overview' && (
+            <OverviewTab
+              asset={asset}
+              price={price}
+              avgCostBasis={avgCostBasis}
+              costBasis={costBasis}
+              marketValue={marketValue}
+              unrealized={unrealized}
+              unrealizedPct={unrealizedPct}
+              quantity={quantity}
+              source={source}
+              portfolio={portfolio}
+              loading={loading}
+              hideAmounts={hideAmounts}
+              firstTx={firstTx}
+              lastTx={lastTx}
+            />
+          )}
+          {tab === 'Transactions' && (
+            <TransactionsTab
+              transactions={transactions}
+              asset={asset}
+              hideAmounts={hideAmounts}
+              onEdit={setEditingTx}
+              onDelete={handleDeleteTx}
+              onAdd={() => setShowAddTx(true)}
+            />
+          )}
+          {tab === 'Scheduled' && (
+            <ScheduledTab
+              events={scheduledEvents}
+              onEdit={setEditingEvent}
+              onDelete={handleDeleteEvent}
+              onAdd={() => setShowAddEvent(true)}
+              hideAmounts={hideAmounts}
+            />
+          )}
+          {tab === 'Notes' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Write your notes, thesis, reminders…"
+                style={{
+                  width: '100%', minHeight: 220, padding: '16px 18px',
+                  background: 'var(--bg-sunken)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)', resize: 'vertical',
+                  fontSize: 14, lineHeight: 1.7, color: 'var(--ink)',
+                  fontFamily: 'var(--font-sans)', outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border)' }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+                {notesError && <p style={{ fontSize: 12, color: 'var(--neg)' }}>{notesError}</p>}
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleSaveNotes}
+                  disabled={notesSaving}
+                  style={{ opacity: notesSaving ? 0.6 : 1 }}
+                >
+                  {notesSaving ? 'Saving…' : 'Save notes'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showEdit && <EditAssetDialog asset={asset} portfolios={portfolios} onClose={() => setShowEdit(false)} />}
+      {showAddTx && <AddTransactionDialog userId={userId} assetId={asset.id} assetCurrency={asset.currency} onClose={() => setShowAddTx(false)} />}
+      {editingTx && <EditTransactionDialog transaction={editingTx} assetCurrency={asset.currency} onClose={() => setEditingTx(null)} />}
+      {showAddEvent && <AddScheduledEventDialog userId={userId} assetId={asset.id} defaultCurrency={asset.currency} onClose={() => setShowAddEvent(false)} />}
+      {editingEvent && <EditScheduledEventDialog event={editingEvent} onClose={() => setEditingEvent(null)} />}
     </div>
   )
+}
+
+function OverviewTab({
+  asset, price, avgCostBasis, costBasis, marketValue, unrealized, unrealizedPct,
+  quantity, source, portfolio, loading, hideAmounts, firstTx, lastTx,
+}: {
+  asset: Asset
+  price: number | null
+  avgCostBasis: number
+  costBasis: number
+  marketValue: number | null
+  unrealized: number | null
+  unrealizedPct: number | null
+  quantity: number
+  source: string
+  portfolio: Portfolio | undefined
+  loading: boolean
+  hideAmounts: boolean
+  firstTx: Transaction | null
+  lastTx: Transaction | null
+}) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }} className="overview-cols">
+      <div>
+        <div className="empty-label" style={{ marginBottom: 12 }}>Market</div>
+        <div>
+          <StatRow k="Symbol" v={asset.symbol ?? '—'} />
+          <StatRow k="Price" v={hideAmounts ? '•••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—'} />
+          <StatRow k="Source" v={source === 'live' ? 'Live price' : source === 'manual' ? 'Manual' : 'Est. from cost'} />
+          <StatRow k="Currency" v={asset.currency} />
+          <StatRow k="Type" v={ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type} />
+          <StatRow k="Portfolio" v={portfolio?.name ?? 'Unassigned'} />
+        </div>
+      </div>
+      <div>
+        <div className="empty-label" style={{ marginBottom: 12 }}>Position</div>
+        <div>
+          <StatRow k="Quantity" v={hideAmounts ? '••••' : loading ? '…' : quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })} />
+          <StatRow k="Avg cost" v={hideAmounts ? '•••' : loading ? '…' : avgCostBasis > 0 ? formatCurrency(avgCostBasis, asset.currency) : '—'} />
+          <StatRow k="Total cost" v={hideAmounts ? '••••••' : loading ? '…' : costBasis > 0 ? formatCurrency(costBasis, asset.currency) : '—'} />
+          <StatRow k="Market value" v={hideAmounts ? '••••••' : loading ? '…' : marketValue !== null ? formatCurrency(marketValue, asset.currency) : '—'} />
+          <StatRow
+            k="Unrealized"
+            v={hideAmounts ? '•••' : loading ? '…' : unrealized !== null ? (unrealized >= 0 ? '+' : '') + formatCurrency(unrealized, asset.currency) : '—'}
+            color={unrealized !== null ? (unrealized >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined}
+          />
+          <StatRow k="Return %" v={hideAmounts ? '•••' : loading ? '…' : unrealizedPct !== null ? formatPercent(unrealizedPct) : '—'}
+            color={unrealizedPct !== null ? (unrealizedPct >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined}
+          />
+          <StatRow k="First bought" v={firstTx ? fmtDate(firstTx.executed_at) : '—'} />
+          <StatRow k="Last activity" v={lastTx ? fmtDate(lastTx.executed_at) : '—'} />
+        </div>
+      </div>
+      <style>{`@media (max-width: 640px) { .overview-cols { grid-template-columns: 1fr !important; gap: 24px !important; } }`}</style>
+    </div>
+  )
+}
+
+function StatRow({ k, v, color }: { k: string; v: string; color?: string }) {
+  return (
+    <div className="stat-row">
+      <span className="stat-key">{k}</span>
+      <span className="stat-val" style={color ? { color } : undefined}>{v}</span>
+    </div>
+  )
+}
+
+function TransactionsTab({
+  transactions, asset, hideAmounts, onEdit, onDelete, onAdd,
+}: {
+  transactions: Transaction[]
+  asset: Asset
+  hideAmounts: boolean
+  onEdit: (tx: Transaction) => void
+  onDelete: (id: string) => void
+  onAdd: () => void
+}) {
+  if (transactions.length === 0) {
+    return (
+      <div style={{ padding: '32px 0', textAlign: 'center' }}>
+        <p className="empty-label" style={{ marginBottom: 8 }}>No transactions yet</p>
+        <button className="btn btn-secondary" style={{ marginTop: 4 }} onClick={onAdd}>
+          <Plus size={13} /> Add first transaction
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ margin: '0 -4px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={thStyle}>Type</th>
+            <th style={thStyle}>Date</th>
+            <th style={thStyle}>Note</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>Qty</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>Price</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>Total</th>
+            <th style={thStyle} />
+          </tr>
+        </thead>
+        <tbody>
+          {transactions.map((tx) => {
+            const total = Number(tx.quantity) * Number(tx.price)
+            const isCredit = tx.transaction_type === 'sell' || tx.transaction_type === 'withdrawal'
+            const isCrossRate = tx.currency.toUpperCase() !== asset.currency.toUpperCase()
+            return (
+              <tr key={tx.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={tdStyle}>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '2px 8px', borderRadius: 999,
+                    fontSize: 11, fontFamily: 'var(--font-mono)',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                    border: '1px solid var(--border)',
+                    background: TX_BG[tx.transaction_type] ?? 'var(--surface-2)',
+                    color: TX_INK[tx.transaction_type] ?? 'var(--ink-2)',
+                  }}>
+                    {TRANSACTION_TYPE_LABELS[tx.transaction_type] ?? tx.transaction_type}
+                  </span>
+                </td>
+                <td style={{ ...tdStyle, color: 'var(--ink-muted)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                  {fmtDate(tx.executed_at)}
+                </td>
+                <td style={{ ...tdStyle, color: 'var(--ink-2)' }}>{tx.notes ?? '—'}</td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                  {Number(tx.quantity).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                  {formatCurrency(Number(tx.price), tx.currency)}
+                  {isCrossRate && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--ink-faint)' }}>{tx.currency}</span>}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: isCredit ? 'var(--neg)' : 'var(--ink)' }}>
+                  {hideAmounts ? '•••' : (isCredit ? '-' : '') + formatCurrency(Math.abs(total), tx.currency)}
+                </td>
+                <td style={{ ...tdStyle, width: 60, textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                    <button className="iconbtn" style={{ width: 28, height: 28 }} onClick={() => onEdit(tx)} title="Edit">
+                      <Pencil size={12} />
+                    </button>
+                    <button className="iconbtn" style={{ width: 28, height: 28, color: 'var(--neg)' }} onClick={() => onDelete(tx.id)} title="Delete">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ScheduledTab({
+  events, onEdit, onDelete, onAdd, hideAmounts,
+}: {
+  events: ScheduledEvent[]
+  onEdit: (ev: ScheduledEvent) => void
+  onDelete: (id: string) => void
+  onAdd: () => void
+  hideAmounts: boolean
+}) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+      {events.map((ev) => (
+        <div key={ev.id} style={{
+          padding: '16px 18px', borderRadius: 'var(--radius)',
+          background: 'var(--surface-2)', border: '1px solid var(--border)',
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{ev.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                {TRANSACTION_TYPE_LABELS[ev.transaction_type] ?? ev.transaction_type} · {INCOME_FREQUENCY_LABELS[ev.frequency] ?? ev.frequency}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{
+                padding: '2px 7px', borderRadius: 999, fontSize: 10,
+                background: ev.is_active ? 'color-mix(in oklch, var(--pos) 12%, transparent)' : 'var(--bg)',
+                border: '1px solid var(--border)',
+                color: ev.is_active ? 'var(--pos)' : 'var(--ink-muted)',
+                fontFamily: 'var(--font-mono)',
+              }}>
+                {ev.is_active ? 'active' : 'inactive'}
+              </span>
+              <button className="iconbtn" style={{ width: 26, height: 26 }} onClick={() => onEdit(ev)} title="Edit"><Pencil size={11} /></button>
+              <button className="iconbtn" style={{ width: 26, height: 26, color: 'var(--neg)' }} onClick={() => onDelete(ev.id)} title="Delete"><Trash2 size={11} /></button>
+            </div>
+          </div>
+          <div className="num" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em' }}>
+            {hideAmounts ? '••••' : formatCurrency(Number(ev.amount), ev.currency)}
+            {ev.amount_type === 'percent' && '%'}
+          </div>
+        </div>
+      ))}
+      <button
+        onClick={onAdd}
+        style={{
+          padding: '16px 18px', borderRadius: 'var(--radius)',
+          background: 'transparent', border: '1px dashed var(--border-strong)',
+          color: 'var(--ink-muted)', fontSize: 13,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          minHeight: 100, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+        }}
+      >
+        <Plus size={14} /> Add scheduled event
+      </button>
+    </div>
+  )
+}
+
+const thStyle: React.CSSProperties = {
+  padding: '8px 6px',
+  textAlign: 'left',
+  fontSize: 11,
+  fontWeight: 500,
+  color: 'var(--ink-faint)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  background: 'var(--bg-sunken)',
+  borderBottom: '1px solid var(--border)',
+  whiteSpace: 'nowrap',
+}
+
+const tdStyle: React.CSSProperties = {
+  padding: '11px 6px',
+  fontSize: 13,
+  verticalAlign: 'middle',
 }
