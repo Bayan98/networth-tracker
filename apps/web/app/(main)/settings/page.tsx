@@ -8,11 +8,10 @@ export default async function SettingsPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user!.id)
-    .single()
+  const [{ data: profile }, { data: portfolios }] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', user!.id).single(),
+    supabase.from('portfolios').select('*').eq('user_id', user!.id).order('created_at'),
+  ])
 
   return (
     <>
@@ -26,7 +25,7 @@ export default async function SettingsPage() {
         profile={profile}
         userEmail={user?.email ?? ''}
       />
-      <ImportAssets />
+      <ImportAssets portfolios={portfolios ?? []} userId={user!.id} />
     </>
   )
 }
