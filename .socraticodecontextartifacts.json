@@ -1,0 +1,9 @@
+{
+  "artifacts": [
+    {
+      "name": "database-schema",
+      "path": "./supabase/schema.sql",
+      "description": "PostgreSQL schema — all tables, enums, indexes, RLS policies, and foreign key constraints. Note: asset quantity and avg_cost_basis are computed from transactions at query time, never stored on assets."
+    }
+  ]
+}

@@ -3,6 +3,11 @@
 - Use comments only when really needed
 - Always finish code, don't leave TODOs or comments
 
+## Codebase Search (SocratiCode)
+This project is indexed with SocratiCode. Always use codebase_search 
+before reading any files directly. Search first to find relevant files, 
+then read only those files. Never open files speculatively.
+
 ## Supabase
 - **Project ID:** `itdvyquvthxstlybpyrt`
 - **URL:** `https://itdvyquvthxstlybpyrt.supabase.co`
