@@ -24,7 +24,7 @@ export function EditTransactionDialog({ transaction, assetCurrency, onClose }: P
   const [quantity, setQuantity] = useState(String(transaction.quantity))
   const [price, setPrice] = useState(String(transaction.price))
   const [currency, setCurrency] = useState<CurrencyCode>(transaction.currency)
-  const [executedAt, setExecutedAt] = useState(new Date(transaction.executed_at).toISOString().slice(0, 16))
+  const [executedAt, setExecutedAt] = useState(new Date(transaction.executed_at).toISOString().slice(0, 10))
   const [notes, setNotes] = useState(transaction.notes ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +45,7 @@ export function EditTransactionDialog({ transaction, assetCurrency, onClose }: P
       quantity: parseFloat(quantity),
       price: parseFloat(price),
       currency,
-      executed_at: new Date(executedAt).toISOString(),
+      executed_at: new Date(executedAt + 'T12:00:00.000Z').toISOString(),
       notes: notes || null,
     }).eq('id', transaction.id)
 
@@ -128,11 +128,12 @@ export function EditTransactionDialog({ transaction, assetCurrency, onClose }: P
                 />
               </div>
               <div className="mfield" style={{ margin: 0 }}>
-                <label className="mfield-label">Date &amp; time</label>
+                <label className="mfield-label">Date</label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   className="minput"
                   value={executedAt}
+                  max={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setExecutedAt(e.target.value)}
                   required
                 />

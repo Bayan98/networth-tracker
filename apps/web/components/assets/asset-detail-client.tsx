@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Calendar, MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Calendar, MoreVertical, Pencil, Trash2, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
+import { useAssetInfo } from '@/lib/hooks/use-asset-info'
 import { useAppStore } from '@/lib/store'
 import {
   formatCurrency,
@@ -22,6 +23,7 @@ import { AddTransactionDialog } from '@/components/transactions/add-transaction-
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
+import { AssetAvatar } from '@/components/ui/asset-avatar'
 
 const ASSET_TYPE_COLOR: Record<string, string> = {
   stock: 'var(--cat-stocks)',
@@ -56,7 +58,7 @@ const TX_INK: Record<string, string> = {
   split: 'var(--ink-muted)',
 }
 
-type Tab = 'Overview' | 'Transactions' | 'Scheduled' | 'Notes'
+type Tab = 'Overview' | 'Transactions' | 'Holdings' | 'News' | 'Scheduled' | 'Notes'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -88,6 +90,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const { prices } = usePrices(priceItems)
   const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
   const { avgCostBasis, quantity, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
+  const { info: assetInfo } = useAssetInfo(asset.symbol, asset.asset_type)
 
   const fxRate = source === 'live' ? fx('USD') : null
   const price: number | null = source === 'live'
@@ -149,15 +152,15 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
       {/* Header */}
       <div className="page-head" style={{ alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, minWidth: 0, flexWrap: 'wrap' }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 14,
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            display: 'grid', placeItems: 'center',
-            fontFamily: 'var(--font-mono)', fontSize: 17, fontWeight: 600,
-            color: typeColor, letterSpacing: '-0.02em', flexShrink: 0,
-          }}>
-            {displaySymbol.slice(0, 4)}
-          </div>
+          <AssetAvatar
+            symbol={asset.symbol}
+            assetType={asset.asset_type}
+            name={asset.asset_name}
+            size={64}
+            borderRadius={14}
+            color={typeColor}
+            fontSize={17}
+          />
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h1 style={{ margin: 0, fontSize: 'clamp(24px, 3vw, 36px)' }}>{displaySymbol}</h1>
@@ -294,7 +297,14 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
       {/* Tabbed card */}
       <div className="table-wrap" style={{ padding: 0 }}>
         <div className="tabs">
-          {(['Overview', 'Transactions', 'Scheduled', 'Notes'] as Tab[]).map((t) => (
+          {(([
+            'Overview',
+            'Transactions',
+            ...(assetInfo?.holdings && assetInfo.holdings.length > 0 ? ['Holdings'] : []),
+            ...(assetInfo?.news && assetInfo.news.length > 0 ? ['News'] : []),
+            'Scheduled',
+            'Notes',
+          ]) as Tab[]).map((t) => (
             <button
               key={t}
               className={`tab-btn ${tab === t ? 'active' : ''}`}
@@ -324,7 +334,14 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               hideAmounts={hideAmounts}
               firstTx={firstTx}
               lastTx={lastTx}
+              assetInfo={assetInfo}
             />
+          )}
+          {tab === 'Holdings' && assetInfo?.holdings && (
+            <HoldingsTab holdings={assetInfo.holdings} />
+          )}
+          {tab === 'News' && assetInfo?.news && (
+            <NewsTab news={assetInfo.news} />
           )}
           {tab === 'Transactions' && (
             <TransactionsTab
@@ -379,7 +396,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
       </div>
 
       {showEdit && <EditAssetDialog asset={asset} portfolios={portfolios} onClose={() => setShowEdit(false)} />}
-      {showAddTx && <AddTransactionDialog userId={userId} assetId={asset.id} assetCurrency={asset.currency} onClose={() => setShowAddTx(false)} />}
+      {showAddTx && <AddTransactionDialog userId={userId} assetId={asset.id} assetCurrency={asset.currency} assetSymbol={asset.symbol} assetType={asset.asset_type} onClose={() => setShowAddTx(false)} />}
       {editingTx && <EditTransactionDialog transaction={editingTx} assetCurrency={asset.currency} onClose={() => setEditingTx(null)} />}
       {showAddEvent && <AddScheduledEventDialog userId={userId} assetId={asset.id} defaultCurrency={asset.currency} onClose={() => setShowAddEvent(false)} />}
       {editingEvent && <EditScheduledEventDialog event={editingEvent} onClose={() => setEditingEvent(null)} />}
@@ -389,7 +406,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
 function OverviewTab({
   asset, price, avgCostBasis, costBasis, marketValue, unrealized, unrealizedPct,
-  quantity, source, portfolio, loading, hideAmounts, firstTx, lastTx,
+  quantity, source, portfolio, loading, hideAmounts, firstTx, lastTx, assetInfo,
 }: {
   asset: Asset
   price: number | null
@@ -405,7 +422,20 @@ function OverviewTab({
   hideAmounts: boolean
   firstTx: Transaction | null
   lastTx: Transaction | null
+  assetInfo: import('@/lib/hooks/use-asset-info').AssetInfo | null
 }) {
+  const yahooUrl = source === 'live' ? (
+    asset.asset_type === 'crypto'
+      ? `https://finance.yahoo.com/quote/${asset.symbol}-USD/`
+      : `https://finance.yahoo.com/quote/${asset.symbol}/`
+  ) : null
+
+  const analystColor = assetInfo?.analystRating
+    ? assetInfo.analystRating.includes('Buy') ? 'var(--pos)'
+      : assetInfo.analystRating.includes('Sell') ? 'var(--neg)'
+      : 'var(--ink-2)'
+    : undefined
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }} className="overview-cols">
       <div>
@@ -413,10 +443,30 @@ function OverviewTab({
         <div>
           <StatRow k="Symbol" v={asset.symbol ?? '—'} />
           <StatRow k="Price" v={hideAmounts ? '•••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—'} />
-          <StatRow k="Source" v={source === 'live' ? 'Live price' : source === 'manual' ? 'Manual' : 'Est. from cost'} />
+          {source === 'live' && yahooUrl ? (
+            <div className="stat-row">
+              <span className="stat-key">Source</span>
+              <a href={yahooUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>
+                Live price <ExternalLink size={11} />
+              </a>
+            </div>
+          ) : (
+            <StatRow k="Source" v={source === 'manual' ? 'Manual' : 'Est. from cost'} />
+          )}
           <StatRow k="Currency" v={asset.currency} />
           <StatRow k="Type" v={ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type} />
           <StatRow k="Portfolio" v={portfolio?.name ?? 'Unassigned'} />
+          {assetInfo?.sector && <StatRow k="Sector" v={assetInfo.sector} />}
+          {assetInfo?.country && <StatRow k="Country" v={assetInfo.country} />}
+          {assetInfo?.pe != null && <StatRow k="P/E" v={assetInfo.pe.toFixed(1) + 'x'} />}
+          {assetInfo?.eps != null && <StatRow k="EPS" v={formatCurrency(assetInfo.eps, asset.currency)} />}
+          {assetInfo?.analystRating && (
+            <StatRow
+              k="Analyst"
+              v={assetInfo.analystRating + (assetInfo.analystCount ? ` (${assetInfo.analystCount})` : '')}
+              color={analystColor}
+            />
+          )}
         </div>
       </div>
       <div>
@@ -439,6 +489,76 @@ function OverviewTab({
         </div>
       </div>
       <style>{`@media (max-width: 640px) { .overview-cols { grid-template-columns: 1fr !important; gap: 24px !important; } }`}</style>
+    </div>
+  )
+}
+
+function HoldingsTab({ holdings }: { holdings: import('@/lib/hooks/use-asset-info').Holding[] }) {
+  const total = holdings.reduce((sum, h) => sum + h.pct, 0)
+  return (
+    <div>
+      <div className="empty-label" style={{ marginBottom: 12 }}>ETF Holdings</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={thStyle}>Symbol</th>
+            <th style={thStyle}>Name</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>Weight</th>
+          </tr>
+        </thead>
+        <tbody>
+          {holdings.map((h, i) => (
+            <tr key={h.symbol || i} style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ ...tdStyle, fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
+                {h.symbol || '—'}
+              </td>
+              <td style={{ ...tdStyle, color: 'var(--ink-2)' }}>{h.name}</td>
+              <td style={{ ...tdStyle, textAlign: 'right' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                  <div style={{ width: 60, height: 4, borderRadius: 2, background: 'var(--border)', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(100, (h.pct / (total || 1)) * 100)}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 40, textAlign: 'right' }}>
+                    {(h.pct * 100).toFixed(2)}%
+                  </span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function NewsTab({ news }: { news: import('@/lib/hooks/use-asset-info').NewsItem[] }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {news.map((item, i) => (
+        <a
+          key={i}
+          href={item.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'block',
+            padding: '14px 0',
+            borderBottom: i < news.length - 1 ? '1px solid var(--border)' : 'none',
+            textDecoration: 'none',
+            color: 'inherit',
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginBottom: 4, lineHeight: 1.4 }}>
+            {item.title}
+          </div>
+          <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--ink-faint)', alignItems: 'center' }}>
+            <span>{item.publisher}</span>
+            <span>·</span>
+            <span>{new Date(item.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            <ExternalLink size={10} style={{ marginLeft: 'auto', color: 'var(--ink-faint)' }} />
+          </div>
+        </a>
+      ))}
     </div>
   )
 }

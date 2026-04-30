@@ -7,6 +7,7 @@ import { useAppStore } from '@/lib/store'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import { usePrices } from '@/lib/hooks/use-prices'
 import type { Asset, CurrencyCode } from '@networth/types'
+import { AssetAvatar } from '@/components/ui/asset-avatar'
 
 interface AssetsListProps {
   assets: Asset[]
@@ -90,12 +91,7 @@ export function AssetsList({ assets, currency, quantityPerAsset }: AssetsListPro
               href={`/assets/${asset.id}`}
               className="flex items-center gap-4 px-5 py-3 hover:bg-white/5 transition-colors"
             >
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                style={{ background: ASSET_TYPE_COLORS[asset.asset_type] + '22', color: ASSET_TYPE_COLORS[asset.asset_type] }}
-              >
-                {(asset.symbol ?? asset.asset_name).slice(0, 2).toUpperCase()}
-              </div>
+              <AssetAvatar symbol={asset.symbol} assetType={asset.asset_type} name={asset.asset_name} size={32} borderRadius={8} />
 
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{asset.symbol ?? asset.asset_name}</p>

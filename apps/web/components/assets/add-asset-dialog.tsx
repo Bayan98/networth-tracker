@@ -66,9 +66,11 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   useEffect(() => {
     if (!assetType || !needsSymbol || !symbol.trim()) { cancel(); return }
     setLookupStatus('loading')
-    lookup(symbol, assetType, ({ name }, status) => {
+    lookup(symbol, assetType, (info, status) => {
       setLookupStatus(status)
-      if (name) { setAssetName(name); setAutoFilled(true) }
+      if (info.name) { setAssetName(info.name); setAutoFilled(true) }
+      if (info.currency) setCurrency(info.currency as CurrencyCode)
+      if (info.description) setNotes((prev) => prev.trim() ? prev : info.description!)
     })
   }, [symbol, assetType]) // eslint-disable-line react-hooks/exhaustive-deps
 

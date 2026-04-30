@@ -4,31 +4,85 @@ import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const PRICEABLE = ["stock", "etf", "bond", "mutual_fund", "commodity", "crypto"];
+const TTL_MS = 60 * 60 * 1000;
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS });
-  }
+interface LookupResult {
+  name: string | null;
+  price: number | null;
+  currency: string | null;
+  description: string | null;
+  logoUrl: string | null;
+}
+
+async function fetchYahooSummary(yahooSym: string): Promise<Partial<LookupResult>> {
+  const result: Partial<LookupResult> = {};
 
   try {
-    const { symbol, asset_type } = await req.json() as {
-      symbol: string;
-      asset_type: string;
-    };
-
-    const sym = symbol.toUpperCase().trim();
-    if (!sym || !asset_type) {
-      return json({ name: null, price: null });
+    const url = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${yahooSym}?modules=price%2CassetProfile`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
+    });
+    if (res.ok) {
+      const data = await res.json() as {
+        quoteSummary?: {
+          result?: Array<{
+            price?: { shortName?: string; longName?: string; currency?: string; regularMarketPrice?: { raw?: number } };
+            assetProfile?: { longBusinessSummary?: string; website?: string };
+          }> | null;
+          error?: unknown;
+        };
+      };
+      if (data?.quoteSummary?.error) return result;
+      const r = data?.quoteSummary?.result?.[0];
+      if (r?.price) {
+        result.name = r.price.longName ?? r.price.shortName ?? null;
+        result.currency = r.price.currency ?? null;
+        const rawPrice = r.price.regularMarketPrice?.raw;
+        if (rawPrice != null && rawPrice > 0) result.price = rawPrice;
+      }
+      if (r?.assetProfile?.longBusinessSummary) {
+        result.description = r.assetProfile.longBusinessSummary.slice(0, 500);
+      }
+      if (r?.assetProfile?.website) {
+        try {
+          const domain = new URL(r.assetProfile.website).hostname.replace(/^www\./, "");
+          result.logoUrl = `https://logo.clearbit.com/${domain}`;
+        } catch (_) { /* ignore */ }
+      }
     }
+  } catch (_) { /* ignore */ }
 
-    if (!PRICEABLE.includes(asset_type)) {
-      return json({ name: null, price: null });
+  // Search API for logoUrl fallback
+  if (!result.logoUrl) {
+    try {
+      const res = await fetch(
+        `https://query1.finance.yahoo.com/v1/finance/search?q=${yahooSym}&quotesCount=1&newsCount=0`,
+        { headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" } },
+      );
+      if (res.ok) {
+        const data = await res.json() as { quotes?: Array<{ logoUrl?: string }> };
+        const logoUrl = data?.quotes?.[0]?.logoUrl;
+        if (logoUrl) result.logoUrl = logoUrl;
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  return result;
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
+
+  try {
+    const { symbol, asset_type } = await req.json() as { symbol: string; asset_type: string };
+    const sym = symbol.toUpperCase().trim();
+    if (!sym || !asset_type || !PRICEABLE.includes(asset_type)) {
+      return json({ name: null, price: null, currency: null, description: null, logoUrl: null });
     }
 
     const supabase = createClient(
@@ -43,93 +97,99 @@ Deno.serve(async (req: Request) => {
       .eq("cache_key", cacheKey)
       .single();
 
-    if (cached) {
-      const notExpired = cached.expires_at != null && new Date(cached.expires_at).getTime() > Date.now();
-      if (notExpired) {
-        return json(cached.response as { name: string | null; price: number | null });
-      }
+    if (cached?.expires_at && new Date(cached.expires_at).getTime() > Date.now()) {
+      return json(cached.response as LookupResult);
     }
 
-    let name: string | null = null;
-    let price: number | null = null;
+    let result: LookupResult = { name: null, price: null, currency: null, description: null, logoUrl: null };
 
     if (asset_type === "crypto") {
-      const cgId = symbolToCoinGeckoId(sym);
+      // Primary: Yahoo Finance {SYM}-USD
+      const yahooResult = await fetchYahooSummary(`${sym}-USD`);
+      if (yahooResult.name || yahooResult.price != null) {
+        result = { ...result, ...yahooResult };
+        if (!result.currency) result.currency = "USD";
+      }
 
-      // Get name + price in one call
-      try {
-        const res = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
-          { headers: { Accept: "application/json" } },
-        );
-        if (res.ok) {
-          const data = await res.json() as {
-            name: string;
-            market_data: { current_price: { usd: number } };
-          };
-          name = data.name ?? null;
-          price = data.market_data?.current_price?.usd ?? null;
-        }
-      } catch (_) { /* ignore */ }
-
-      // Fallback: search by symbol
-      if (!name) {
+      // Fallback: CoinGecko
+      if (!result.name || result.price == null) {
+        const cgId = symbolToCoinGeckoId(sym);
         try {
           const res = await fetch(
-            `https://api.coingecko.com/api/v3/search?query=${sym}`,
+            `https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
             { headers: { Accept: "application/json" } },
           );
           if (res.ok) {
             const data = await res.json() as {
-              coins: { name: string; symbol: string }[];
+              name?: string;
+              market_data?: { current_price?: { usd?: number } };
+              image?: { small?: string };
+              description?: { en?: string };
             };
-            const match = data.coins.find(
-              (c) => c.symbol.toUpperCase() === sym,
-            );
-            if (match) name = match.name;
+            if (!result.name && data.name) result.name = data.name;
+            if (result.price == null) result.price = data.market_data?.current_price?.usd ?? null;
+            if (!result.logoUrl && data.image?.small) result.logoUrl = data.image.small;
+            if (!result.description && data.description?.en) {
+              result.description = data.description.en.replace(/<[^>]*>/g, "").slice(0, 500) || null;
+            }
+            if (!result.currency) result.currency = "USD";
           }
         } catch (_) { /* ignore */ }
+
+        if (!result.name) {
+          try {
+            const res = await fetch(
+              `https://api.coingecko.com/api/v3/search?query=${sym}`,
+              { headers: { Accept: "application/json" } },
+            );
+            if (res.ok) {
+              const data = await res.json() as { coins?: Array<{ name: string; symbol: string }> };
+              const match = data.coins?.find((c) => c.symbol.toUpperCase() === sym);
+              if (match) result.name = match.name;
+            }
+          } catch (_) { /* ignore */ }
+        }
       }
     } else {
-      // Stock / ETF / bond etc — use Finnhub
-      const token = Deno.env.get("FINNHUB_API_KEY");
-      if (token) {
-        await Promise.all([
-          // Name from company profile
-          fetch(
-            `https://finnhub.io/api/v1/stock/profile2?symbol=${sym}&token=${token}`,
-          ).then(async (r) => {
-            if (r.ok) {
-              const d = await r.json() as { name?: string };
-              if (d.name) name = d.name;
-            }
-          }).catch(() => {}),
+      // Primary: Yahoo Finance
+      const yahooResult = await fetchYahooSummary(sym);
+      if (yahooResult.name || yahooResult.price != null) {
+        result = { ...result, ...yahooResult };
+      }
 
-          // Current price from quote
-          fetch(
-            `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${token}`,
-          ).then(async (r) => {
-            if (r.ok) {
-              const d = await r.json() as { c?: number };
-              if (d.c && d.c > 0) price = d.c;
-            }
-          }).catch(() => {}),
-        ]);
+      // Fallback: Finnhub
+      if (!result.name || result.price == null) {
+        const token = Deno.env.get("FINNHUB_API_KEY");
+        if (token) {
+          await Promise.all([
+            fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${sym}&token=${token}`)
+              .then(async (r) => {
+                if (r.ok) {
+                  const d = await r.json() as { name?: string };
+                  if (!result.name && d.name) result.name = d.name;
+                }
+              }).catch(() => {}),
+            fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${token}`)
+              .then(async (r) => {
+                if (r.ok) {
+                  const d = await r.json() as { c?: number };
+                  if (result.price == null && d.c && d.c > 0) result.price = d.c;
+                }
+              }).catch(() => {}),
+          ]);
+        }
       }
     }
 
-    const result = { name, price };
-
-    // Cache result
     await supabase.from("api_cache").upsert(
-      { cache_key: cacheKey, response: result, updated_at: new Date().toISOString(), expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() },
+      { cache_key: cacheKey, response: result, updated_at: new Date().toISOString(), expires_at: new Date(Date.now() + TTL_MS).toISOString() },
       { onConflict: "cache_key" },
     );
 
     return json(result);
   } catch (err) {
     console.error("lookup-symbol error:", err);
-    return json({ name: null, price: null });
+    return json({ name: null, price: null, currency: null, description: null, logoUrl: null });
   }
 });
 

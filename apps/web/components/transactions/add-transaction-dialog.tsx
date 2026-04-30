@@ -1,37 +1,58 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useModalClose } from '@/lib/hooks/use-modal-close'
 import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
+import { X, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useTxFxRate } from '@/lib/hooks/use-tx-fx-rate'
+import { usePriceAtDate } from '@/lib/hooks/use-price-at-date'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
-import type { TransactionType, CurrencyCode } from '@networth/types'
+import type { TransactionType, CurrencyCode, AssetType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 
 const TX_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'split']
+const PRICE_TYPES: TransactionType[] = ['buy', 'sell']
 
 interface Props {
   userId: string
   assetId?: string
   assetCurrency?: CurrencyCode
+  assetSymbol?: string | null
+  assetType?: AssetType
   onClose: () => void
 }
 
-export function AddTransactionDialog({ userId, assetId, assetCurrency, onClose }: Props) {
+export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymbol, assetType, onClose }: Props) {
   const router = useRouter()
+  const today = new Date().toISOString().slice(0, 10)
+
   const [txType, setTxType] = useState<TransactionType>('buy')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
+  const [priceManual, setPriceManual] = useState(false)
   const [currency, setCurrency] = useState<CurrencyCode>(assetCurrency ?? 'USD')
-  const [executedAt, setExecutedAt] = useState(() => new Date().toISOString().slice(0, 16))
+  const [executedAt, setExecutedAt] = useState(today)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const needsFx = !!assetId && !!assetCurrency && currency.toUpperCase() !== assetCurrency.toUpperCase()
-  const { rate: fxRate, loading: fxLoading } = useTxFxRate(currency, assetCurrency, executedAt.slice(0, 10))
+  const { rate: fxRate, loading: fxLoading } = useTxFxRate(currency, assetCurrency, executedAt)
+
+  const autoPriceEnabled = PRICE_TYPES.includes(txType) && !!assetSymbol && !!assetType && !priceManual
+  const { price: autoPrice, loading: autoPriceLoading } = usePriceAtDate(
+    assetSymbol ?? null,
+    assetType ?? null,
+    executedAt,
+    autoPriceEnabled,
+  )
+
+  useEffect(() => {
+    if (autoPriceEnabled && autoPrice != null) {
+      setPrice(String(autoPrice))
+    }
+  }, [autoPrice, autoPriceEnabled])
 
   useModalClose(onClose)
 
@@ -48,7 +69,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, onClose }
       quantity: parseFloat(quantity),
       price: parseFloat(price),
       currency,
-      executed_at: new Date(executedAt).toISOString(),
+      executed_at: new Date(executedAt + 'T12:00:00.000Z').toISOString(),
       notes: notes || null,
     })
 
@@ -81,7 +102,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, onClose }
                     key={t}
                     type="button"
                     className={txType === t ? 'on' : ''}
-                    onClick={() => setTxType(t)}
+                    onClick={() => { setTxType(t); setPriceManual(false) }}
                   >
                     {TRANSACTION_TYPE_LABELS[t] ?? t}
                   </button>
@@ -104,7 +125,10 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, onClose }
                 />
               </div>
               <div className="mfield" style={{ margin: 0 }}>
-                <label className="mfield-label">Price / unit</label>
+                <label className="mfield-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Price / unit
+                  {autoPriceLoading && <Loader2 size={11} style={{ color: 'var(--ink-faint)', animation: 'spin 1s linear infinite' }} />}
+                </label>
                 <input
                   type="number"
                   className="minput mono"
@@ -112,7 +136,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, onClose }
                   min="0"
                   step="any"
                   value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  onChange={(e) => { setPrice(e.target.value); setPriceManual(true) }}
                   required
                 />
                 {convertedPrice != null && (
@@ -133,12 +157,13 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, onClose }
                 />
               </div>
               <div className="mfield" style={{ margin: 0 }}>
-                <label className="mfield-label">Date &amp; time</label>
+                <label className="mfield-label">Date</label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   className="minput"
                   value={executedAt}
-                  onChange={(e) => setExecutedAt(e.target.value)}
+                  max={today}
+                  onChange={(e) => { setExecutedAt(e.target.value); setPriceManual(false) }}
                   required
                 />
               </div>

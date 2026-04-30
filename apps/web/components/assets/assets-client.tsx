@@ -11,6 +11,7 @@ import { usePortfolioHistory } from '@/lib/hooks/use-portfolio-history'
 import { AssetsChart } from './assets-chart'
 import { PortfolioClient } from './portfolio-client'
 import { AddAssetDialog } from './add-asset-dialog'
+import { AssetAvatar } from '@/components/ui/asset-avatar'
 import type { Period } from '@/components/ui/area-chart'
 
 type SortKey = 'value-desc' | 'value-asc' | 'alpha' | 'abs-gain' | 'abs-loss' | 'rel-gain' | 'rel-loss'
@@ -367,15 +368,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
                   >
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{
-                          width: 32, height: 32, borderRadius: 8,
-                          background: 'var(--surface-2)', border: '1px solid var(--border)',
-                          display: 'grid', placeItems: 'center',
-                          fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
-                          color: 'var(--ink-2)', flexShrink: 0,
-                        }}>
-                          {(asset.symbol ?? asset.asset_name).slice(0, 4).toUpperCase()}
-                        </div>
+                        <AssetAvatar symbol={asset.symbol} assetType={asset.asset_type} name={asset.asset_name} size={32} borderRadius={8} />
                         <div>
                           <div style={{ fontWeight: 500, fontSize: 13 }}>
                             {asset.symbol ?? asset.asset_name}

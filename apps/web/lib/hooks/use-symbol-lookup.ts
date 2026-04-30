@@ -7,6 +7,9 @@ const PRICEABLE: AssetType[] = ['stock', 'etf', 'bond', 'mutual_fund', 'commodit
 export interface SymbolInfo {
   name: string | null
   price: number | null
+  currency: string | null
+  description: string | null
+  logoUrl: string | null
 }
 
 export type LookupStatus = 'idle' | 'loading' | 'found' | 'not_found'
@@ -17,8 +20,9 @@ export function useSymbolLookup() {
 
   async function fetchInfo(symbol: string, assetType: AssetType): Promise<SymbolInfo> {
     const sym = symbol.trim().toUpperCase()
-    if (!sym || !PRICEABLE.includes(assetType)) return { name: null, price: null }
-
+    if (!sym || !PRICEABLE.includes(assetType)) {
+      return { name: null, price: null, currency: null, description: null, logoUrl: null }
+    }
     setLoading(true)
     try {
       const supabase = createClient()
@@ -27,11 +31,11 @@ export function useSymbolLookup() {
       })
       if (!error && data) return data as SymbolInfo
     } catch (_) {
-      // silently ignore
+      // ignore
     } finally {
       setLoading(false)
     }
-    return { name: null, price: null }
+    return { name: null, price: null, currency: null, description: null, logoUrl: null }
   }
 
   function lookup(
@@ -40,10 +44,8 @@ export function useSymbolLookup() {
     onResult: (info: SymbolInfo, status: LookupStatus) => void,
   ) {
     if (timerRef.current) clearTimeout(timerRef.current)
-
     const sym = symbol.trim()
     if (!sym || !PRICEABLE.includes(assetType)) return
-
     timerRef.current = setTimeout(async () => {
       const info = await fetchInfo(symbol, assetType)
       const status: LookupStatus = (info.name || info.price !== null) ? 'found' : 'not_found'
