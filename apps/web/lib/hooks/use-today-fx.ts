@@ -5,11 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import { lookupFxRate } from '@networth/utils'
 import type { FxRates } from '@networth/utils'
 
+const fxCache = new Map<string, FxRates>()
+
 export function useTodayFx(
   assets: Array<{ currency: string }>,
   displayCurrency: string,
 ): { fx: (from: string) => number | null; loading: boolean; fxError: string | null } {
   const [rates, setRates] = useState<FxRates>({})
+  const [activeCurrency, setActiveCurrency] = useState(displayCurrency)
   const [loading, setLoading] = useState(true)
   const [fxError, setFxError] = useState<string | null>(null)
 
@@ -25,6 +28,7 @@ export function useTodayFx(
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
     const display = displayCurrency.toUpperCase()
+    const cacheKey = `${currenciesKey}:${display}:${today}`
 
     const pairs = currenciesKey
       .split(',')
@@ -33,6 +37,15 @@ export function useTodayFx(
 
     if (pairs.length === 0) {
       setRates({})
+      setActiveCurrency(display)
+      setLoading(false)
+      return
+    }
+
+    const cached = fxCache.get(cacheKey)
+    if (cached) {
+      setRates(cached)
+      setActiveCurrency(display)
       setLoading(false)
       return
     }
@@ -53,7 +66,9 @@ export function useTodayFx(
             console.error('[FX] Missing rates for pairs:', missing)
             setFxError('Some exchange rates are unavailable — asset values may be incorrect')
           }
+          fxCache.set(cacheKey, fetched)
           setRates(fetched)
+          setActiveCurrency(display)
         }
         setLoading(false)
       })
@@ -67,8 +82,8 @@ export function useTodayFx(
 
   const fx = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
-    return (from: string): number | null => lookupFxRate(rates, from, displayCurrency, today)
-  }, [rates, displayCurrency])
+    return (from: string): number | null => lookupFxRate(rates, from, activeCurrency, today)
+  }, [rates, activeCurrency])
 
   return { fx, loading, fxError }
 }

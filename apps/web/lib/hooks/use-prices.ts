@@ -10,11 +10,12 @@ interface PriceItem {
   asset_type: string
 }
 
-export function usePrices(items: PriceItem[]) {
-  const [prices, setPrices] = useState<PriceMap>({})
-  const [loading, setLoading] = useState(false)
+const cache = new Map<string, PriceMap>()
 
-  const key = items.map((i) => `${i.symbol}:${i.asset_type}`).join(',')
+export function usePrices(items: PriceItem[]) {
+  const key = items.map((i) => `${i.symbol}:${i.asset_type}`).sort().join(',')
+  const [prices, setPrices] = useState<PriceMap>(() => cache.get(key) ?? {})
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (items.length === 0) return
@@ -24,7 +25,10 @@ export function usePrices(items: PriceItem[]) {
     supabase.functions
       .invoke('fetch-prices', { body: { items } })
       .then(({ data, error }) => {
-        if (!error && data?.prices) setPrices(data.prices)
+        if (!error && data?.prices) {
+          cache.set(key, data.prices)
+          setPrices(data.prices)
+        }
       })
       .catch((err) => console.error('usePrices error:', err))
       .finally(() => setLoading(false))
