@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
+import { fetchKaseInfo } from "../_shared/kase.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -149,6 +150,17 @@ Deno.serve(async (req: Request) => {
             }
           } catch (_) { /* ignore */ }
         }
+      }
+    } else if (sym.endsWith(".KZ")) {
+      const kaseInfo = await fetchKaseInfo(sym);
+      if (kaseInfo) {
+        result = {
+          name: kaseInfo.name,
+          price: kaseInfo.price,
+          currency: "KZT",
+          description: null,
+          logoUrl: null,
+        };
       }
     } else {
       // Primary: Yahoo Finance

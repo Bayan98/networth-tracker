@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
+import { fetchKasePrice } from "../_shared/kase.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -83,6 +84,7 @@ Deno.serve(async (req: Request) => {
 
     const needStockSyms: string[] = [];
     const needCryptoSyms: string[] = [];
+    const needKaseSyms: string[] = [];
     const cryptoOrigMap: Record<string, string> = {};
 
     for (const item of items) {
@@ -94,6 +96,8 @@ Deno.serve(async (req: Request) => {
         const yahooSym = `${sym}-USD`;
         needCryptoSyms.push(yahooSym);
         cryptoOrigMap[yahooSym] = sym;
+      } else if (sym.endsWith(".KZ") && ["stock", "etf", "bond", "mutual_fund"].includes(item.asset_type)) {
+        needKaseSyms.push(sym);
       } else if (["stock", "etf", "bond", "mutual_fund", "commodity"].includes(item.asset_type)) {
         needStockSyms.push(sym);
       }
@@ -115,6 +119,29 @@ Deno.serve(async (req: Request) => {
       if (upserts.length > 0) {
         await supabase.from("api_cache").upsert(upserts, { onConflict: "cache_key" });
       }
+    }
+
+    // KASE stocks (symbols ending in .KZ)
+    if (needKaseSyms.length > 0) {
+      await Promise.all(needKaseSyms.map(async (sym) => {
+        try {
+          const price = await fetchKasePrice(sym);
+          if (price != null && price > 0) {
+            prices[sym] = price;
+            await supabase.from("api_cache").upsert(
+              {
+                cache_key: `price:${sym}`,
+                response: { price },
+                updated_at: new Date().toISOString(),
+                expires_at: new Date(now + 4 * 60 * 60 * 1000).toISOString(),
+              },
+              { onConflict: "cache_key" },
+            );
+          }
+        } catch (e) {
+          console.error(`KASE fetch for ${sym}:`, e);
+        }
+      }));
     }
 
     // Primary: Yahoo Finance batch for crypto ({SYM}-USD)
