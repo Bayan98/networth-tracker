@@ -87,12 +87,13 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null)
 
   const priceItems = asset.symbol ? [{ symbol: asset.symbol, asset_type: asset.asset_type }] : []
-  const { prices } = usePrices(priceItems)
+  const { prices, currencies } = usePrices(priceItems)
   const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
   const { avgCostBasis, quantity, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
   const { info: assetInfo } = useAssetInfo(asset.symbol, asset.asset_type)
 
-  const fxRate = source === 'live' ? fx('USD') : null
+  const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
+  const fxRate = source === 'live' ? fx(priceCcy) : null
   const price: number | null = source === 'live'
     ? (fxRate !== null ? rawPrice * fxRate : null)
     : source === 'cost_basis' ? avgCostBasis : rawPrice
@@ -424,11 +425,17 @@ function OverviewTab({
   lastTx: Transaction | null
   assetInfo: import('@/lib/hooks/use-asset-info').AssetInfo | null
 }) {
-  const yahooUrl = source === 'live' ? (
-    asset.asset_type === 'crypto'
-      ? `https://finance.yahoo.com/quote/${asset.symbol}-USD/`
-      : `https://finance.yahoo.com/quote/${asset.symbol}/`
-  ) : null
+  const priceUrl = source === 'live' && asset.symbol ? (() => {
+    if (asset.asset_type === 'crypto') return `https://finance.yahoo.com/quote/${asset.symbol}-USD/`
+    const colonIdx = asset.symbol.indexOf(':')
+    if (colonIdx > 0) {
+      const exchange = asset.symbol.slice(0, colonIdx).toLowerCase()
+      const ticker = asset.symbol.slice(colonIdx + 1).toLowerCase()
+      return `https://stockanalysis.com/quote/${exchange}/${ticker}/`
+    }
+    if (asset.asset_type === 'etf') return `https://stockanalysis.com/etf/${asset.symbol.toLowerCase()}/`
+    return `https://finance.yahoo.com/quote/${asset.symbol}/`
+  })() : null
 
   const analystColor = assetInfo?.analystRating
     ? assetInfo.analystRating.includes('Buy') ? 'var(--pos)'
@@ -443,10 +450,10 @@ function OverviewTab({
         <div>
           <StatRow k="Symbol" v={asset.symbol ?? '—'} />
           <StatRow k="Price" v={hideAmounts ? '•••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—'} />
-          {source === 'live' && yahooUrl ? (
+          {source === 'live' && priceUrl ? (
             <div className="stat-row">
               <span className="stat-key">Source</span>
-              <a href={yahooUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>
+              <a href={priceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>
                 Live price <ExternalLink size={11} />
               </a>
             </div>
@@ -460,12 +467,20 @@ function OverviewTab({
           {assetInfo?.country && <StatRow k="Country" v={assetInfo.country} />}
           {assetInfo?.pe != null && <StatRow k="P/E" v={assetInfo.pe.toFixed(1) + 'x'} />}
           {assetInfo?.eps != null && <StatRow k="EPS" v={formatCurrency(assetInfo.eps, asset.currency)} />}
+          {assetInfo?.beta != null && <StatRow k="Beta" v={assetInfo.beta.toFixed(2)} />}
+          {assetInfo?.dividend && <StatRow k="Dividend" v={assetInfo.dividend} />}
           {assetInfo?.analystRating && (
             <StatRow
               k="Analyst"
               v={assetInfo.analystRating + (assetInfo.analystCount ? ` (${assetInfo.analystCount})` : '')}
               color={analystColor}
             />
+          )}
+          {assetInfo?.description && (
+            <div className="stat-row" style={{ alignItems: 'flex-start' }}>
+              <span className="stat-key">About</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 320 }}>{assetInfo.description}</span>
+            </div>
           )}
         </div>
       </div>

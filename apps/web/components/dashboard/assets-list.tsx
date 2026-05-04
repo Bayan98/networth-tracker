@@ -33,7 +33,7 @@ export function AssetsList({ assets, currency, quantityPerAsset }: AssetsListPro
   const priceItems = assets
     .filter((h) => h.symbol)
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
-  const { prices, loading: pricesLoading } = usePrices(priceItems)
+  const { prices, currencies, loading: pricesLoading } = usePrices(priceItems)
   const { fx, loading: fxLoading } = useTodayFx(assets, selectedCurrency)
   const loading = pricesLoading || fxLoading
 
@@ -81,7 +81,7 @@ export function AssetsList({ assets, currency, quantityPerAsset }: AssetsListPro
         {assets.map((asset) => {
           const qty = quantityPerAsset[asset.id] ?? 0
           const { price, source } = resolveAssetPrice(asset, prices)
-          const priceCcy = source === 'live' ? 'USD' : asset.currency
+          const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
           const rate = fx(priceCcy)
           const value: number | null = rate !== null ? qty * price * rate : null
 

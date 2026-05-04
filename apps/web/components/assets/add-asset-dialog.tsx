@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useModalClose } from '@/lib/hooks/use-modal-close'
 import { useRouter } from 'next/navigation'
-import { X, Sparkles, TrendingUp, Coins, Wallet, Home, Package, Loader2, AlertCircle } from 'lucide-react'
+import { X, Sparkles, TrendingUp, Coins, Wallet, Home, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { AssetType, CurrencyCode, Portfolio } from '@networth/types'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
+import { SymbolSearchInput } from '@/components/assets/symbol-search-input'
+import type { SymbolResult } from '@/lib/hooks/use-symbol-search'
 
 const ASSET_TYPE_CARDS: Array<{ id: AssetType; label: string; desc: string; Icon: React.FC<{ size?: number }> }> = [
   { id: 'stock',        label: 'Stock',        desc: 'Shares, ETFs',         Icon: TrendingUp },
@@ -36,7 +38,7 @@ interface Props {
 
 export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose }: Props) {
   const router = useRouter()
-  const { lookup, cancel, loading: lookupLoading } = useSymbolLookup()
+  const { lookup, lookupNow, cancel, loading: lookupLoading } = useSymbolLookup()
 
   const [assetType, setAssetType] = useState<AssetType | null>(null)
   const [symbol, setSymbol] = useState('')
@@ -73,6 +75,26 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
       if (info.description) setNotes((prev) => prev.trim() ? prev : info.description!)
     })
   }, [symbol, assetType]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleSymbolSelect(result: SymbolResult) {
+    const sym = result.exchange ? `${result.exchange}:${result.symbol}` : result.symbol.toUpperCase()
+    setSymbol(sym)
+    setAutoFilled(false)
+    setLookupStatus('loading')
+    cancel()
+    if (assetType) {
+      const info = await lookupNow(sym, assetType)
+      const status: LookupStatus = (info.name || info.price !== null) ? 'found' : 'not_found'
+      setLookupStatus(status)
+      if (info.name) { setAssetName(info.name); setAutoFilled(true) }
+      else if (result.name) { setAssetName(result.name); setAutoFilled(true) }
+      if (info.currency) setCurrency(info.currency as CurrencyCode)
+      if (info.description) setNotes((prev) => prev.trim() ? prev : info.description!)
+    } else if (result.name) {
+      setAssetName(result.name)
+      setAutoFilled(true)
+    }
+  }
 
   function handleTypeSelect(t: AssetType) {
     if (assetType === t) return
@@ -148,35 +170,24 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
             {assetType && (
               <>
                 {needsSymbol && (
-                  <div className="mfield" style={{ position: 'relative' }}>
+                  <div className="mfield">
                     <label className="mfield-label">
                       Ticker symbol
                       <span className="mfield-opt">Search to auto-fill name</span>
                     </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        ref={symbolRef}
-                        className="minput mono"
-                        placeholder="e.g. AAPL, BTC, VOO"
-                        value={symbol}
-                        onChange={(e) => {
-                          setSymbol(e.target.value.toUpperCase())
-                          setAutoFilled(false)
-                          setLookupStatus('idle')
-                        }}
-                      />
-                      {lookupLoading && (
-                        <Loader2 size={13} style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-faint)', animation: 'spin 1s linear infinite' }} />
-                      )}
-                      {!lookupLoading && lookupStatus === 'not_found' && (
-                        <AlertCircle size={13} style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--warn)' }} />
-                      )}
-                    </div>
-                    {lookupStatus === 'not_found' && (
-                      <p style={{ fontSize: 11, color: 'var(--warn)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <AlertCircle size={10} /> Symbol not found — fill in the name manually
-                      </p>
-                    )}
+                    <SymbolSearchInput
+                      value={symbol}
+                      onChange={(v) => {
+                        setSymbol(v)
+                        setAutoFilled(false)
+                        setLookupStatus('idle')
+                      }}
+                      onSelect={handleSymbolSelect}
+                      lookupStatus={lookupStatus}
+                      lookupLoading={lookupLoading}
+                      assetType={assetType ?? undefined}
+                      inputRef={symbolRef}
+                    />
                   </div>
                 )}
 

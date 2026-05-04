@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
+import { fetchSAQuote, parseSymbol } from "../_shared/stockanalysis.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -75,6 +76,27 @@ async function fetchYahooSummary(yahooSym: string): Promise<Partial<LookupResult
   return result;
 }
 
+/** Try to find a Yahoo Finance symbol for an international stock */
+async function findYahooSymbol(ticker: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0`,
+      { headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as {
+      quotes?: Array<{ symbol?: string; typeDisp?: string; quoteType?: string }>;
+    };
+    // Prefer equity/ETF types that contain the ticker
+    const candidates = (data?.quotes ?? [])
+      .filter((q) => q.symbol && !["FUTURE", "CURRENCY", "OPTION", "INDEX"].includes(q.quoteType ?? ""))
+      .filter((q) => q.symbol!.toUpperCase().startsWith(ticker.toUpperCase()));
+    return candidates[0]?.symbol ?? null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
 
@@ -102,10 +124,11 @@ Deno.serve(async (req: Request) => {
     }
 
     let result: LookupResult = { name: null, price: null, currency: null, description: null, logoUrl: null };
+    const { exchange, ticker } = parseSymbol(sym);
 
     if (asset_type === "crypto") {
       // Primary: Yahoo Finance {SYM}-USD
-      const yahooResult = await fetchYahooSummary(`${sym}-USD`);
+      const yahooResult = await fetchYahooSummary(`${ticker}-USD`);
       if (yahooResult.name || yahooResult.price != null) {
         result = { ...result, ...yahooResult };
         if (!result.currency) result.currency = "USD";
@@ -113,7 +136,7 @@ Deno.serve(async (req: Request) => {
 
       // Fallback: CoinGecko
       if (!result.name || result.price == null) {
-        const cgId = symbolToCoinGeckoId(sym);
+        const cgId = symbolToCoinGeckoId(ticker);
         try {
           const res = await fetch(
             `https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
@@ -139,26 +162,52 @@ Deno.serve(async (req: Request) => {
         if (!result.name) {
           try {
             const res = await fetch(
-              `https://api.coingecko.com/api/v3/search?query=${sym}`,
+              `https://api.coingecko.com/api/v3/search?query=${ticker}`,
               { headers: { Accept: "application/json" } },
             );
             if (res.ok) {
               const data = await res.json() as { coins?: Array<{ name: string; symbol: string }> };
-              const match = data.coins?.find((c) => c.symbol.toUpperCase() === sym);
+              const match = data.coins?.find((c) => c.symbol.toUpperCase() === ticker);
               if (match) result.name = match.name;
             }
           } catch (_) { /* ignore */ }
         }
       }
     } else {
-      // Primary: Yahoo Finance
-      const yahooResult = await fetchYahooSummary(sym);
-      if (yahooResult.name || yahooResult.price != null) {
-        result = { ...result, ...yahooResult };
+      // Primary: StockAnalysis.com (price + name)
+      // Run SA and Yahoo in parallel for speed; SA takes priority for price
+      const [saResult, yahooResult] = await Promise.all([
+        fetchSAQuote(sym, asset_type),
+        fetchYahooSummary(exchange ? ticker : sym),
+      ]);
+
+      // Merge: SA has priority for price (especially for international stocks)
+      if (saResult.name) result.name = saResult.name;
+      if (saResult.price != null) result.price = saResult.price;
+      if (saResult.currency) result.currency = saResult.currency;
+      if (saResult.description) result.description = saResult.description;
+
+      // Yahoo fills in any gaps
+      if (!result.name && yahooResult.name) result.name = yahooResult.name;
+      if (result.price == null && yahooResult.price != null) result.price = yahooResult.price;
+      if (!result.currency && yahooResult.currency) result.currency = yahooResult.currency;
+      if (!result.description && yahooResult.description) result.description = yahooResult.description;
+      if (!result.logoUrl && yahooResult.logoUrl) result.logoUrl = yahooResult.logoUrl;
+
+      // If SA page worked but no price (client-side rendered price), try Yahoo alternative symbol
+      if (result.price == null && exchange) {
+        const altSym = await findYahooSymbol(ticker);
+        if (altSym && altSym !== ticker) {
+          const altYahoo = await fetchYahooSummary(altSym);
+          if (altYahoo.price != null) result.price = altYahoo.price;
+          if (!result.name && altYahoo.name) result.name = altYahoo.name;
+          if (!result.currency && altYahoo.currency) result.currency = altYahoo.currency;
+          if (!result.logoUrl && altYahoo.logoUrl) result.logoUrl = altYahoo.logoUrl;
+        }
       }
 
-      // Fallback: Finnhub
-      if (!result.name || result.price == null) {
+      // Finnhub fallback for plain symbols still missing price
+      if (result.price == null && !exchange) {
         const token = Deno.env.get("FINNHUB_API_KEY");
         if (token) {
           await Promise.all([

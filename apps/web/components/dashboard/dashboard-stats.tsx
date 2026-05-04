@@ -23,14 +23,14 @@ export function DashboardStats({ assets, debts, portfolioCount, currency, quanti
   const priceItems = assets
     .filter((h) => h.symbol)
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
-  const { prices, loading: pricesLoading } = usePrices(priceItems)
+  const { prices, currencies, loading: pricesLoading } = usePrices(priceItems)
   const { fx, loading: fxLoading } = useTodayFx(assets, selectedCurrency)
   const loading = pricesLoading || fxLoading
 
   const totalAssets = assets.reduce<number | null>((sum, h) => {
     if (sum === null) return null
     const { price, source } = resolveAssetPrice(h, prices)
-    const priceCcy = source === 'live' ? 'USD' : h.currency
+    const priceCcy = source === 'live' ? (currencies[h.symbol?.toUpperCase() ?? ''] ?? 'USD') : h.currency
     const rate = fx(priceCcy)
     return rate !== null ? sum + (quantityPerAsset[h.id] ?? 0) * price * rate : null
   }, 0)

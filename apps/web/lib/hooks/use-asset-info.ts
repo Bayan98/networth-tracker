@@ -26,6 +26,9 @@ export interface AssetInfo {
   holdings: Holding[] | null
   news: NewsItem[] | null
   yahooUrl: string | null
+  description: string | null
+  dividend: string | null
+  beta: number | null
 }
 
 const PRICEABLE = ['stock', 'etf', 'bond', 'mutual_fund', 'commodity', 'crypto']

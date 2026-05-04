@@ -39,7 +39,7 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
   const priceItems = assets
     .filter((h) => h.symbol && PRICEABLE_TYPES.has(h.asset_type))
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
-  const { prices } = usePrices(priceItems)
+  const { prices, currencies } = usePrices(priceItems)
   const { fx } = useTodayFx(assets, selectedCurrency)
 
   const { series, loading: histLoading, avgCostPerAsset, quantityPerAsset: hookQty } = usePortfolioHistory(assets, period, selectedCurrency)
@@ -50,7 +50,7 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
     const hookAssetQty = hookQty[asset.id]
     const qty = serverQty !== undefined ? serverQty : (hookAssetQty !== undefined ? hookAssetQty : 1)
     const price = source === 'cost_basis' ? (avgCostPerAsset[asset.id] ?? 0) : rawPrice
-    const priceCcy = source === 'live' ? 'USD' : asset.currency
+    const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
     const rate = fx(priceCcy)
     const value: number | null = rate !== null && price > 0 ? qty * price * rate : null
     return { asset, value }

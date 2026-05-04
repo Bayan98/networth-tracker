@@ -4,17 +4,23 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export type PriceMap = Record<string, number>
+export type CurrencyMap = Record<string, string>
 
 interface PriceItem {
   symbol: string
   asset_type: string
 }
 
-const cache = new Map<string, PriceMap>()
+interface CacheEntry {
+  prices: PriceMap
+  currencies: CurrencyMap
+}
+
+const cache = new Map<string, CacheEntry>()
 
 export function usePrices(items: PriceItem[]) {
   const key = items.map((i) => `${i.symbol}:${i.asset_type}`).sort().join(',')
-  const [prices, setPrices] = useState<PriceMap>(() => cache.get(key) ?? {})
+  const [entry, setEntry] = useState<CacheEntry>(() => cache.get(key) ?? { prices: {}, currencies: {} })
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -26,8 +32,9 @@ export function usePrices(items: PriceItem[]) {
       .invoke('fetch-prices', { body: { items } })
       .then(({ data, error }) => {
         if (!error && data?.prices) {
-          cache.set(key, data.prices)
-          setPrices(data.prices)
+          const newEntry: CacheEntry = { prices: data.prices, currencies: data.currencies ?? {} }
+          cache.set(key, newEntry)
+          setEntry(newEntry)
         }
       })
       .catch((err) => console.error('usePrices error:', err))
@@ -35,5 +42,5 @@ export function usePrices(items: PriceItem[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
-  return { prices, loading }
+  return { prices: entry.prices, currencies: entry.currencies, loading }
 }

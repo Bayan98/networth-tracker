@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
+import { fetchSAHistory, fetchSAQuote, parseSymbol } from "../_shared/stockanalysis.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { symbol, asset_type, date } = await req.json() as { symbol: string; asset_type: string; date: string };
     const sym = symbol.toUpperCase().trim();
+    const { exchange, ticker } = parseSymbol(sym);
     const today = new Date().toISOString().slice(0, 10);
     const isToday = date === today;
     const TTL = isToday ? 3 * 60 * 60 * 1000 : 4 * 7 * 24 * 60 * 60 * 1000;
@@ -40,37 +42,58 @@ Deno.serve(async (req: Request) => {
       const dateEpoch = new Date(date + "T12:00:00Z").getTime() / 1000;
       const period1 = Math.floor(dateEpoch) - 86400;
       const period2 = Math.floor(dateEpoch) + 86400;
-      try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&period1=${period1}&period2=${period2}`;
-        const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-        if (res.ok) {
-          const data = await res.json() as {
-            chart: {
-              result?: Array<{
-                meta?: { regularMarketPrice?: number };
-                timestamp?: number[];
-                indicators?: { quote: Array<{ close: (number | null)[] }> };
-              }> | null;
+
+      // Primary: StockAnalysis.com for all
+      if (isToday) {
+        const saResult = await fetchSAQuote(sym, asset_type);
+        if (saResult.price != null) price = saResult.price;
+      } else {
+        const saPoints = await fetchSAHistory(sym, asset_type, period1, period2);
+        if (saPoints.length > 0) {
+          let minDiff = Infinity;
+          for (const p of saPoints) {
+            const ts = new Date(p.date + "T12:00:00Z").getTime() / 1000;
+            const diff = Math.abs(ts - dateEpoch);
+            if (diff < minDiff) { minDiff = diff; price = p.price; }
+          }
+        }
+      }
+
+      // Fallback: Yahoo Finance (use bare ticker for exchange-prefixed symbols)
+      if (price == null) {
+        const yahoySym = exchange ? ticker : sym;
+        try {
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahoySym}?interval=1d&period1=${period1}&period2=${period2}`;
+          const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+          if (res.ok) {
+            const data = await res.json() as {
+              chart: {
+                result?: Array<{
+                  meta?: { regularMarketPrice?: number };
+                  timestamp?: number[];
+                  indicators?: { quote: Array<{ close: (number | null)[] }> };
+                }> | null;
+              };
             };
-          };
-          const result = data.chart?.result?.[0];
-          if (isToday) {
-            price = result?.meta?.regularMarketPrice ?? null;
-          } else {
-            const timestamps = result?.timestamp ?? [];
-            const closes = result?.indicators?.quote?.[0]?.close ?? [];
-            let minDiff = Infinity;
-            for (let i = 0; i < timestamps.length; i++) {
-              const diff = Math.abs(timestamps[i] - dateEpoch);
-              if (closes[i] != null && diff < minDiff) {
-                minDiff = diff;
-                price = closes[i];
+            const result = data.chart?.result?.[0];
+            if (isToday) {
+              price = result?.meta?.regularMarketPrice ?? null;
+            } else {
+              const timestamps = result?.timestamp ?? [];
+              const closes = result?.indicators?.quote?.[0]?.close ?? [];
+              let minDiff = Infinity;
+              for (let i = 0; i < timestamps.length; i++) {
+                const diff = Math.abs(timestamps[i] - dateEpoch);
+                if (closes[i] != null && diff < minDiff) {
+                  minDiff = diff;
+                  price = closes[i];
+                }
               }
             }
           }
+        } catch (e) {
+          console.error(`fetch-price-at-date Yahoo error for ${sym}:`, e);
         }
-      } catch (e) {
-        console.error(`fetch-price-at-date Yahoo error for ${sym}:`, e);
       }
     } else if (asset_type === "crypto") {
       if (isToday) {

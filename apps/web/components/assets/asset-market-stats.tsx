@@ -19,12 +19,13 @@ export function AssetMarketStats({ asset, transactions }: Props) {
       ? [{ symbol: asset.symbol, asset_type: asset.asset_type }]
       : []
 
-  const { prices } = usePrices(priceItems)
+  const { prices, currencies } = usePrices(priceItems)
   const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
 
   const { avgCostBasis, quantity, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
 
-  const fxRate = source === 'live' ? fx('USD') : null
+  const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
+  const fxRate = source === 'live' ? fx(priceCcy) : null
   const price: number | null = source === 'live'
     ? (fxRate !== null ? rawPrice * fxRate : null)
     : source === 'cost_basis' ? avgCostBasis : rawPrice

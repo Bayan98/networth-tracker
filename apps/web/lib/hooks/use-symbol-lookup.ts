@@ -57,5 +57,5 @@ export function useSymbolLookup() {
     if (timerRef.current) clearTimeout(timerRef.current)
   }
 
-  return { lookup, cancel, loading }
+  return { lookup, lookupNow: fetchInfo, cancel, loading }
 }

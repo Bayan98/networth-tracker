@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
+import { fetchSAQuote, parseSymbol } from "../_shared/stockanalysis.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,7 @@ interface RequestItem {
 
 interface CacheRow {
   cache_key: string;
-  response: { price: number };
+  response: { price: number; currency?: string };
   expires_at: string | null;
 }
 
@@ -66,6 +67,7 @@ Deno.serve(async (req: Request) => {
     );
 
     const prices: Record<string, number | null> = {};
+    const currencies: Record<string, string> = {};
     const now = Date.now();
 
     const cacheKeys = items.map((i) => `price:${i.symbol.toUpperCase()}`);
@@ -74,14 +76,14 @@ Deno.serve(async (req: Request) => {
       .select("cache_key, response, expires_at")
       .in("cache_key", cacheKeys) as { data: CacheRow[] | null };
 
-    const cacheMap = new Map<string, number>();
+    const cacheMap = new Map<string, { price: number; currency?: string }>();
     for (const row of cached ?? []) {
       if (row.expires_at != null && new Date(row.expires_at).getTime() > now) {
-        cacheMap.set(row.cache_key, row.response.price);
+        cacheMap.set(row.cache_key, row.response);
       }
     }
 
-    const needStockSyms: string[] = [];
+    const needStockItems: Array<{ sym: string; asset_type: string; exchange: string | null; ticker: string }> = [];
     const needCryptoSyms: string[] = [];
     const cryptoOrigMap: Record<string, string> = {};
 
@@ -89,19 +91,41 @@ Deno.serve(async (req: Request) => {
       const sym = item.symbol.toUpperCase();
       const cacheKey = `price:${sym}`;
       if (cacheMap.has(cacheKey)) {
-        prices[sym] = cacheMap.get(cacheKey)!;
+        const cached_ = cacheMap.get(cacheKey)!;
+        prices[sym] = cached_.price;
+        if (cached_.currency) currencies[sym] = cached_.currency;
       } else if (item.asset_type === "crypto") {
-        const yahooSym = `${sym}-USD`;
+        const { ticker } = parseSymbol(sym);
+        const yahooSym = `${ticker}-USD`;
         needCryptoSyms.push(yahooSym);
         cryptoOrigMap[yahooSym] = sym;
       } else if (["stock", "etf", "bond", "mutual_fund", "commodity"].includes(item.asset_type)) {
-        needStockSyms.push(sym);
+        const { exchange, ticker } = parseSymbol(sym);
+        needStockItems.push({ sym, asset_type: item.asset_type, exchange, ticker });
       }
     }
 
-    // Primary: Yahoo Finance batch for stocks
-    if (needStockSyms.length > 0) {
-      const yahooResult = await fetchYahooQuotes(needStockSyms);
+    // Primary: StockAnalysis.com for all stocks/ETFs
+    if (needStockItems.length > 0) {
+      await Promise.all(needStockItems.map(async ({ sym, asset_type }) => {
+        const saResult = await fetchSAQuote(sym, asset_type);
+        if (saResult.price != null && saResult.price > 0) {
+          prices[sym] = saResult.price;
+          if (saResult.currency) currencies[sym] = saResult.currency;
+          const response: { price: number; currency?: string } = { price: saResult.price };
+          if (saResult.currency) response.currency = saResult.currency;
+          await supabase.from("api_cache").upsert(
+            { cache_key: `price:${sym}`, response, updated_at: new Date().toISOString(), expires_at: new Date(now + TTL_MS).toISOString() },
+            { onConflict: "cache_key" },
+          );
+        }
+      }));
+    }
+
+    // Fallback: Yahoo Finance batch for plain stocks SA missed
+    const missingPlain = needStockItems.filter(({ sym, exchange }) => !exchange && prices[sym] == null).map(({ ticker }) => ticker);
+    if (missingPlain.length > 0) {
+      const yahooResult = await fetchYahooQuotes(missingPlain);
       const upserts = [];
       for (const [sym, price] of Object.entries(yahooResult)) {
         prices[sym] = price;
@@ -138,9 +162,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Fallback: Finnhub for stocks Yahoo missed
+    // Fallback: Finnhub for plain stocks Yahoo + SA missed
     const finnhubToken = Deno.env.get("FINNHUB_API_KEY");
-    const stocksFailed = needStockSyms.filter((sym) => prices[sym] == null);
+    const stocksFailed = needStockItems.filter(({ sym, exchange }) => !exchange && prices[sym] == null).map(({ ticker }) => ticker);
     if (stocksFailed.length > 0 && finnhubToken) {
       await Promise.all(stocksFailed.map(async (sym) => {
         try {
@@ -198,7 +222,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ prices }), {
+    return new Response(JSON.stringify({ prices, currencies }), {
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   } catch (err) {
