@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { SettingsClient } from '@/components/settings/settings-client'
+import { DangerZone, SettingsClient } from '@/components/settings/settings-client'
 import { ImportAssets } from '@/components/settings/import-assets'
 
 export default async function SettingsPage() {
@@ -26,6 +26,7 @@ export default async function SettingsPage() {
         userEmail={user?.email ?? ''}
       />
       <ImportAssets portfolios={portfolios ?? []} userId={user!.id} />
+      <DangerZone />
     </>
   )
 }

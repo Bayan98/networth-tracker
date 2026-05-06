@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
+import { deleteAllUserData } from '@/app/(main)/settings/actions'
 import type { Accent, Density } from '@/lib/store'
 import type { Profile, CurrencyCode } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
@@ -220,6 +221,87 @@ export function SettingsClient({ profile, userEmail }: Props) {
           </button>
         </div>
       </div>
+
     </div>
+  )
+}
+
+export function DangerZone() {
+  const router = useRouter()
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleDeleteAll() {
+    const confirmed = prompt('Type DELETE ALL to permanently delete all portfolio data.')
+    if (confirmed !== 'DELETE ALL') return
+
+    setDeleting(true)
+    setError(null)
+    const result = await deleteAllUserData()
+    setDeleting(false)
+
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+
+    router.refresh()
+  }
+
+  return (
+    <section
+      className="card"
+      style={{
+        border: '1px solid color-mix(in oklch, var(--color-danger) 48%, var(--border))',
+        background: 'linear-gradient(180deg, color-mix(in oklch, var(--color-danger) 6%, var(--surface)) 0%, var(--surface) 42%)',
+      }}
+    >
+      <div className="card-head">
+        <div>
+          <div className="empty-label" style={{ color: 'var(--color-danger)', marginBottom: 4 }}>
+            Destructive action
+          </div>
+          <h3 style={{ color: 'var(--color-danger)' }}>Danger Zone</h3>
+          <div className="sub">Delete portfolio data while keeping your account and profile settings.</div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) auto',
+          gap: 16,
+          alignItems: 'center',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 500 }}>
+            Delete all data
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--ink-faint)', marginTop: 4, lineHeight: 1.5 }}>
+            Removes assets, transactions, portfolios, income schedules, and debts. This cannot be undone.
+          </div>
+          {error && (
+            <div style={{ fontSize: 12, color: 'var(--color-danger)', marginTop: 10 }}>
+              {error}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          disabled={deleting}
+          onClick={handleDeleteAll}
+          className="btn"
+          style={{
+            background: 'var(--color-danger)',
+            color: 'white',
+            fontSize: 13,
+            minWidth: 128,
+          }}
+        >
+          {deleting ? 'Deleting...' : 'Delete all data'}
+        </button>
+      </div>
+    </section>
   )
 }

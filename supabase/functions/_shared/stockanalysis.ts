@@ -1,3 +1,19 @@
+/** Minor currency units returned by StockAnalysis that must be converted to their major counterpart. */
+export const MINOR_CURRENCIES: Record<string, { major: string; factor: number }> = {
+  GBX: { major: "GBP", factor: 100 }, // British pence → pounds
+  ILA: { major: "ILS", factor: 100 }, // Israeli agorot → shekels
+  ZAC: { major: "ZAR", factor: 100 }, // South African cents → rand
+}
+
+/** Normalize a minor currency unit to its major counterpart (e.g. 123 GBX → 1.23 GBP). */
+export function normalizePriceCurrency(
+  price: number,
+  currency: string,
+): { price: number; currency: string } {
+  const m = MINOR_CURRENCIES[currency.toUpperCase()]
+  return m ? { price: price / m.factor, currency: m.major } : { price, currency }
+}
+
 const SA_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
   "Accept": "application/json",
@@ -8,7 +24,10 @@ const SA_HEADERS = {
 export interface SAResult {
   price: number | null;
   name: string | null;
+  /** Normalized major currency (e.g. 'GBP'). Use this for FX lookups. */
   currency: string | null;
+  /** Raw currency as returned by StockAnalysis (e.g. 'GBX'). Use to normalize historical prices. */
+  rawCurrency: string | null;
   description: string | null;
 }
 
@@ -47,9 +66,9 @@ function res(data: DataArray, val: unknown): unknown {
   return val;
 }
 
-function saParseQuote(data: DataArray): { price: number | null; name: string | null; currency: string | null; description: string | null } {
+function saParseQuote(data: DataArray): { price: number | null; name: string | null; currency: string | null; rawCurrency: string | null; description: string | null } {
   const info = data[1];
-  if (!info || typeof info !== "object") return { price: null, name: null, currency: null, description: null };
+  if (!info || typeof info !== "object") return { price: null, name: null, currency: null, rawCurrency: null, description: null };
 
   const infoObj = info as Record<string, unknown>;
   const quote = res(data, infoObj["quote"]);
@@ -65,25 +84,29 @@ function saParseQuote(data: DataArray): { price: number | null; name: string | n
   const name = typeof nameRaw === "string" ? nameRaw : null;
 
   const currRaw = res(data, infoObj["curr"]);
-  let currency: string | null = null;
+  let rawCurrency: string | null = null;
   if (typeof currRaw === "string") {
-    currency = currRaw;
+    rawCurrency = currRaw.toUpperCase();
   } else if (currRaw && typeof currRaw === "object") {
     const currObj = currRaw as Record<string, unknown>;
     const priceIdx = currObj["price"];
     const resolved = res(data, priceIdx);
-    if (typeof resolved === "string") currency = resolved;
+    if (typeof resolved === "string") rawCurrency = resolved.toUpperCase();
   }
 
   const descRaw = res(data, infoObj["description"] ?? infoObj["bio"]);
   const description = typeof descRaw === "string" ? descRaw.replace(/<[^>]*>/g, "").slice(0, 500) || null : null;
 
-  return { price, name, currency, description };
+  if (price !== null && rawCurrency !== null) {
+    const normed = normalizePriceCurrency(price, rawCurrency)
+    return { price: normed.price, name, currency: normed.currency, rawCurrency, description }
+  }
+  return { price, name, currency: rawCurrency, rawCurrency, description };
 }
 
 export async function fetchSAQuote(sym: string, assetType?: string): Promise<SAResult> {
   const base = saBaseUrl(sym, assetType);
-  const empty: SAResult = { price: null, name: null, currency: null, description: null };
+  const empty: SAResult = { price: null, name: null, currency: null, rawCurrency: null, description: null };
 
   try {
     const res_ = await fetch(`${base}/__data.json`, { headers: SA_HEADERS });

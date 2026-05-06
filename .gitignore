@@ -30,6 +30,8 @@ Thumbs.db
 .idea/
 *.swp
 .playwright-mcp/
+.codex/
+AGENTS.md
 
 # Supabase
 supabase/.temp/

@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
-import { fetchSAQuote, parseSymbol } from "../_shared/stockanalysis.ts";
+import { fetchSAQuote, normalizePriceCurrency, parseSymbol } from "../_shared/stockanalysis.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -92,8 +92,14 @@ Deno.serve(async (req: Request) => {
       const cacheKey = `price:${sym}`;
       if (cacheMap.has(cacheKey)) {
         const cached_ = cacheMap.get(cacheKey)!;
-        prices[sym] = cached_.price;
-        if (cached_.currency) currencies[sym] = cached_.currency;
+        if (cached_.currency) {
+          // Normalize in case the cache entry was written before minor-currency normalization was added
+          const normed = normalizePriceCurrency(cached_.price, cached_.currency);
+          prices[sym] = normed.price;
+          currencies[sym] = normed.currency;
+        } else {
+          prices[sym] = cached_.price;
+        }
       } else if (item.asset_type === "crypto") {
         const { ticker } = parseSymbol(sym);
         const yahooSym = `${ticker}-USD`;

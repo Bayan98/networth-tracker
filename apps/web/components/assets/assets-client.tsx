@@ -82,7 +82,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
   const priceItems = assets
     .filter((h) => h.symbol && PRICEABLE_TYPES.has(h.asset_type))
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
-  const { prices, currencies } = usePrices(priceItems)
+  const { prices, currencies, loading: pricesLoading } = usePrices(priceItems)
 
   const { series, avgCostPerAsset, quantityPerAsset, startPricePerAsset, prevDayValue, loading: baseLoading, chartLoading, fxError, priceError, todayFx } =
     usePortfolioHistory(visible, period, selectedCurrency)
@@ -146,22 +146,21 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
   const totalGainPct = totalGainAbs !== null && totalCostBasis !== null && totalCostBasis > 0
     ? (totalGainAbs / totalCostBasis) * 100 : null
 
-  // Replace last series point with live-price values so chart tip matches the total value card
+  // Replace last series point with live-price values so chart tip matches the total value card.
+  // Wait for live prices before replacing — cost-basis totalValue causes a visible wrong spike
+  // on the last point before usePrices loads.
   const liveSeries = useMemo(() => {
-    if (series.length === 0 || totalValue === null || totalCostBasis === null) return series
+    if (series.length === 0 || totalValue === null || pricesLoading) return series
     const today = new Date().toISOString().slice(0, 10)
     const last = series[series.length - 1]
     if (last.date !== today) return series
-    return [...series.slice(0, -1), { ...last, marketValue: totalValue, costBasis: totalCostBasis }]
-  }, [series, totalValue, totalCostBasis])
+    return [...series.slice(0, -1), { ...last, marketValue: totalValue, costBasis: totalCostBasis ?? last.costBasis }]
+  }, [series, totalValue, totalCostBasis, pricesLoading])
 
-  // Period change: sum of per-asset price appreciation from their effective start
-  // (first buy date if after period start, else period start). Non-priceable assets
-  // are excluded — their value only changes when the user manually updates it.
-  const periodChangeAbs = enriched.some((e) => e.changeAbs !== null)
-    ? enriched.reduce<number>((sum, e) => sum + (e.changeAbs ?? 0), 0)
+  const periodStartValue = liveSeries.length >= 2 ? liveSeries[0].marketValue : 0
+  const periodChangeAbs = liveSeries.length >= 2
+    ? liveSeries[liveSeries.length - 1].marketValue - periodStartValue
     : null
-  const periodStartValue = enriched.reduce<number>((sum, e) => sum + (e.startValue ?? 0), 0)
   const periodChangePct = periodChangeAbs !== null && periodStartValue > 0
     ? (periodChangeAbs / periodStartValue) * 100
     : null

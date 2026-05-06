@@ -48,6 +48,7 @@ export function Donut({
   })
 
   const active = arcs[Math.min(hovered, arcs.length - 1)]
+  const isSingleSegment = arcs.length === 1
 
   return (
     <div
@@ -55,18 +56,31 @@ export function Donut({
       onMouseLeave={() => setHovered(0)}
     >
       <svg width={size} height={size} style={{ overflow: 'visible' }}>
-        {arcs.map((a, i) => (
-          <path
-            key={i}
-            d={a.d}
+        {isSingleSegment ? (
+          <circle
+            cx={c}
+            cy={c}
+            r={r}
             fill="none"
-            stroke={a.color}
-            strokeWidth={hovered === i ? thickness + 3 : thickness}
-            strokeLinecap="butt"
+            stroke={active.color}
+            strokeWidth={hovered === 0 ? thickness + 3 : thickness}
             style={{ cursor: 'pointer', transition: 'stroke-width .12s' }}
-            onMouseEnter={() => setHovered(i)}
+            onMouseEnter={() => setHovered(0)}
           />
-        ))}
+        ) : (
+          arcs.map((a, i) => (
+            <path
+              key={i}
+              d={a.d}
+              fill="none"
+              stroke={a.color}
+              strokeWidth={hovered === i ? thickness + 3 : thickness}
+              strokeLinecap="butt"
+              style={{ cursor: 'pointer', transition: 'stroke-width .12s' }}
+              onMouseEnter={() => setHovered(i)}
+            />
+          ))
+        )}
       </svg>
       <div style={{
         position: 'absolute', inset: 0,

@@ -21,7 +21,7 @@ const cache = new Map<string, CacheEntry>()
 export function usePrices(items: PriceItem[]) {
   const key = items.map((i) => `${i.symbol}:${i.asset_type}`).sort().join(',')
   const [entry, setEntry] = useState<CacheEntry>(() => cache.get(key) ?? { prices: {}, currencies: {} })
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(() => items.length > 0 && !cache.has(key))
 
   useEffect(() => {
     if (items.length === 0) return

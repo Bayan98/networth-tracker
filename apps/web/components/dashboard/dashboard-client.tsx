@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
@@ -39,10 +39,10 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
   const priceItems = assets
     .filter((h) => h.symbol && PRICEABLE_TYPES.has(h.asset_type))
     .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
-  const { prices, currencies } = usePrices(priceItems)
+  const { prices, currencies, loading: pricesLoading } = usePrices(priceItems)
   const { fx } = useTodayFx(assets, selectedCurrency)
 
-  const { series, loading: histLoading, avgCostPerAsset, quantityPerAsset: hookQty } = usePortfolioHistory(assets, period, selectedCurrency)
+  const { series, chartLoading, avgCostPerAsset, quantityPerAsset: hookQty } = usePortfolioHistory(assets, period, selectedCurrency)
 
   const enriched: Enriched[] = assets.map((asset) => {
     const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
@@ -61,12 +61,20 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
     0,
   )
 
+  const liveSeries = useMemo(() => {
+    if (series.length === 0 || totalValue === null || pricesLoading) return series
+    const today = new Date().toISOString().slice(0, 10)
+    const last = series[series.length - 1]
+    if (last.date !== today) return series
+    return [...series.slice(0, -1), { ...last, marketValue: totalValue }]
+  }, [series, totalValue, pricesLoading])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
       <AssetsChart
-        series={series}
+        series={liveSeries}
         currency={selectedCurrency}
-        loading={histLoading}
+        loading={chartLoading}
         period={period}
         onPeriodChange={setPeriod}
         totalValue={totalValue}

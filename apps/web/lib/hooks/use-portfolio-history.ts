@@ -28,9 +28,11 @@ export function usePortfolioHistory(
   const [priceHistory, setPriceHistory] = useState<PriceHistory>({})
   // Daily price history — always 1w resolution, used for the "Today" change stat
   const [dailyPriceHistory, setDailyPriceHistory] = useState<PriceHistory>({})
+  // Price currencies returned by fetch-price-history (already normalized to major currencies)
+  const [priceCurrencies, setPriceCurrencies] = useState<Record<string, string>>({})
   const [rawTransactions, setRawTransactions] = useState<RawTransaction[]>([])
   const [fxRates, setFxRates] = useState<FxRates>({})
-  const [fxContext, setFxContext] = useState<{ period: Period; currency: string } | null>(null)
+  const [fxContext, setFxContext] = useState<{ period: Period; currency: string; priceCcyKey: string } | null>(null)
   const [priceLoading, setPriceLoading] = useState(true)
   const [priceError, setPriceError] = useState<string | null>(null)
   const [txLoading, setTxLoading] = useState(true)
@@ -53,6 +55,8 @@ export function usePortfolioHistory(
   )
 
   const priceableKey = priceableItems.map((i) => i.symbol).join(',')
+  const priceCurrenciesKey = Object.entries(priceCurrencies).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}:${v}`).join(',')
+
 
   // Invalidate caches when the asset set changes
   useEffect(() => { priceCache.current.clear() }, [priceableKey])
@@ -111,6 +115,9 @@ export function usePortfolioHistory(
           const history = data.history as PriceHistory
           priceCache.current.set(period, history)
           setPriceHistory(history)
+          if (data.currencies && typeof data.currencies === 'object') {
+            setPriceCurrencies((prev) => ({ ...prev, ...(data.currencies as Record<string, string>) }))
+          }
         }
         setPriceLoading(false)
       })
@@ -139,6 +146,9 @@ export function usePortfolioHistory(
       .then(({ data }) => {
         if (cancelled) return
         setDailyPriceHistory((data?.history ?? {}) as PriceHistory)
+        if (data?.currencies && typeof data.currencies === 'object') {
+          setPriceCurrencies((prev) => ({ ...prev, ...(data.currencies as Record<string, string>) }))
+        }
       })
       .catch(() => { if (!cancelled) setDailyPriceHistory({}) })
     return () => { cancelled = true }
@@ -152,11 +162,11 @@ export function usePortfolioHistory(
       return
     }
 
-    const fxCacheKey = `${period}:${displayCurrency}:${assetCcyKey}`
+    const fxCacheKey = `${period}:${displayCurrency}:${assetCcyKey}:${priceCurrenciesKey}`
     const cachedFx = fxCache.current.get(fxCacheKey)
     if (cachedFx) {
       setFxRates(cachedFx)
-      setFxContext({ period, currency: displayCurrency })
+      setFxContext({ period, currency: displayCurrency, priceCcyKey: priceCurrenciesKey })
       setFxError(null)
       setFxLoading(false)
       return
@@ -186,7 +196,14 @@ export function usePortfolioHistory(
       }
     }
 
-    if (displayCurrency.toUpperCase() !== 'USD' && priceableItems.length > 0) {
+    // Always need USD→display for stocks priced in USD, and each unique price currency→display
+    const uniquePriceCurrencies = [...new Set(Object.values(priceCurrencies).map((c) => c.toUpperCase()))]
+    for (const ccy of uniquePriceCurrencies) {
+      for (const date of timeAxis) {
+        addPair(ccy, displayCurrency, date)
+      }
+    }
+    if (uniquePriceCurrencies.length === 0 && priceableItems.length > 0) {
       for (const date of timeAxis) {
         addPair('USD', displayCurrency, date)
       }
@@ -196,7 +213,7 @@ export function usePortfolioHistory(
 
     if (pairs.length === 0) {
       setFxRates({})
-      setFxContext({ period, currency: displayCurrency })
+      setFxContext({ period, currency: displayCurrency, priceCcyKey: priceCurrenciesKey })
       setFxLoading(false)
       return
     }
@@ -227,7 +244,7 @@ export function usePortfolioHistory(
           }
           fxCache.current.set(fxCacheKey, rates)
           setFxRates(rates)
-          setFxContext({ period, currency: displayCurrency })
+          setFxContext({ period, currency: displayCurrency, priceCcyKey: priceCurrenciesKey })
         }
         setFxLoading(false)
       })
@@ -236,18 +253,18 @@ export function usePortfolioHistory(
         console.error('[FX] fetch-fx-rates exception:', err)
         setFxError('Failed to load exchange rates')
         setFxRates({})
-        setFxContext({ period, currency: displayCurrency })
+        setFxContext({ period, currency: displayCurrency, priceCcyKey: priceCurrenciesKey })
         setFxLoading(false)
       })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawTransactions, assetIdsKey, assetCcyKey, period, displayCurrency, priceableKey])
+  }, [rawTransactions, assetIdsKey, assetCcyKey, period, displayCurrency, priceableKey, priceCurrenciesKey])
 
-  const fxReady = !fxLoading && fxContext?.period === period && fxContext?.currency === displayCurrency
+  const fxReady = !fxLoading && fxContext?.period === period && fxContext?.currency === displayCurrency && fxContext?.priceCcyKey === priceCurrenciesKey
 
   const series = useMemo(
-    () => fxReady ? computeSeries(buildTimeAxis(period), rawTransactions, assets, priceHistory, fxRates, displayCurrency) : [],
-    [fxReady, rawTransactions, assets, period, priceHistory, fxRates, displayCurrency],
+    () => fxReady ? computeSeries(buildTimeAxis(period), rawTransactions, assets, priceHistory, fxRates, displayCurrency, priceCurrencies) : [],
+    [fxReady, rawTransactions, assets, period, priceHistory, fxRates, displayCurrency, priceCurrencies],
   )
 
   const todayFx = useMemo(() => {
@@ -331,6 +348,14 @@ export function usePortfolioHistory(
     const daily = Object.keys(dailyPriceHistory).length > 0 ? dailyPriceHistory : priceHistory
     if (Object.keys(daily).length === 0 && priceableItems.length > 0) return null
     const today = new Date().toISOString().slice(0, 10)
+    const previousDay = new Date()
+    previousDay.setUTCDate(previousDay.getUTCDate() - 1)
+    const previousDate = previousDay.toISOString().slice(0, 10)
+    const firstTxDate: Record<string, string> = {}
+    for (const tx of rawTransactions) {
+      const d = tx.executed_at.slice(0, 10)
+      if (!firstTxDate[tx.asset_id] || d < firstTxDate[tx.asset_id]) firstTxDate[tx.asset_id] = d
+    }
     let total = 0
     for (const h of assets) {
       const qty = quantityPerAsset[h.id] ?? 0
@@ -339,20 +364,45 @@ export function usePortfolioHistory(
       if (sym && PRICEABLE_TYPES.has(h.asset_type)) {
         const hist = daily[sym]
         const prevPrice = hist ? [...hist].filter((p) => p.date < today).slice(-1)[0]?.price : undefined
-        if (prevPrice == null) return null
-        const fx = lookupFxRate(fxRates, 'USD', displayCurrency, today) ?? 1
+        if (prevPrice == null) {
+          // No daily history — fall back to avg cost basis, same as computeSeries does for
+          // assets without price history. Without this fallback, assets with no 1w data
+          // contribute $0 to prevDayValue but their full live value to totalValue, inflating "Today".
+          const avgCost = avgCostPerAsset[h.id]
+          if (avgCost != null && avgCost > 0) {
+            const fx = lookupFxRate(fxRates, h.currency, displayCurrency, today) ?? 1
+            total += qty * avgCost * fx
+          }
+          continue
+        }
+        const priceCcy = (priceCurrencies[sym] ?? 'USD').toUpperCase()
+        const fx = lookupFxRate(fxRates, priceCcy, displayCurrency, today) ?? 1
         total += qty * prevPrice * fx
       } else {
-        // Use avg cost basis to match how totalValue counts non-priceable assets.
-        // manual_price is often null, which would make these assets contribute 0
-        // to prevDayValue while still appearing in totalValue — inflating "Today".
-        const price = avgCostPerAsset[h.id] ?? (h.manual_price ?? 0)
+        const avgCost = avgCostPerAsset[h.id] ?? 0
+        let price = avgCost
+
+        if (h.manual_price != null) {
+          if (h.manual_price_date == null || previousDate >= h.manual_price_date) {
+            price = h.manual_price
+          } else {
+            const startDate = firstTxDate[h.id]
+            if (startDate && startDate < h.manual_price_date) {
+              const startMs = new Date(startDate + 'T12:00:00Z').getTime()
+              const manualMs = new Date(h.manual_price_date + 'T12:00:00Z').getTime()
+              const previousMs = new Date(previousDate + 'T12:00:00Z').getTime()
+              const t = Math.max(0, Math.min(1, (previousMs - startMs) / (manualMs - startMs)))
+              price = avgCost + (h.manual_price - avgCost) * t
+            }
+          }
+        }
+
         const fx = lookupFxRate(fxRates, h.currency, displayCurrency, today) ?? 1
         total += qty * price * fx
       }
     }
     return total
-  }, [assets, quantityPerAsset, avgCostPerAsset, priceHistory, dailyPriceHistory, fxRates, displayCurrency, priceableItems.length])
+  }, [assets, quantityPerAsset, avgCostPerAsset, priceHistory, dailyPriceHistory, rawTransactions, fxRates, displayCurrency, priceableItems.length, priceCurrencies])
 
   return {
     series,

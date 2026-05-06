@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
-import { fetchSAHistory, parseSymbol } from "../_shared/stockanalysis.ts";
+import { fetchSAHistory, fetchSAQuote, MINOR_CURRENCIES, parseSymbol } from "../_shared/stockanalysis.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -101,23 +101,25 @@ Deno.serve(async (req: Request) => {
     const ttlMs = PERIOD_TTL_MS[period];
     const now = Date.now();
 
+    // n1 — bumped when price normalization (minor currency units e.g. GBX→GBP) was added
     // 5y:v2 — bumped when monthly aggregate switched to month-start date normalization
-    const keyFor = (sym: string) => `history:${sym}:${period === "5y" ? "5y:v2" : period}`;
+    const keyFor = (sym: string) => `history:${sym}:${period === "5y" ? "5y:v2" : period}:n1`;
     const cacheKeys = items.map((i) => keyFor(i.symbol.toUpperCase()));
     const { data: cached } = await supabase
       .from("api_cache")
       .select("cache_key, response, expires_at")
-      .in("cache_key", cacheKeys) as { data: Array<{ cache_key: string; response: { points: PricePoint[] }; expires_at: string | null }> | null };
+      .in("cache_key", cacheKeys) as { data: Array<{ cache_key: string; response: { points: PricePoint[]; currency?: string }; expires_at: string | null }> | null };
 
-    const cacheMap = new Map<string, PricePoint[]>();
+    const cacheMap = new Map<string, { points: PricePoint[]; currency?: string }>();
     for (const row of cached ?? []) {
       const notExpired = row.expires_at != null && new Date(row.expires_at).getTime() > now;
       if (notExpired && Array.isArray(row.response?.points)) {
-        cacheMap.set(row.cache_key, row.response.points);
+        cacheMap.set(row.cache_key, { points: row.response.points, currency: row.response.currency });
       }
     }
 
     const history: Record<string, PricePoint[]> = {};
+    const currencies: Record<string, string> = {};
     const needCrypto: Array<{ symbol: string; cgId: string }> = [];
     const needPriceable: Array<{ symbol: string; asset_type: string }> = [];
 
@@ -125,7 +127,9 @@ Deno.serve(async (req: Request) => {
       const sym = item.symbol.toUpperCase();
       const cacheKey = keyFor(sym);
       if (cacheMap.has(cacheKey)) {
-        history[sym] = cacheMap.get(cacheKey)!;
+        const cached_ = cacheMap.get(cacheKey)!;
+        history[sym] = cached_.points;
+        if (cached_.currency) currencies[sym] = cached_.currency;
       } else if (item.asset_type === "crypto") {
         const { ticker } = parseSymbol(sym);
         needCrypto.push({ symbol: sym, cgId: symbolToCoinGeckoId(ticker) });
@@ -186,13 +190,17 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // All priceable assets: StockAnalysis primary, Yahoo fallback for plain symbols
+    // All priceable assets: StockAnalysis primary, Yahoo fallback for plain symbols.
+    // Fetch the SA quote in parallel with history to get the currency for normalization.
     if (needPriceable.length > 0) {
       await Promise.all(needPriceable.map(async ({ symbol: sym, asset_type }) => {
-        const { exchange, ticker } = parseSymbol(sym);
+        const { ticker } = parseSymbol(sym);
         let points: PricePoint[] | null = null;
 
-        const saPoints = await fetchSAHistory(sym, asset_type, fromTs, toTs);
+        const [saPoints, saQuote] = await Promise.all([
+          fetchSAHistory(sym, asset_type, fromTs, toTs),
+          fetchSAQuote(sym, asset_type),
+        ]);
         if (saPoints.length > 0) {
           points = aggregate(saPoints.sort((a, b) => a.date.localeCompare(b.date)), period);
         }
@@ -221,16 +229,24 @@ Deno.serve(async (req: Request) => {
         }
 
         if (points && points.length > 0) {
-          history[sym] = points;
+          // Normalize prices from minor currency units (e.g. GBX pence → GBP pounds).
+          // saQuote.rawCurrency is what SA actually returned; saQuote.currency is normalized.
+          const minor = saQuote.rawCurrency ? MINOR_CURRENCIES[saQuote.rawCurrency] : null
+          const normalizedPoints = minor
+            ? points.map((p) => ({ date: p.date, price: p.price / minor.factor }))
+            : points
+          const normalizedCurrency = saQuote.currency ?? undefined
+          if (normalizedCurrency) currencies[sym] = normalizedCurrency
+          history[sym] = normalizedPoints;
           await supabase.from("api_cache").upsert(
-            { cache_key: keyFor(sym), response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
+            { cache_key: keyFor(sym), response: { points: normalizedPoints, currency: normalizedCurrency }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
             { onConflict: "cache_key" },
           );
         }
       }));
     }
 
-    return new Response(JSON.stringify({ history }), {
+    return new Response(JSON.stringify({ history, currencies }), {
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   } catch (err) {

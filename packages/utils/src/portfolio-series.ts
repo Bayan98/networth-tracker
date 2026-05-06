@@ -88,6 +88,7 @@ export function computeSeries(
   priceHistory: PriceHistory,
   fxRates: FxRates,
   displayCurrency: string,
+  priceCurrencies: Record<string, string> = {},
 ): SeriesPoint[] {
   const assetCurrencyMap = new Map(assets.map((h) => [h.id, h.currency]))
   const display = displayCurrency.toUpperCase()
@@ -142,6 +143,8 @@ export function computeSeries(
         const avgCostPerUnit = currentQty > 0 ? currentCost / currentQty : 0
         assetQty[tx.asset_id] = currentQty - qty
         assetCostInAssetCcy[tx.asset_id] = currentCost - qty * avgCostPerUnit
+      } else if (tx.transaction_type === 'split') {
+        if (tx.asset_id in assetQty) assetQty[tx.asset_id] *= qty
       }
       txIdx++
     }
@@ -166,8 +169,10 @@ export function computeSeries(
           : null
 
       if (histPrice != null) {
-        // API prices are in USD → convert to displayCurrency
-        marketValue += qty * histPrice * getFx('USD', display, dateStr)
+        // Price history is in the asset's quote currency (USD for US stocks, GBP for LSE, etc.)
+        // fetch-price-history normalizes minor currency units (e.g. GBX→GBP) server-side.
+        const priceCcy = (sym && priceCurrencies[sym]) ? priceCurrencies[sym].toUpperCase() : 'USD'
+        marketValue += qty * histPrice * getFx(priceCcy, display, dateStr)
       } else if (
         h.manual_price != null &&
         (h.manual_price_date == null || dateStr >= h.manual_price_date)

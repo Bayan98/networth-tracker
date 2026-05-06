@@ -406,3 +406,42 @@ describe('Leading zero trimming', () => {
     expect(series[0].costBasis).toBeCloseTo(100, 4)
   })
 })
+
+describe('Stock splits', () => {
+  it('replays split transactions without changing cost basis', () => {
+    const asset = makeAsset({ id: 'h-nvda', symbol: 'NVDA', asset_type: 'stock', currency: 'USD' })
+    const buy = makeTx({
+      asset_id: 'h-nvda',
+      quantity: 30,
+      price: 480,
+      currency: 'USD',
+      executed_at: '2023-12-01',
+      transaction_type: 'buy',
+    })
+    const split = makeTx({
+      asset_id: 'h-nvda',
+      quantity: 4,
+      price: 1,
+      currency: 'USD',
+      executed_at: '2024-04-10',
+      transaction_type: 'split',
+    })
+    const priceHistory: PriceHistory = {
+      NVDA: [{ date: '2026-05-06', price: 196.5 }],
+    }
+
+    const series = computeSeries(
+      ['2023-12-01', '2024-04-10', '2026-05-06'],
+      [buy, split],
+      [asset],
+      priceHistory,
+      {},
+      'USD',
+    )
+
+    expect(series[0].costBasis).toBeCloseTo(14_400, 2)
+    expect(series[1].costBasis).toBeCloseTo(14_400, 2)
+    expect(series[2].costBasis).toBeCloseTo(14_400, 2)
+    expect(series[2].marketValue).toBeCloseTo(120 * 196.5, 2)
+  })
+})

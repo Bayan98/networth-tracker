@@ -107,3 +107,27 @@ export async function importAssets(
 
   return result
 }
+
+export async function deleteAllUserData(): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Not authenticated' }
+
+  const tables = [
+    ['scheduled_events', 'scheduled events'],
+    ['transactions', 'transactions'],
+    ['debts', 'debts'],
+    ['assets', 'assets'],
+    ['portfolios', 'portfolios'],
+  ] as const
+
+  for (const [table, label] of tables) {
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('user_id', user.id)
+    if (error) return { error: `Failed to delete ${label}: ${error.message}` }
+  }
+
+  return { error: null }
+}
