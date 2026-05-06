@@ -193,12 +193,11 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
         <div>
           <div className="empty-label">{portfolioName ? 'Portfolio' : 'Holdings'}</div>
           <h1>
-            {portfolioName ?? 'Assets'} <em>{portfolioName ? '& positions.' : '& portfolios.'}</em>
+            {portfolioName ?? 'My Assets'} <em>{portfolioName ? '& positions.' : ''}</em>
           </h1>
           <p>
             {visible.length} holding{visible.length !== 1 ? 's' : ''}{' '}
-            {!portfolioName && portfolioCount > 0 && `across ${portfolioCount} portfolio${portfolioCount !== 1 ? 's' : ''}`}.
-            {' '}Prices update every 15 minutes.
+            {!portfolioName && portfolioCount > 0 && `with ${portfolioCount} portfolio${portfolioCount !== 1 ? 's' : ''}`}.
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAddAsset(true)}>
@@ -247,7 +246,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
       </div>
 
       {/* Mini stats — below categories, above chart */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--density-gap)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--density-gap)' }}>
         <MiniStat
           label="Total value"
           value={fmt(totalValue)}
@@ -384,7 +383,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
                       </div>
                     </td>
                     <td style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
-                      {portfolio ?? '—'}
+                      {portfolio ?? ''}
                     </td>
                     <td className="num" style={{ fontSize: 12 }}>
                       {hideAmounts ? '••••' : baseLoading ? '…' : (
@@ -404,7 +403,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
                         <span className={`delta-pill ${isPositive ? 'pos' : 'neg'}`}>
                           {formatPercent(changePct)}
                         </span>
-                      ) : '—'}
+                      ) : ''}
                     </td>
                     <td className="num" style={{ fontWeight: 600 }}>
                       {hideAmounts ? '••••••' : baseLoading ? '—' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}

@@ -72,7 +72,7 @@ export function resolveAssetPrice(
   return { price: 0, source: 'cost_basis' }
 }
 
-export const POPULAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'RUB', 'KZT', 'CNY']
+export const POPULAR_CURRENCIES = ['USD', 'EUR', 'KZT', 'RUB', 'GBP', 'CNY']
 
 export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   buy: 'Buy',

@@ -12,5 +12,5 @@ export function formatChartDate(dateStr: string, period: Period): string {
   if (period === '1w' || period === '1m') {
     return d.toLocaleString('en-US', { month: 'short', day: 'numeric' })
   }
-  return d.toLocaleString('en-US', { month: 'short', year: '2-digit' })
+  return d.toLocaleString('en-US', { month: 'short', year: 'numeric' })
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Upload, Plus, Sparkles, Copy, Check, ChevronDown, FileText } from 'lucide-react'
 import { parseAndVerify } from '@networth/utils'
 import type { ParsedRow, ImportRow } from '@networth/utils'
@@ -17,36 +17,6 @@ const PROVIDERS: { id: ProviderKey; name: string; sub: string; icon: React.React
   { id: 'csv',    name: 'CSV file',     sub: 'Upload a statement file', icon: <Upload size={16} /> },
   { id: 'manual', name: 'Manual entry', sub: 'Paste or type rows',      icon: <Plus size={16} /> },
 ]
-
-const TEMPLATE_CSV = [
-  'asset_name,symbol,asset_type,currency,transaction_type,quantity,price,date,notes',
-  'Apple Inc,AAPL,stock,USD,buy,10,145.00,2024-01-15,',
-  'Bitcoin,BTC,crypto,USD,buy,0.5,42000.00,2024-02-01,',
-  'My Apartment,,real_estate,USD,,1,450000,2024-03-01,NYC property',
-].join('\n')
-
-const AI_PROMPT = `Convert the data I'll provide into this exact CSV format for a portfolio tracker. Output ONLY the CSV, no explanation.
-
-Required columns (in this order):
-asset_name,symbol,asset_type,currency,transaction_type,quantity,price,date,notes
-
-Rules:
-- asset_type must be one of: stock, bond, etf, crypto, mutual_fund, real_estate, cash, commodity, deposit, transport, business, other
-- transaction_type must be one of: buy, sell, dividend, deposit, withdrawal, split — or leave blank for assets with a manual price only
-- If transaction_type is blank, put the current value in the price column (treated as manual price)
-- date must be YYYY-MM-DD — if unknown, use today's date
-- currency must be a 3-letter ISO code (e.g. USD, EUR, GBP) — default to USD if unknown
-- quantity and price must be plain numbers without currency symbols or commas
-- Do NOT include a portfolio column
-
-Example output:
-asset_name,symbol,asset_type,currency,transaction_type,quantity,price,date,notes
-Apple Inc,AAPL,stock,USD,buy,10,145.00,2024-01-15,
-Bitcoin,BTC,crypto,USD,buy,0.5,42000.00,2024-02-01,
-My Apartment,,real_estate,USD,,1,450000,2024-03-01,NYC property
-
-Here is my data:
-[PASTE YOUR DATA HERE — screenshots, PDFs, Excel exports, brokerage statements, or plain text all work]`
 
 interface Props {
   portfolios: Portfolio[]
@@ -66,9 +36,22 @@ export function ImportAssets({ portfolios, userId }: Props) {
   const [importing, setImporting] = useState(false)
   const [importDone, setImportDone] = useState<ImportResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [templateCsv, setTemplateCsv] = useState('')
+  const [aiPrompt, setAiPrompt] = useState('')
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/import-template.csv').then(r => r.text()),
+      fetch('/ai-prompt.md').then(r => r.text()),
+    ]).then(([csv, prompt]) => {
+      setTemplateCsv(csv)
+      setAiPrompt(prompt)
+    })
+  }, [])
 
   function downloadTemplate() {
-    const blob = new Blob([TEMPLATE_CSV], { type: 'text/csv' })
+    if (!templateCsv) return
+    const blob = new Blob([templateCsv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -121,7 +104,8 @@ export function ImportAssets({ portfolios, userId }: Props) {
   }
 
   function copyPrompt() {
-    navigator.clipboard.writeText(AI_PROMPT)
+    if (!aiPrompt) return
+    navigator.clipboard.writeText(aiPrompt)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -456,7 +440,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
               overflowY: 'auto',
               lineHeight: 1.6,
             }}>
-              {AI_PROMPT}
+              {aiPrompt || 'Loading prompt...'}
             </div>
             <button
               onClick={copyPrompt}

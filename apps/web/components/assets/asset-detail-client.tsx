@@ -147,7 +147,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
           ← Assets
         </Link>
         <span style={{ color: 'var(--ink-faint)' }}>/</span>
-        <span>{displaySymbol}</span>
+        <span>{asset.asset_name}</span>
       </div>
 
       {/* Header */}
@@ -164,16 +164,13 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
           />
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0, fontSize: 'clamp(24px, 3vw, 36px)' }}>{displaySymbol}</h1>
+              <h1 style={{ margin: 0, fontSize: 'clamp(24px, 3vw, 36px)' }}>{asset.asset_name}</h1>
               <span className="pill-ghost" style={{ borderColor: 'var(--border-strong)', color: 'var(--ink-2)' }}>
                 {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
               </span>
-              {source === 'live' && (
-                <span className="pill-ghost" style={{ color: 'var(--pos)' }}>● live price</span>
-              )}
             </div>
             <div style={{ fontSize: 14, color: 'var(--ink-muted)', marginTop: 4 }}>
-              {asset.asset_name}{portfolio ? ` · ${portfolio.name}` : ''}
+              {[asset.symbol, portfolio?.name].filter(Boolean).join(' · ')}
             </div>
           </div>
         </div>
@@ -243,7 +240,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               {hideAmounts ? '••••••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—'}
             </div>
             <span className="hero-delta neutral">
-              {source === 'live' ? '● live' : source === 'manual' ? 'manual' : 'est. from cost basis'}
+              {source === 'live' ? 'Today' : source === 'manual' ? 'manual' : 'est. from cost basis'}
             </span>
           </div>
           <div>
@@ -300,10 +297,10 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
         <div className="tabs">
           {(([
             'Overview',
-            'Transactions',
             ...(assetInfo?.holdings && assetInfo.holdings.length > 0 ? ['Holdings'] : []),
-            ...(assetInfo?.news && assetInfo.news.length > 0 ? ['News'] : []),
+            'Transactions',
             'Scheduled',
+            ...(assetInfo?.news && assetInfo.news.length > 0 ? ['News'] : []),
             'Notes',
           ]) as Tab[]).map((t) => (
             <button
@@ -341,9 +338,6 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
           {tab === 'Holdings' && assetInfo?.holdings && (
             <HoldingsTab holdings={assetInfo.holdings} />
           )}
-          {tab === 'News' && assetInfo?.news && (
-            <NewsTab news={assetInfo.news} />
-          )}
           {tab === 'Transactions' && (
             <TransactionsTab
               transactions={transactions}
@@ -362,6 +356,9 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               onAdd={() => setShowAddEvent(true)}
               hideAmounts={hideAmounts}
             />
+          )}
+          {tab === 'News' && assetInfo?.news && (
+            <NewsTab news={assetInfo.news} />
           )}
           {tab === 'Notes' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

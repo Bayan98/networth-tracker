@@ -197,8 +197,8 @@ Deno.serve(async (req: Request) => {
           points = aggregate(saPoints.sort((a, b) => a.date.localeCompare(b.date)), period);
         }
 
-        // Yahoo fallback — only for plain symbols (exchange-prefixed would return wrong stock)
-        if (!points && !exchange) {
+        // Yahoo fallback — use bare ticker for all symbols (exchange-prefixed uses ticker to find primary listing)
+        if (!points) {
           try {
             const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${fromTs}&period2=${toTs}`;
             const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });

@@ -22,6 +22,7 @@ interface Props {
   onPeriodChange: (p: Period) => void
   totalValue?: number | null
   hideAmounts?: boolean
+  height?: number
 }
 
 const PERIODS: Period[] = ['1w', '1m', '1y', '5y']
@@ -87,7 +88,7 @@ function splitMarketSeries(series: SeriesPoint[]): ChartPoint[] {
   return out
 }
 
-export function AssetsChart({ series, currency, loading, period, onPeriodChange, totalValue, hideAmounts }: Props) {
+export function AssetsChart({ series, currency, loading, period, onPeriodChange, totalValue, hideAmounts, height = 320 }: Props) {
   const isEmpty = !loading && series.length === 0
   const chartData = splitMarketSeries(series)
   const seriesMin = series.length > 0
@@ -114,7 +115,7 @@ export function AssetsChart({ series, currency, loading, period, onPeriodChange,
               <div style={{
                 marginTop: 6,
                 fontFamily: 'var(--font-mono)',
-                fontSize: 32,
+                fontSize: 48,
                 fontWeight: 700,
                 letterSpacing: '-0.03em',
                 lineHeight: 1,
@@ -149,7 +150,7 @@ export function AssetsChart({ series, currency, loading, period, onPeriodChange,
         </div>
       </div>
 
-      <div style={{ height: 260, paddingBottom: 20 }}>
+      <div style={{ height, paddingBottom: 20 }}>
         {loading ? (
           <div style={{
             height: '100%',
@@ -171,7 +172,7 @@ export function AssetsChart({ series, currency, loading, period, onPeriodChange,
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 4, right: 24, left: 0, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 4, right: 40, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="cbFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor="var(--ink-faint)" stopOpacity={0.08} />

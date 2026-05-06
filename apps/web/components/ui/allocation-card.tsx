@@ -293,7 +293,7 @@ export function AllocationCard({
 
         {inactive.length > 0 && (
           <>
-            <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+            <div style={{ height: 1, margin: '4px 0' }} />
             {inactive.map((item) => (
               <button
                 key={item.key}

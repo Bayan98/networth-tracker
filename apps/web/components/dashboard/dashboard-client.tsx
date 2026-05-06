@@ -71,6 +71,7 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
         onPeriodChange={setPeriod}
         totalValue={totalValue}
         hideAmounts={hideAmounts}
+        height={420}
       />
 
       <div className="three-col">

@@ -62,7 +62,7 @@ export function AssetAvatar({ symbol, assetType, name, size = 32, borderRadius =
   if (IconComp) {
     return (
       <div style={containerStyle}>
-        <IconComp size={Math.round(size * 0.45)} color="var(--ink-muted)" />
+        <IconComp size={Math.round(size * 0.75)} color="var(--ink-muted)" />
       </div>
     )
   }
@@ -80,6 +80,9 @@ export function AssetAvatar({ symbol, assetType, name, size = 32, borderRadius =
     )
   }
 
+  if (symbol?.includes(':')) {
+    symbol = symbol.split(':').pop() || null
+  }
   const text = ((symbol ?? name ?? '').slice(0, 4)).toUpperCase()
   return (
     <div style={{

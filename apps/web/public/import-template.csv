@@ -1,0 +1,4 @@
+asset_name,symbol,asset_type,currency,transaction_type,quantity,price,date,notes
+Apple Inc,AAPL,stock,USD,buy,10,145.00,2024-01-15,
+Bitcoin,BTC,crypto,USD,buy,0.5,42000.00,2024-02-01,
+My Apartment,,real_estate,USD,,1,450000,2024-03-01,NYC property
