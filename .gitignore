@@ -36,3 +36,6 @@ AGENTS.md
 # Supabase
 supabase/.temp/
 supabase/.storage/
+
+# Docs
+docs/

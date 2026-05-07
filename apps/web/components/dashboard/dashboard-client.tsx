@@ -1,17 +1,14 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, ASSET_TYPE_LABELS, resolveAssetPrice, PRICEABLE_TYPES } from '@networth/utils'
-import { usePrices } from '@/lib/hooks/use-prices'
-import { useTodayFx } from '@/lib/hooks/use-today-fx'
-import { usePortfolioHistory } from '@/lib/hooks/use-portfolio-history'
+import { formatCurrency, ASSET_TYPE_LABELS } from '@networth/utils'
+import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { AssetsChart } from '@/components/assets/assets-chart'
 import { AllocationCard } from '@/components/ui/allocation-card'
 import type { Enriched } from '@/components/ui/allocation-card'
-import { ASSET_TYPE_COLOR } from '@/lib/colors'
 import type { Asset, Portfolio, Debt, CurrencyCode } from '@networth/types'
 import type { Period } from '@/components/ui/area-chart'
 import { AssetAvatar } from '@/components/ui/asset-avatar'
@@ -36,38 +33,16 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
 
   const [period, setPeriod] = useState<Period>('1y')
 
-  const priceItems = assets
-    .filter((h) => h.symbol && PRICEABLE_TYPES.has(h.asset_type))
-    .map((h) => ({ symbol: h.symbol!, asset_type: h.asset_type }))
-  const { prices, currencies, loading: pricesLoading } = usePrices(priceItems)
-  const { fx } = useTodayFx(assets, selectedCurrency)
-
-  const { series, chartLoading, avgCostPerAsset, quantityPerAsset: hookQty } = usePortfolioHistory(assets, period, selectedCurrency)
-
-  const enriched: Enriched[] = assets.map((asset) => {
-    const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
-    const serverQty = quantityPerAsset[asset.id]
-    const hookAssetQty = hookQty[asset.id]
-    const qty = serverQty !== undefined ? serverQty : (hookAssetQty !== undefined ? hookAssetQty : 1)
-    const price = source === 'cost_basis' ? (avgCostPerAsset[asset.id] ?? 0) : rawPrice
-    const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
-    const rate = fx(priceCcy)
-    const value: number | null = rate !== null && price > 0 ? qty * price * rate : null
-    return { asset, value }
-  })
-
-  const totalValue = enriched.reduce<number | null>(
-    (sum, e) => (sum !== null && e.value !== null ? sum + e.value : null),
-    0,
+  const { enriched, totalValue, liveSeries, chartLoading } = usePortfolioValuation(
+    assets,
+    period,
+    selectedCurrency,
+    {
+      quantityOverrides: quantityPerAsset,
+      missingQuantityFallback: 1,
+      replaceLiveCostBasis: false,
+    },
   )
-
-  const liveSeries = useMemo(() => {
-    if (series.length === 0 || totalValue === null || pricesLoading) return series
-    const today = new Date().toISOString().slice(0, 10)
-    const last = series[series.length - 1]
-    if (last.date !== today) return series
-    return [...series.slice(0, -1), { ...last, marketValue: totalValue }]
-  }, [series, totalValue, pricesLoading])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
