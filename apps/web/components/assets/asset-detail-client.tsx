@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Calendar, MoreVertical, Pencil, Trash2, ExternalLink } from 'lucide-react'
@@ -9,6 +9,7 @@ import { usePrices } from '@/lib/hooks/use-prices'
 import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
 import { useAssetInfo } from '@/lib/hooks/use-asset-info'
 import { useAppStore } from '@/lib/store'
+import { getAssetsViewState, normalizeAssetsPath } from '@/lib/assets-view-state'
 import {
   formatCurrency,
   formatPercent,
@@ -85,6 +86,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [showAddEvent, setShowAddEvent] = useState(false)
   const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null)
+  const [assetsHref, setAssetsHref] = useState('/assets')
 
   const priceItems = asset.symbol ? [{ symbol: asset.symbol, asset_type: asset.asset_type }] : []
   const { prices, currencies } = usePrices(priceItems)
@@ -109,6 +111,23 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
   const firstTx = transactions.length > 0 ? transactions[transactions.length - 1] : null
   const lastTx = transactions.length > 0 ? transactions[0] : null
+
+  useEffect(() => {
+    const cached = getAssetsViewState()
+    if (!cached) return
+
+    const path = normalizeAssetsPath(cached.path)
+    if (path.startsWith('/portfolios/')) {
+      const portfolioId = path.split('/')[2]
+      if (!portfolios.some((p) => p.id === portfolioId)) return
+      if (cached.selectedPortfolioId !== portfolioId) {
+        setAssetsHref('/assets')
+        return
+      }
+    }
+
+    setAssetsHref(path)
+  }, [portfolios])
 
   async function handleDelete() {
     if (!confirm(`Delete "${asset.asset_name}"? This will also delete all its transactions.`)) return
@@ -143,7 +162,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
       {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-muted)' }}>
-        <Link href="/assets" className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12, gap: 4 }}>
+        <Link href={assetsHref} className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12, gap: 4 }}>
           ← Assets
         </Link>
         <span style={{ color: 'var(--ink-faint)' }}>/</span>

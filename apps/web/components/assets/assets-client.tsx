@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Plus, SlidersHorizontal } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { formatCurrency, formatPercent, ASSET_TYPE_LABELS } from '@networth/utils'
 import type { Portfolio, Asset, CurrencyCode, AssetType } from '@networth/types'
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
+import { getAssetsViewState, setAssetsViewState } from '@/lib/assets-view-state'
 import { AssetsChart } from './assets-chart'
 import { PortfolioClient } from './portfolio-client'
 import { AddAssetDialog } from './add-asset-dialog'
@@ -49,6 +50,7 @@ function MiniStat({ label, value, sub, trend }: {
 }
 
 export function AssetsClient({ portfolios, assets, currency, userId, initialPortfolioId, portfolioName }: Props) {
+  const pathname = usePathname()
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const setSelectedCurrency = useAppStore((s) => s.setSelectedCurrency)
@@ -67,6 +69,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
   const [sortBy, setSortBy] = useState<SortKey>('value-desc')
   const [period, setPeriod] = useState<Period>('1w')
   const [showAddAsset, setShowAddAsset] = useState(false)
+  const [cacheReady, setCacheReady] = useState(false)
 
   const byPortfolio = selectedPortfolioId
     ? assets.filter((h) => h.portfolio_id === selectedPortfolioId)
@@ -77,6 +80,9 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
     : byPortfolio
 
   const allTypes = Array.from(new Set(byPortfolio.map((h) => h.asset_type))) as AssetType[]
+  const assetsViewPath = pathname.startsWith('/portfolios/') && selectedPortfolioId === initialPortfolioId
+    ? pathname
+    : '/assets'
 
   const {
     valuations,
@@ -94,6 +100,49 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
     priceError,
   } = usePortfolioValuation(visible, period, selectedCurrency, { priceAssets: assets })
 
+  useEffect(() => {
+    const cached = getAssetsViewState()
+    if (!cached) {
+      setCacheReady(true)
+      return
+    }
+
+    const portfolioIds = new Set(portfolios.map((p) => p.id))
+    const cachedPortfolioId = cached.selectedPortfolioId && portfolioIds.has(cached.selectedPortfolioId)
+      ? cached.selectedPortfolioId
+      : null
+    const nextPortfolioId = initialPortfolioId !== undefined ? initialPortfolioId : cachedPortfolioId
+    const assetsForPortfolio = nextPortfolioId
+      ? assets.filter((h) => h.portfolio_id === nextPortfolioId)
+      : assets
+    const validTypes = new Set(assetsForPortfolio.map((h) => h.asset_type))
+    const nextTypes = cached.selectedTypes.filter((t) => validTypes.has(t))
+
+    setSelectedPortfolioId(nextPortfolioId ?? null)
+    setSelectedTypes(new Set(nextTypes))
+    if (cached.period) setPeriod(cached.period)
+    setCacheReady(true)
+  }, [assets, initialPortfolioId, portfolios])
+
+  useEffect(() => {
+    if (!cacheReady) return
+    setAssetsViewState({
+      path: assetsViewPath,
+      selectedPortfolioId,
+      selectedTypes: Array.from(selectedTypes),
+      period,
+    })
+  }, [assetsViewPath, cacheReady, period, selectedPortfolioId, selectedTypes])
+
+  function saveCurrentView() {
+    setAssetsViewState({
+      path: assetsViewPath,
+      selectedPortfolioId,
+      selectedTypes: Array.from(selectedTypes),
+      period,
+    })
+  }
+
   function handlePortfolioSelect(id: string | null) {
     setSelectedPortfolioId(id)
     setSelectedTypes(new Set())
@@ -106,6 +155,11 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
       else next.add(t)
       return next
     })
+  }
+
+  function openAsset(assetId: string) {
+    saveCurrentView()
+    window.location.href = `/assets/${assetId}`
   }
 
   const sorted = [...valuations].sort((a, b) => {
@@ -310,7 +364,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
                 return (
                   <tr
                     key={asset.id}
-                    onClick={() => window.location.href = `/assets/${asset.id}`}
+                    onClick={() => openAsset(asset.id)}
                     style={{ cursor: 'pointer' }}
                   >
                     <td>

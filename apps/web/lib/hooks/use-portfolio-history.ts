@@ -1,13 +1,29 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getClientCache, setClientCache } from '@/lib/client-cache'
 import type { Asset } from '@networth/types'
 import { buildTimeAxis, computeSeries, lookupFxRate, nearestPriceForDate, PRICEABLE_TYPES } from '@networth/utils'
 import type { SeriesPoint, PriceHistory, RawTransaction, FxRates } from '@networth/utils'
 import type { Period } from '@/components/ui/area-chart'
 
 export type { SeriesPoint } from '@networth/utils'
+
+const PRICE_HISTORY_TTL_MS: Record<Period, number> = {
+  '1w': 12 * 60 * 60 * 1000,
+  '1m': 12 * 60 * 60 * 1000,
+  '1y': 24 * 60 * 60 * 1000,
+  '5y': 24 * 60 * 60 * 1000,
+}
+
+const PORTFOLIO_FX_CACHE_TTL_MS = 60 * 60 * 1000
+const PRICE_HISTORY_CACHE_VERSION = 'n2'
+
+interface PriceHistoryCacheEntry {
+  history: PriceHistory
+  currencies: Record<string, string>
+}
 
 export function usePortfolioHistory(
   assets: Asset[],
@@ -39,10 +55,6 @@ export function usePortfolioHistory(
   const [fxLoading, setFxLoading] = useState(true)
   const [fxError, setFxError] = useState<string | null>(null)
 
-  // Client-side caches — keyed by period so switching back is instant
-  const priceCache = useRef<Map<Period, PriceHistory>>(new Map())
-  const fxCache = useRef<Map<string, FxRates>>(new Map())
-
   const assetIdsKey = assets.map((h) => h.id).join(',')
   const assetCcyKey = assets.map((h) => h.currency).join(',')
 
@@ -56,11 +68,6 @@ export function usePortfolioHistory(
 
   const priceableKey = priceableItems.map((i) => i.symbol).join(',')
   const priceCurrenciesKey = Object.entries(priceCurrencies).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}:${v}`).join(',')
-
-
-  // Invalidate caches when the asset set changes
-  useEffect(() => { priceCache.current.clear() }, [priceableKey])
-  useEffect(() => { fxCache.current.clear() }, [assetIdsKey])
 
   useEffect(() => {
     if (assets.length === 0) {
@@ -78,7 +85,7 @@ export function usePortfolioHistory(
       .order('executed_at', { ascending: true })
       .then(({ data }) => {
         if (cancelled) return
-        setRawTransactions(data ?? [])
+        setRawTransactions((data ?? []) as RawTransaction[])
         setTxLoading(false)
         setFxLoading(true)
       })
@@ -92,9 +99,13 @@ export function usePortfolioHistory(
       setPriceLoading(false)
       return
     }
-    const cached = priceCache.current.get(period)
+    const cacheKey = `price-history:${PRICE_HISTORY_CACHE_VERSION}:${priceableKey}:${period}`
+    const cached = getClientCache<PriceHistoryCacheEntry>(cacheKey)
     if (cached) {
-      setPriceHistory(cached)
+      setPriceHistory(cached.history)
+      if (cached.currencies && typeof cached.currencies === 'object') {
+        setPriceCurrencies((prev) => ({ ...prev, ...cached.currencies }))
+      }
       setPriceError(null)
       setPriceLoading(false)
       return
@@ -113,10 +124,13 @@ export function usePortfolioHistory(
         } else {
           setPriceError(null)
           const history = data.history as PriceHistory
-          priceCache.current.set(period, history)
+          const currencies = data.currencies && typeof data.currencies === 'object'
+            ? data.currencies as Record<string, string>
+            : {}
+          setClientCache(cacheKey, { history, currencies }, PRICE_HISTORY_TTL_MS[period])
           setPriceHistory(history)
-          if (data.currencies && typeof data.currencies === 'object') {
-            setPriceCurrencies((prev) => ({ ...prev, ...(data.currencies as Record<string, string>) }))
+          if (Object.keys(currencies).length > 0) {
+            setPriceCurrencies((prev) => ({ ...prev, ...currencies }))
           }
         }
         setPriceLoading(false)
@@ -139,15 +153,29 @@ export function usePortfolioHistory(
       setDailyPriceHistory({})
       return
     }
+    const cacheKey = `price-history:${PRICE_HISTORY_CACHE_VERSION}:${priceableKey}:1w`
+    const cached = getClientCache<PriceHistoryCacheEntry>(cacheKey)
+    if (cached) {
+      setDailyPriceHistory(cached.history)
+      if (cached.currencies && typeof cached.currencies === 'object') {
+        setPriceCurrencies((prev) => ({ ...prev, ...cached.currencies }))
+      }
+      return
+    }
     let cancelled = false
     const supabase = createClient()
     supabase.functions
       .invoke('fetch-price-history', { body: { items: priceableItems, period: '1w' } })
       .then(({ data }) => {
         if (cancelled) return
-        setDailyPriceHistory((data?.history ?? {}) as PriceHistory)
-        if (data?.currencies && typeof data.currencies === 'object') {
-          setPriceCurrencies((prev) => ({ ...prev, ...(data.currencies as Record<string, string>) }))
+        const history = (data?.history ?? {}) as PriceHistory
+        const currencies = data?.currencies && typeof data.currencies === 'object'
+          ? data.currencies as Record<string, string>
+          : {}
+        setDailyPriceHistory(history)
+        setClientCache(cacheKey, { history, currencies }, PRICE_HISTORY_TTL_MS['1w'])
+        if (Object.keys(currencies).length > 0) {
+          setPriceCurrencies((prev) => ({ ...prev, ...currencies }))
         }
       })
       .catch(() => { if (!cancelled) setDailyPriceHistory({}) })
@@ -163,7 +191,8 @@ export function usePortfolioHistory(
     }
 
     const fxCacheKey = `${period}:${displayCurrency}:${assetCcyKey}:${priceCurrenciesKey}`
-    const cachedFx = fxCache.current.get(fxCacheKey)
+    const browserFxCacheKey = `portfolio-fx:${assetIdsKey}:${fxCacheKey}`
+    const cachedFx = getClientCache<FxRates>(browserFxCacheKey)
     if (cachedFx) {
       setFxRates(cachedFx)
       setFxContext({ period, currency: displayCurrency, priceCcyKey: priceCurrenciesKey })
@@ -242,7 +271,7 @@ export function usePortfolioHistory(
             console.warn(`[FX] Rates for ${pairs} unavailable before ${from} — using ${from} rates as fallback`)
             setFxError(`Historical rates for ${pairs} are unavailable before ${from} — values before that date use ${from} rates`)
           }
-          fxCache.current.set(fxCacheKey, rates)
+          setClientCache(browserFxCacheKey, rates, PORTFOLIO_FX_CACHE_TTL_MS)
           setFxRates(rates)
           setFxContext({ period, currency: displayCurrency, priceCcyKey: priceCurrenciesKey })
         }

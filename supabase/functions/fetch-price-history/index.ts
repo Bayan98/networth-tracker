@@ -73,6 +73,33 @@ function cgToDailyPoints(rawPrices: [number, number][]): PricePoint[] {
     .map(([date, price]) => ({ date, price }));
 }
 
+async function fetchYahooCloseHistory(
+  ticker: string,
+  fromTs: number,
+  toTs: number,
+): Promise<PricePoint[]> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${fromTs}&period2=${toTs}&events=div%2Csplits&includeAdjustedClose=true`;
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!res.ok) return [];
+
+    const data = await res.json() as {
+      chart: { result: Array<{ timestamp: number[]; indicators: { quote: Array<{ close: (number | null)[] }> } }> | null };
+    };
+    const result = data.chart?.result?.[0];
+    const closes = result?.indicators?.quote?.[0]?.close;
+    if (!result?.timestamp || !closes) return [];
+
+    return result.timestamp
+      .map((ts, i) => ({ date: new Date(ts * 1000).toISOString().slice(0, 10), price: closes[i] }))
+      .filter((p): p is PricePoint => p.price != null && p.price > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  } catch (e) {
+    console.error(`Yahoo Finance history error for ${ticker}:`, e);
+    return [];
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (req.method !== "POST") {
@@ -101,9 +128,9 @@ Deno.serve(async (req: Request) => {
     const ttlMs = PERIOD_TTL_MS[period];
     const now = Date.now();
 
-    // n1 — bumped when price normalization (minor currency units e.g. GBX→GBP) was added
-    // 5y:v2 — bumped when monthly aggregate switched to month-start date normalization
-    const keyFor = (sym: string) => `history:${sym}:${period === "5y" ? "5y:v2" : period}:n1`;
+    // n2 — bumped when plain stock/ETF history switched to Yahoo close before StockAnalysis fallback
+    // 5y:v3 — bumped with n2 and previous month-start normalization
+    const keyFor = (sym: string) => `history:${sym}:${period === "5y" ? "5y:v3" : period}:n2`;
     const cacheKeys = items.map((i) => keyFor(i.symbol.toUpperCase()));
     const { data: cached } = await supabase
       .from("api_cache")
@@ -194,37 +221,21 @@ Deno.serve(async (req: Request) => {
     // Fetch the SA quote in parallel with history to get the currency for normalization.
     if (needPriceable.length > 0) {
       await Promise.all(needPriceable.map(async ({ symbol: sym, asset_type }) => {
-        const { ticker } = parseSymbol(sym);
+        const { exchange, ticker } = parseSymbol(sym);
         let points: PricePoint[] | null = null;
 
-        const [saPoints, saQuote] = await Promise.all([
-          fetchSAHistory(sym, asset_type, fromTs, toTs),
+        const [yahooPoints, saQuote] = await Promise.all([
+          exchange ? Promise.resolve([]) : fetchYahooCloseHistory(ticker, fromTs, toTs),
           fetchSAQuote(sym, asset_type),
         ]);
-        if (saPoints.length > 0) {
-          points = aggregate(saPoints.sort((a, b) => a.date.localeCompare(b.date)), period);
+        if (yahooPoints.length > 0) {
+          points = aggregate(yahooPoints, period);
         }
 
-        // Yahoo fallback — use bare ticker for all symbols (exchange-prefixed uses ticker to find primary listing)
         if (!points) {
-          try {
-            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${fromTs}&period2=${toTs}`;
-            const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-            if (res.ok) {
-              const data = await res.json() as {
-                chart: { result: Array<{ timestamp: number[]; indicators: { quote: Array<{ close: (number | null)[] }> } }> | null };
-              };
-              const result = data.chart?.result?.[0];
-              const closes = result?.indicators?.quote?.[0]?.close;
-              if (result?.timestamp && closes) {
-                const daily: PricePoint[] = result.timestamp
-                  .map((ts, i) => ({ date: new Date(ts * 1000).toISOString().slice(0, 10), price: closes[i] }))
-                  .filter((p): p is PricePoint => p.price != null);
-                if (daily.length > 0) points = aggregate(daily.sort((a, b) => a.date.localeCompare(b.date)), period);
-              }
-            }
-          } catch (e) {
-            console.error(`Yahoo Finance history error for ${sym}:`, e);
+          const saPoints = await fetchSAHistory(sym, asset_type, fromTs, toTs);
+          if (saPoints.length > 0) {
+            points = aggregate(saPoints.sort((a, b) => a.date.localeCompare(b.date)), period);
           }
         }
 

@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getClientCache, setClientCache } from '@/lib/client-cache'
 import { lookupFxRate } from '@networth/utils'
 import type { FxRates } from '@networth/utils'
 
-const fxCache = new Map<string, FxRates>()
+const TODAY_FX_CACHE_TTL_MS = 60 * 60 * 1000
 
 export function useTodayFx(
   assets: Array<{ currency: string }>,
@@ -42,7 +43,7 @@ export function useTodayFx(
       return
     }
 
-    const cached = fxCache.get(cacheKey)
+    const cached = getClientCache<FxRates>(`today-fx:${cacheKey}`)
     if (cached) {
       setRates(cached)
       setActiveCurrency(display)
@@ -66,7 +67,7 @@ export function useTodayFx(
             console.error('[FX] Missing rates for pairs:', missing)
             setFxError('Some exchange rates are unavailable — asset values may be incorrect')
           }
-          fxCache.set(cacheKey, fetched)
+          setClientCache(`today-fx:${cacheKey}`, fetched, TODAY_FX_CACHE_TTL_MS)
           setRates(fetched)
           setActiveCurrency(display)
         }
