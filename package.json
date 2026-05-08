@@ -6,6 +6,10 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "test": "pnpm build && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:integration",
+    "test:unit": "pnpm --filter @networth/utils test",
+    "test:integration": "PATH=\"$HOME/.deno/bin:$PATH\" deno test --allow-net --env-file=supabase/.env --allow-env=FINNHUB_API_KEY --config supabase/functions/deno.json supabase/functions/tests/integration",
+    "test:integration:live": "RUN_LIVE_EDGE_TESTS=1 PATH=\"$HOME/.deno/bin:$PATH\" deno test --allow-net --config supabase/functions/deno.json supabase/functions/tests/integration/live",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {

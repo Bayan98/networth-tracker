@@ -15,19 +15,7 @@ interface AssetsListProps {
   quantityPerAsset: Record<string, number>
 }
 
-const ASSET_TYPE_COLORS: Record<string, string> = {
-  stock: '#6366f1',
-  crypto: '#f59e0b',
-  etf: '#22c55e',
-  bond: '#3b82f6',
-  cash: '#a1a1aa',
-  mutual_fund: '#8b5cf6',
-  real_estate: '#ec4899',
-  commodity: '#f97316',
-  other: '#71717a',
-}
-
-export function AssetsList({ assets, currency, quantityPerAsset }: AssetsListProps) {
+export function AssetsList({ assets, quantityPerAsset }: AssetsListProps) {
   const hideAmounts = useAppStore((s) => s.hideAmounts)
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const priceItems = assets

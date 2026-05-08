@@ -12,7 +12,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Period = "1w" | "1m" | "1y" | "5y";
+export type Period = "1w" | "1m" | "1y" | "5y";
 
 const PERIOD_DAYS: Record<Period, number> = {
   "1w": 7,
@@ -23,15 +23,44 @@ const PERIOD_DAYS: Record<Period, number> = {
 
 const PRICEABLE_TYPES = ["stock", "etf", "bond", "mutual_fund", "commodity"];
 
-interface RequestItem {
+export interface RequestItem {
   symbol: string;
   asset_type: string;
 }
 
-interface CacheRow {
+export interface CacheRow {
   cache_key: string;
   response: { points: PricePoint[]; currency?: string };
   expires_at: string | null;
+}
+
+export interface CacheUpsert {
+  cache_key: string;
+  response: { points: PricePoint[]; currency?: string };
+  updated_at: string;
+  expires_at: string;
+}
+
+export interface EdgeCache {
+  getMany: (cacheKeys: string[]) => Promise<CacheRow[]>;
+  upsert: (row: CacheUpsert) => Promise<void>;
+}
+
+export interface FetchPriceHistoryDeps {
+  cache: EdgeCache;
+  now?: () => number;
+  fetchCryptoHistoryFlow?: typeof fetchCryptoHistoryFlow;
+  fetchPriceableHistoryFlow?: typeof fetchPriceableHistoryFlow;
+}
+
+export interface FetchPriceHistoryRequest {
+  items: RequestItem[];
+  period: Period;
+}
+
+export interface FetchPriceHistoryResponse {
+  history: Record<string, PricePoint[]>;
+  currencies?: Record<string, string>;
 }
 
 function aggregate(points: PricePoint[], period: Period): PricePoint[] {
@@ -71,119 +100,136 @@ function ttlFor(period: Period): number {
   return period === "5y" ? 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405, headers: CORS_HEADERS });
+export async function handleFetchPriceHistory(
+  payload: FetchPriceHistoryRequest,
+  deps: FetchPriceHistoryDeps,
+): Promise<FetchPriceHistoryResponse> {
+  const { items, period } = payload;
+  if (!Array.isArray(items) || items.length === 0 || !PERIOD_DAYS[period]) {
+    return { history: {} };
   }
 
-  try {
-    const body = await req.json() as { items: RequestItem[]; period: Period };
-    const { items, period } = body;
+  const now = deps.now?.() ?? Date.now();
+  const days = PERIOD_DAYS[period];
+  const ttlMs = ttlFor(period);
+  const toTs = Math.floor(now / 1000);
+  const fromTs = toTs - days * 86400;
+  const fetchFromTs = toTs - PERIOD_DAYS["5y"] * 86400;
+  const loadCryptoHistory = deps.fetchCryptoHistoryFlow ?? fetchCryptoHistoryFlow;
+  const loadPriceableHistory = deps.fetchPriceableHistoryFlow ?? fetchPriceableHistoryFlow;
 
-    if (!Array.isArray(items) || items.length === 0 || !PERIOD_DAYS[period]) {
-      return json({ history: {} });
+  function filterAndAggregate(rawPoints: PricePoint[]): PricePoint[] {
+    const fromDay = Math.floor(fromTs / 86400) * 86400;
+    const filtered = rawPoints.filter((p) => {
+      const ts = new Date(p.date + "T00:00:00Z").getTime() / 1000;
+      return ts >= fromDay && ts <= toTs;
+    });
+    return aggregate(filtered, period);
+  }
+
+  const cacheKeys = items.map((i) => cacheKeyFor(i.symbol.toUpperCase(), i.asset_type, period));
+  const cached = await deps.cache.getMany(cacheKeys);
+  const cacheMap = new Map<string, { points: PricePoint[]; currency?: string }>();
+  for (const row of cached) {
+    const notExpired = row.expires_at != null && new Date(row.expires_at).getTime() > now;
+    if (notExpired && Array.isArray(row.response?.points)) {
+      cacheMap.set(row.cache_key, { points: row.response.points, currency: row.response.currency });
+    }
+  }
+
+  const history: Record<string, PricePoint[]> = {};
+  const currencies: Record<string, string> = {};
+  const needCrypto: CryptoHistoryItem[] = [];
+  const needPriceable: PriceableHistoryItem[] = [];
+
+  for (const item of items) {
+    const sym = item.symbol.toUpperCase();
+    const cacheKey = cacheKeyFor(sym, item.asset_type, period);
+    const cachedItem = cacheMap.get(cacheKey);
+    if (cachedItem) {
+      history[sym] = item.asset_type === "crypto" ? cachedItem.points : filterAndAggregate(cachedItem.points);
+      if (cachedItem.currency) currencies[sym] = cachedItem.currency;
+      continue;
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const now = Date.now();
-    const days = PERIOD_DAYS[period];
-    const ttlMs = ttlFor(period);
-    const toTs = Math.floor(now / 1000);
-    const fromTs = toTs - days * 86400;
-    const fetchFromTs = toTs - PERIOD_DAYS["5y"] * 86400;
-
-    function filterAndAggregate(rawPoints: PricePoint[]): PricePoint[] {
-      const fromDay = Math.floor(fromTs / 86400) * 86400;
-      const filtered = rawPoints.filter((p) => {
-        const ts = new Date(p.date + "T00:00:00Z").getTime() / 1000;
-        return ts >= fromDay && ts <= toTs;
-      });
-      return aggregate(filtered, period);
+    if (item.asset_type === "crypto") {
+      const { ticker } = parseSymbol(sym);
+      needCrypto.push({ symbol: sym, cgId: coinGeckoIdForSymbol(ticker) });
+    } else if (PRICEABLE_TYPES.includes(item.asset_type)) {
+      needPriceable.push({ symbol: sym, asset_type: item.asset_type });
     }
+  }
 
-    const cacheKeys = items.map((i) => cacheKeyFor(i.symbol.toUpperCase(), i.asset_type, period));
-    const { data: cached } = await supabase
-      .from("api_cache")
-      .select("cache_key, response, expires_at")
-      .in("cache_key", cacheKeys) as { data: CacheRow[] | null };
-
-    const cacheMap = new Map<string, { points: PricePoint[]; currency?: string }>();
-    for (const row of cached ?? []) {
-      const notExpired = row.expires_at != null && new Date(row.expires_at).getTime() > now;
-      if (notExpired && Array.isArray(row.response?.points)) {
-        cacheMap.set(row.cache_key, { points: row.response.points, currency: row.response.currency });
-      }
-    }
-
-    const history: Record<string, PricePoint[]> = {};
-    const currencies: Record<string, string> = {};
-    const needCrypto: CryptoHistoryItem[] = [];
-    const needPriceable: PriceableHistoryItem[] = [];
-
-    for (const item of items) {
-      const sym = item.symbol.toUpperCase();
-      const cacheKey = cacheKeyFor(sym, item.asset_type, period);
-      const cachedItem = cacheMap.get(cacheKey);
-      if (cachedItem) {
-        history[sym] = item.asset_type === "crypto" ? cachedItem.points : filterAndAggregate(cachedItem.points);
-        if (cachedItem.currency) currencies[sym] = cachedItem.currency;
-        continue;
-      }
-
-      if (item.asset_type === "crypto") {
-        const { ticker } = parseSymbol(sym);
-        needCrypto.push({ symbol: sym, cgId: coinGeckoIdForSymbol(ticker) });
-      } else if (PRICEABLE_TYPES.includes(item.asset_type)) {
-        needPriceable.push({ symbol: sym, asset_type: item.asset_type });
-      }
-    }
-
-    const cryptoResults = await fetchCryptoHistoryFlow(needCrypto, days, fromTs, toTs);
-    for (const result of cryptoResults) {
-      const points = aggregate(result.points, period);
-      if (points.length === 0) continue;
-      history[result.symbol] = points;
-      await supabase.from("api_cache").upsert(
-        {
-          cache_key: cacheKeyFor(result.symbol, "crypto", period),
-          response: { points },
-          updated_at: new Date().toISOString(),
-          expires_at: new Date(now + ttlMs).toISOString(),
-        },
-        { onConflict: "cache_key" },
-      );
-    }
-
-    const priceableResults = await fetchPriceableHistoryFlow(needPriceable, fetchFromTs, toTs, period);
-    for (const result of priceableResults) {
-      if (result.points.length === 0) continue;
-      history[result.symbol] = filterAndAggregate(result.points);
-      if (result.currency) currencies[result.symbol] = result.currency;
-      await supabase.from("api_cache").upsert(
-        {
-          cache_key: cacheKeyFor(result.symbol, result.asset_type, period),
-          response: { points: result.points, currency: result.currency },
-          updated_at: new Date().toISOString(),
-          expires_at: new Date(now + ttlMs).toISOString(),
-        },
-        { onConflict: "cache_key" },
-      );
-    }
-
-    return json({ history, currencies });
-  } catch (err) {
-    console.error("fetch-price-history error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  const cryptoResults = await loadCryptoHistory(needCrypto, days, fromTs, toTs);
+  for (const result of cryptoResults) {
+    const points = aggregate(result.points, period);
+    if (points.length === 0) continue;
+    history[result.symbol] = points;
+    await deps.cache.upsert({
+      cache_key: cacheKeyFor(result.symbol, "crypto", period),
+      response: { points },
+      updated_at: new Date(now).toISOString(),
+      expires_at: new Date(now + ttlMs).toISOString(),
     });
   }
-});
+
+  const priceableResults = await loadPriceableHistory(needPriceable, fetchFromTs, toTs, period);
+  for (const result of priceableResults) {
+    if (result.points.length === 0) continue;
+    history[result.symbol] = filterAndAggregate(result.points);
+    if (result.currency) currencies[result.symbol] = result.currency;
+    await deps.cache.upsert({
+      cache_key: cacheKeyFor(result.symbol, result.asset_type, period),
+      response: { points: result.points, currency: result.currency },
+      updated_at: new Date(now).toISOString(),
+      expires_at: new Date(now + ttlMs).toISOString(),
+    });
+  }
+
+  return { history, currencies };
+}
+
+if (import.meta.main) {
+  Deno.serve(async (req: Request) => {
+    if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
+    if (req.method !== "POST") {
+      return new Response("Method not allowed", { status: 405, headers: CORS_HEADERS });
+    }
+
+    try {
+      const body = await req.json() as FetchPriceHistoryRequest;
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      return json(await handleFetchPriceHistory(body, { cache: createSupabaseCache(supabase) }));
+    } catch (err) {
+      console.error("fetch-price-history error:", err);
+      return new Response(JSON.stringify({ error: String(err) }), {
+        status: 500,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+  });
+}
+
+// deno-lint-ignore no-explicit-any
+function createSupabaseCache(supabase: any): EdgeCache {
+  return {
+    async getMany(cacheKeys) {
+      const { data, error } = await supabase
+        .from("api_cache")
+        .select("cache_key, response, expires_at")
+        .in("cache_key", cacheKeys);
+      if (error) throw error;
+      return (data ?? []) as CacheRow[];
+    },
+    async upsert(row) {
+      const { error } = await supabase.from("api_cache").upsert(row, { onConflict: "cache_key" });
+      if (error) throw error;
+    },
+  };
+}
 
 function json(data: unknown) {
   return new Response(JSON.stringify(data), {

@@ -30,7 +30,7 @@ export function useSymbolLookup() {
         body: { symbol: sym, asset_type: assetType },
       })
       if (!error && data) return data as SymbolInfo
-    } catch (_) {
+    } catch {
       // ignore
     } finally {
       setLoading(false)

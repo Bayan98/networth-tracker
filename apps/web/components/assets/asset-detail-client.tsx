@@ -107,7 +107,6 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
   const typeColor = ASSET_TYPE_COLOR[asset.asset_type] ?? 'var(--cat-other)'
   const portfolio = portfolios.find((p) => p.id === asset.portfolio_id)
-  const displaySymbol = asset.symbol ?? asset.asset_name.slice(0, 4).toUpperCase()
 
   const firstTx = transactions.length > 0 ? transactions[transactions.length - 1] : null
   const lastTx = transactions.length > 0 ? transactions[0] : null

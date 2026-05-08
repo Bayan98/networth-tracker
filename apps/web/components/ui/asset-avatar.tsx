@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Car, Home, Gem, Briefcase } from 'lucide-react'
-import type { AssetType } from '@networth/types'
 
 const ICON_MAP: Partial<Record<string, React.FC<{ size?: number; color?: string }>>> = {
   transport: Car,

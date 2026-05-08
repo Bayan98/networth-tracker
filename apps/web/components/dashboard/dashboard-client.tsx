@@ -21,7 +21,7 @@ interface Props {
   currency: CurrencyCode
 }
 
-export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, currency }: Props) {
+export function DashboardClient({ assets, portfolios, quantityPerAsset, currency }: Props) {
   const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => setIsMounted(true), [])

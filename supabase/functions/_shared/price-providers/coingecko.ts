@@ -31,7 +31,10 @@ export async function fetchCoinGeckoSimplePrices(symbols: string[]): Promise<Rec
   try {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${cgIds.join(",")}&vs_currencies=usd`;
     const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) return {};
+    if (!res.ok) {
+      await res.body?.cancel();
+      return {};
+    }
     const data = await res.json() as Record<string, { usd: number }>;
     const prices: Record<string, number> = {};
     for (const [cgId, quote] of Object.entries(data)) {
@@ -51,6 +54,7 @@ export async function fetchCoinGeckoMarketChart(cgId: string, days: number): Pro
     const res = await fetch(url, { headers: { Accept: "application/json" } });
     if (!res.ok) {
       console.warn(`CoinGecko ${cgId} returned ${res.status} — falling back to Yahoo Finance`);
+      await res.body?.cancel();
       return [];
     }
     const data = await res.json() as { prices: [number, number][] };
@@ -70,7 +74,10 @@ export async function fetchCoinGeckoHistoricalPrice(symbol: string, date: string
       `https://api.coingecko.com/api/v3/coins/${cgId}/history?date=${cgDate}`,
       { headers: { Accept: "application/json" } },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      await res.body?.cancel();
+      return null;
+    }
     const data = await res.json() as { market_data?: { current_price?: { usd?: number } } };
     return data.market_data?.current_price?.usd ?? null;
   } catch {

@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { X, Sparkles, TrendingUp, Coins, Wallet, Home, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { AssetType, CurrencyCode, Portfolio } from '@networth/types'
-import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 import { SymbolSearchInput } from '@/components/assets/symbol-search-input'
@@ -263,7 +262,7 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
 
           <div className="rmodal-foot">
             <div className="rmodal-hint">
-              <Sparkles size={11} /> Price data reflects today's market — exact current price not guaranteed
+              <Sparkles size={11} /> Price data reflects today&apos;s market — exact current price not guaranteed
             </div>
             <div className="rmodal-actions">
               <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>

@@ -18,7 +18,7 @@ const CRUMBS: Record<string, { kicker: string; title: string }> = {
   '/settings':  { kicker: 'Account',   title: 'Settings' },
 }
 
-export function Header({ user: _user }: HeaderProps) {
+export function Header({}: HeaderProps) {
   const pathname = usePathname()
   const { hideAmounts, toggleHideAmounts, selectedCurrency, setSelectedCurrency } = useAppStore()
 

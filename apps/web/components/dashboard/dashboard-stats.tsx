@@ -6,7 +6,7 @@ import { MaskedAmount } from '@/components/ui/masked-amount'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, resolveAssetPrice } from '@networth/utils'
+import { resolveAssetPrice } from '@networth/utils'
 import type { Asset, Debt, CurrencyCode } from '@networth/types'
 
 interface Props {
@@ -17,8 +17,7 @@ interface Props {
   quantityPerAsset: Record<string, number>
 }
 
-export function DashboardStats({ assets, debts, portfolioCount, currency, quantityPerAsset }: Props) {
-  const hideAmounts = useAppStore((s) => s.hideAmounts)
+export function DashboardStats({ assets, debts, portfolioCount, quantityPerAsset }: Props) {
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const priceItems = assets
     .filter((h) => h.symbol)

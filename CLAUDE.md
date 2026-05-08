@@ -3,6 +3,13 @@
 - Use comments only when really needed
 - Always finish code, don't leave TODOs or comments
 
+## Verification
+- After code edits, run `pnpm test` before reporting completion.
+- Do not claim work is verified unless `pnpm test` passes.
+- If `pnpm test` fails, report the failing command and the relevant error summary.
+- If only documentation or comments changed, you may skip `pnpm test`, but state that it was skipped and why.
+- For Supabase Edge Function changes, run `pnpm test` before deploying; deployment is a separate step.
+
 ## Codebase Search (SocratiCode)
 This project is indexed with SocratiCode. Always use codebase_search 
 before reading any files directly. Search first to find relevant files, 

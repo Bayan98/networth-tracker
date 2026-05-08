@@ -101,7 +101,10 @@ export async function fetchStockAnalysisQuote(sym: string, assetType?: string): 
 
   try {
     const res_ = await fetch(`${base}/__data.json`, { headers: SA_HEADERS });
-    if (!res_.ok) return empty;
+    if (!res_.ok) {
+      await res_.body?.cancel();
+      return empty;
+    }
 
     // deno-lint-ignore no-explicit-any
     const nd = await res_.json() as any;
@@ -137,7 +140,11 @@ export async function fetchStockAnalysisInfo(sym: string, assetType?: string): P
       fetch(`${base}/__data.json`, { headers: SA_HEADERS }),
       fetch(`${base}/__data.json?x-sveltekit-invalidated=001`, { headers: SA_HEADERS }),
     ]);
-    if (!statsRes.ok) return empty;
+    if (!statsRes.ok) {
+      await quoteRes.body?.cancel();
+      await statsRes.body?.cancel();
+      return empty;
+    }
 
     // Extract country from quote node1
     let country: string | null = null;
@@ -150,6 +157,8 @@ export async function fetchStockAnalysisInfo(sym: string, assetType?: string): P
         const cRaw = res(qdata, infoObj["country"]);
         if (typeof cRaw === "string" && cRaw) country = cRaw;
       }
+    } else {
+      await quoteRes.body?.cancel();
     }
 
     // deno-lint-ignore no-explicit-any
@@ -280,7 +289,10 @@ export async function fetchStockAnalysisHistory(
   try {
     const url = `https://stockanalysis.com/api/symbol/a/${apiSym}/history?range=${range}&period=${saperiod}`;
     const res_ = await fetch(url, { headers: SA_HEADERS });
-    if (!res_.ok) return [];
+    if (!res_.ok) {
+      await res_.body?.cancel();
+      return [];
+    }
 
     const json = await res_.json() as { data?: Array<{ t: string; c: number }> };
     if (!Array.isArray(json?.data)) return [];

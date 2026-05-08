@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useModalClose } from '@/lib/hooks/use-modal-close'
 import { useRouter } from 'next/navigation'
-import { X, Sparkles, AlertCircle } from 'lucide-react'
+import { X, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { AssetType, CurrencyCode, Asset, Portfolio } from '@networth/types'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
