@@ -125,12 +125,10 @@ Deno.serve(async (req: Request) => {
     );
 
     const days = PERIOD_DAYS[period];
-    const ttlMs = PERIOD_TTL_MS[period];
     const now = Date.now();
-
-    // n2 — bumped when plain stock/ETF history switched to Yahoo close before StockAnalysis fallback
-    // 5y:v3 — bumped with n2 and previous month-start normalization
-    const keyFor = (sym: string) => `history:${sym}:${period === "5y" ? "5y:v3" : period}:n2`;
+    // n4 — cache now stores raw unaggregated points; filter+aggregate happens at read time
+    const keyFor = (sym: string) => period === "5y" ? `history:${sym}:5y-monthly:n4` : `history:${sym}:5y-daily:n4`;
+    const ttlMs = period === "5y" ? 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
     const cacheKeys = items.map((i) => keyFor(i.symbol.toUpperCase()));
     const { data: cached } = await supabase
       .from("api_cache")
@@ -150,12 +148,26 @@ Deno.serve(async (req: Request) => {
     const needCrypto: Array<{ symbol: string; cgId: string }> = [];
     const needPriceable: Array<{ symbol: string; asset_type: string }> = [];
 
+    const toTs = Math.floor(now / 1000);
+    const fromTs = toTs - days * 86400;
+    // Always fetch full 5y window to populate shared cache; filter to requested period at read time.
+    const fetchFromTs = toTs - PERIOD_DAYS["5y"] * 86400;
+
+    function filterAndAggregate(rawPoints: PricePoint[]): PricePoint[] {
+      const fromDay = Math.floor(fromTs / 86400) * 86400;
+      const filtered = rawPoints.filter((p) => {
+        const ts = new Date(p.date + "T00:00:00Z").getTime() / 1000;
+        return ts >= fromDay && ts <= toTs;
+      });
+      return aggregate(filtered, period);
+    }
+
     for (const item of items) {
       const sym = item.symbol.toUpperCase();
       const cacheKey = keyFor(sym);
       if (cacheMap.has(cacheKey)) {
         const cached_ = cacheMap.get(cacheKey)!;
-        history[sym] = cached_.points;
+        history[sym] = filterAndAggregate(cached_.points);
         if (cached_.currency) currencies[sym] = cached_.currency;
       } else if (item.asset_type === "crypto") {
         const { ticker } = parseSymbol(sym);
@@ -164,9 +176,6 @@ Deno.serve(async (req: Request) => {
         needPriceable.push({ symbol: sym, asset_type: item.asset_type });
       }
     }
-
-    const toTs = Math.floor(now / 1000);
-    const fromTs = toTs - days * 86400;
 
     for (const { symbol, cgId } of needCrypto) {
       let points: PricePoint[] | null = null;
@@ -217,40 +226,36 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // All priceable assets: StockAnalysis primary, Yahoo fallback for plain symbols.
+    // All priceable assets: SA primary, Yahoo fallback for plain symbols (no exchange prefix).
     // Fetch the SA quote in parallel with history to get the currency for normalization.
+    // Raw (unaggregated) points are cached so the same entry serves all periods.
     if (needPriceable.length > 0) {
       await Promise.all(needPriceable.map(async ({ symbol: sym, asset_type }) => {
         const { exchange, ticker } = parseSymbol(sym);
-        let points: PricePoint[] | null = null;
+        let rawPoints: PricePoint[] | null = null;
 
-        const [yahooPoints, saQuote] = await Promise.all([
-          exchange ? Promise.resolve([]) : fetchYahooCloseHistory(ticker, fromTs, toTs),
+        const [saPoints, saQuote] = await Promise.all([
+          fetchSAHistory(sym, asset_type, fetchFromTs, toTs, period),
           fetchSAQuote(sym, asset_type),
         ]);
-        if (yahooPoints.length > 0) {
-          points = aggregate(yahooPoints, period);
+        if (saPoints.length > 0) rawPoints = saPoints;
+
+        if (!rawPoints && !exchange) {
+          const yahooPoints = await fetchYahooCloseHistory(ticker, fetchFromTs, toTs);
+          if (yahooPoints.length > 0) rawPoints = yahooPoints;
         }
 
-        if (!points) {
-          const saPoints = await fetchSAHistory(sym, asset_type, fromTs, toTs);
-          if (saPoints.length > 0) {
-            points = aggregate(saPoints.sort((a, b) => a.date.localeCompare(b.date)), period);
-          }
-        }
-
-        if (points && points.length > 0) {
+        if (rawPoints && rawPoints.length > 0) {
           // Normalize prices from minor currency units (e.g. GBX pence → GBP pounds).
-          // saQuote.rawCurrency is what SA actually returned; saQuote.currency is normalized.
-          const minor = saQuote.rawCurrency ? MINOR_CURRENCIES[saQuote.rawCurrency] : null
-          const normalizedPoints = minor
-            ? points.map((p) => ({ date: p.date, price: p.price / minor.factor }))
-            : points
-          const normalizedCurrency = saQuote.currency ?? undefined
-          if (normalizedCurrency) currencies[sym] = normalizedCurrency
-          history[sym] = normalizedPoints;
+          const minor = saQuote.rawCurrency ? MINOR_CURRENCIES[saQuote.rawCurrency] : null;
+          const normalizedRaw = minor
+            ? rawPoints.map((p) => ({ date: p.date, price: p.price / minor.factor }))
+            : rawPoints;
+          const normalizedCurrency = saQuote.currency ?? undefined;
+          if (normalizedCurrency) currencies[sym] = normalizedCurrency;
+          history[sym] = filterAndAggregate(normalizedRaw);
           await supabase.from("api_cache").upsert(
-            { cache_key: keyFor(sym), response: { points: normalizedPoints, currency: normalizedCurrency }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
+            { cache_key: keyFor(sym), response: { points: normalizedRaw, currency: normalizedCurrency }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
             { onConflict: "cache_key" },
           );
         }

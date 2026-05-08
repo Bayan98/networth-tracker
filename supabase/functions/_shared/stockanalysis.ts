@@ -270,46 +270,37 @@ export async function fetchSAInfo(sym: string, assetType?: string): Promise<SAIn
   }
 }
 
+function saApiSymbol(sym: string): string {
+  const { exchange, ticker } = parseSymbol(sym);
+  return exchange ? `${exchange}-${ticker}` : ticker;
+}
+
 export async function fetchSAHistory(
   sym: string,
-  assetType: string,
+  _assetType: string,
   fromTimestamp: number,
   toTimestamp: number,
+  period?: string,
 ): Promise<PricePoint[]> {
-  const base = saBaseUrl(sym, assetType);
+  const apiSym = saApiSymbol(sym);
+  const range = "5Y";
+  const saperiod = period === "5y" ? "Monthly" : "Daily";
 
   try {
-    const res_ = await fetch(`${base}/history/__data.json`, { headers: SA_HEADERS });
+    const url = `https://stockanalysis.com/api/symbol/a/${apiSym}/history?range=${range}&period=${saperiod}`;
+    const res_ = await fetch(url, { headers: SA_HEADERS });
     if (!res_.ok) return [];
 
-    // deno-lint-ignore no-explicit-any
-    const nd = await res_.json() as any;
-    const data: DataArray = nd?.nodes?.[2]?.data;
-    if (!Array.isArray(data) || data.length < 8) return [];
+    const json = await res_.json() as { data?: Array<{ t: string; c: number }> };
+    if (!Array.isArray(json?.data)) return [];
 
-    // nodes[2].data[1] = { data: 7, ... } → data[7] = [row_idx, row_idx, ...]
-    const meta = data[1] as Record<string, unknown> | null;
-    const rowsArrIdx = typeof meta?.["data"] === "number" ? meta["data"] as number : 7;
-    const rowIndices = data[rowsArrIdx];
-    if (!Array.isArray(rowIndices)) return [];
-
-    const points: PricePoint[] = [];
-    for (const rowIdx of rowIndices) {
-      if (typeof rowIdx !== "number") continue;
-      const row = data[rowIdx];
-      if (!row || typeof row !== "object") continue;
-      const rowObj = row as Record<string, unknown>;
-
-      const dateRaw = res(data, rowObj["t"]);
-      const closeRaw = res(data, rowObj["c"]);
-      if (typeof dateRaw !== "string" || typeof closeRaw !== "number" || closeRaw <= 0) continue;
-
-      const ts = new Date(dateRaw).getTime() / 1000;
-      if (ts >= fromTimestamp && ts <= toTimestamp) {
-        points.push({ date: dateRaw.slice(0, 10), price: closeRaw });
-      }
-    }
-    return points;
+    return json.data
+      .filter((row) => {
+        const ts = new Date(row.t).getTime() / 1000;
+        return row.c > 0 && ts >= fromTimestamp && ts <= toTimestamp;
+      })
+      .map((row) => ({ date: row.t.slice(0, 10), price: row.c }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   } catch (e) {
     console.log(`SA fetchSAHistory error for ${sym}:`, String(e));
     return [];
