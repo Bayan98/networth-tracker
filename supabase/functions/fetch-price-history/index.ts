@@ -1,7 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
-import { fetchSAHistory, fetchSAQuote, MINOR_CURRENCIES, parseSymbol } from "../_shared/stockanalysis.ts";
+import { coinGeckoIdForSymbol } from "../_shared/price-providers/coingecko.ts";
+import { parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
+import type { PricePoint } from "../_shared/price-providers/yahoo.ts";
+import { fetchCryptoHistoryFlow, type CryptoHistoryItem } from "./crypto_flow.ts";
+import { fetchPriceableHistoryFlow, type PriceableHistoryItem } from "./priceable_flow.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -18,16 +21,17 @@ const PERIOD_DAYS: Record<Period, number> = {
   "5y": 1825,
 };
 
-const PERIOD_TTL_MS: Record<Period, number> = {
-  "1w": 12 * 60 * 60 * 1000, // 12 hours
-  "1m": 12 * 60 * 60 * 1000, // 12 hours
-  "1y": 24 * 60 * 60 * 1000, // 24 hours
-  "5y": 24 * 60 * 60 * 1000, // 24 hours
-};
+const PRICEABLE_TYPES = ["stock", "etf", "bond", "mutual_fund", "commodity"];
 
-interface PricePoint {
-  date: string;
-  price: number;
+interface RequestItem {
+  symbol: string;
+  asset_type: string;
+}
+
+interface CacheRow {
+  cache_key: string;
+  response: { points: PricePoint[]; currency?: string };
+  expires_at: string | null;
 }
 
 function aggregate(points: PricePoint[], period: Period): PricePoint[] {
@@ -40,10 +44,6 @@ function aggregate(points: PricePoint[], period: Period): PricePoint[] {
       const key = isoWeekKey(d);
       if (!grouped.has(key)) grouped.set(key, p);
     } else {
-      // Normalize to the 1st of the month so prices align exactly with the time
-      // axis dates produced by buildTimeAxis("5y"). Without this, the first
-      // trading day of each month (e.g. Jan 3) would sit after the axis date
-      // (Jan 1) and nearestPriceForDate would return December's price instead.
       const year = d.getUTCFullYear();
       const month = String(d.getUTCMonth() + 1).padStart(2, "0");
       const key = `${year}-${month}`;
@@ -62,42 +62,13 @@ function isoWeekKey(d: Date): string {
   return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-function cgToDailyPoints(rawPrices: [number, number][]): PricePoint[] {
-  const daily = new Map<string, number>();
-  for (const [ts, price] of rawPrices) {
-    const date = new Date(ts).toISOString().slice(0, 10);
-    daily.set(date, price);
-  }
-  return Array.from(daily.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, price]) => ({ date, price }));
+function cacheKeyFor(sym: string, assetType: string, period: Period): string {
+  if (assetType === "crypto") return `history:${sym}:${period}:crypto:n5`;
+  return period === "5y" ? `history:${sym}:5y-monthly:n5` : `history:${sym}:5y-daily:n5`;
 }
 
-async function fetchYahooCloseHistory(
-  ticker: string,
-  fromTs: number,
-  toTs: number,
-): Promise<PricePoint[]> {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${fromTs}&period2=${toTs}&events=div%2Csplits&includeAdjustedClose=true`;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!res.ok) return [];
-
-    const data = await res.json() as {
-      chart: { result: Array<{ timestamp: number[]; indicators: { quote: Array<{ close: (number | null)[] }> } }> | null };
-    };
-    const result = data.chart?.result?.[0];
-    const closes = result?.indicators?.quote?.[0]?.close;
-    if (!result?.timestamp || !closes) return [];
-
-    return result.timestamp
-      .map((ts, i) => ({ date: new Date(ts * 1000).toISOString().slice(0, 10), price: closes[i] }))
-      .filter((p): p is PricePoint => p.price != null && p.price > 0)
-      .sort((a, b) => a.date.localeCompare(b.date));
-  } catch (e) {
-    console.error(`Yahoo Finance history error for ${ticker}:`, e);
-    return [];
-  }
+function ttlFor(period: Period): number {
+  return period === "5y" ? 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
 }
 
 Deno.serve(async (req: Request) => {
@@ -107,16 +78,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const body = await req.json() as {
-      items: Array<{ symbol: string; asset_type: string }>;
-      period: Period;
-    };
+    const body = await req.json() as { items: RequestItem[]; period: Period };
     const { items, period } = body;
 
     if (!Array.isArray(items) || items.length === 0 || !PERIOD_DAYS[period]) {
-      return new Response(JSON.stringify({ history: {} }), {
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      return json({ history: {} });
     }
 
     const supabase = createClient(
@@ -124,33 +90,11 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const days = PERIOD_DAYS[period];
     const now = Date.now();
-    // n4 — cache now stores raw unaggregated points; filter+aggregate happens at read time
-    const keyFor = (sym: string) => period === "5y" ? `history:${sym}:5y-monthly:n4` : `history:${sym}:5y-daily:n4`;
-    const ttlMs = period === "5y" ? 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
-    const cacheKeys = items.map((i) => keyFor(i.symbol.toUpperCase()));
-    const { data: cached } = await supabase
-      .from("api_cache")
-      .select("cache_key, response, expires_at")
-      .in("cache_key", cacheKeys) as { data: Array<{ cache_key: string; response: { points: PricePoint[]; currency?: string }; expires_at: string | null }> | null };
-
-    const cacheMap = new Map<string, { points: PricePoint[]; currency?: string }>();
-    for (const row of cached ?? []) {
-      const notExpired = row.expires_at != null && new Date(row.expires_at).getTime() > now;
-      if (notExpired && Array.isArray(row.response?.points)) {
-        cacheMap.set(row.cache_key, { points: row.response.points, currency: row.response.currency });
-      }
-    }
-
-    const history: Record<string, PricePoint[]> = {};
-    const currencies: Record<string, string> = {};
-    const needCrypto: Array<{ symbol: string; cgId: string }> = [];
-    const needPriceable: Array<{ symbol: string; asset_type: string }> = [];
-
+    const days = PERIOD_DAYS[period];
+    const ttlMs = ttlFor(period);
     const toTs = Math.floor(now / 1000);
     const fromTs = toTs - days * 86400;
-    // Always fetch full 5y window to populate shared cache; filter to requested period at read time.
     const fetchFromTs = toTs - PERIOD_DAYS["5y"] * 86400;
 
     function filterAndAggregate(rawPoints: PricePoint[]): PricePoint[] {
@@ -162,109 +106,76 @@ Deno.serve(async (req: Request) => {
       return aggregate(filtered, period);
     }
 
+    const cacheKeys = items.map((i) => cacheKeyFor(i.symbol.toUpperCase(), i.asset_type, period));
+    const { data: cached } = await supabase
+      .from("api_cache")
+      .select("cache_key, response, expires_at")
+      .in("cache_key", cacheKeys) as { data: CacheRow[] | null };
+
+    const cacheMap = new Map<string, { points: PricePoint[]; currency?: string }>();
+    for (const row of cached ?? []) {
+      const notExpired = row.expires_at != null && new Date(row.expires_at).getTime() > now;
+      if (notExpired && Array.isArray(row.response?.points)) {
+        cacheMap.set(row.cache_key, { points: row.response.points, currency: row.response.currency });
+      }
+    }
+
+    const history: Record<string, PricePoint[]> = {};
+    const currencies: Record<string, string> = {};
+    const needCrypto: CryptoHistoryItem[] = [];
+    const needPriceable: PriceableHistoryItem[] = [];
+
     for (const item of items) {
       const sym = item.symbol.toUpperCase();
-      const cacheKey = keyFor(sym);
-      if (cacheMap.has(cacheKey)) {
-        const cached_ = cacheMap.get(cacheKey)!;
-        history[sym] = filterAndAggregate(cached_.points);
-        if (cached_.currency) currencies[sym] = cached_.currency;
-      } else if (item.asset_type === "crypto") {
+      const cacheKey = cacheKeyFor(sym, item.asset_type, period);
+      const cachedItem = cacheMap.get(cacheKey);
+      if (cachedItem) {
+        history[sym] = item.asset_type === "crypto" ? cachedItem.points : filterAndAggregate(cachedItem.points);
+        if (cachedItem.currency) currencies[sym] = cachedItem.currency;
+        continue;
+      }
+
+      if (item.asset_type === "crypto") {
         const { ticker } = parseSymbol(sym);
-        needCrypto.push({ symbol: sym, cgId: symbolToCoinGeckoId(ticker) });
-      } else if (["stock", "etf", "bond", "mutual_fund", "commodity"].includes(item.asset_type)) {
+        needCrypto.push({ symbol: sym, cgId: coinGeckoIdForSymbol(ticker) });
+      } else if (PRICEABLE_TYPES.includes(item.asset_type)) {
         needPriceable.push({ symbol: sym, asset_type: item.asset_type });
       }
     }
 
-    for (const { symbol, cgId } of needCrypto) {
-      let points: PricePoint[] | null = null;
-
-      try {
-        const url = `https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${days}&interval=daily`;
-        const res = await fetch(url, { headers: { Accept: "application/json" } });
-        if (res.ok) {
-          const data = await res.json() as { prices: [number, number][] };
-          const daily = cgToDailyPoints(data.prices ?? []);
-          if (daily.length > 0) points = aggregate(daily, period);
-        } else {
-          console.warn(`CoinGecko ${cgId} returned ${res.status} — falling back to Yahoo Finance`);
-        }
-      } catch (e) {
-        console.error(`CoinGecko history error for ${cgId}:`, e);
-      }
-
-      if (!points) {
-        try {
-          const yahooSym = `${symbol}-USD`;
-          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=1d&period1=${fromTs}&period2=${toTs}`;
-          const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-          if (res.ok) {
-            const data = await res.json() as {
-              chart: { result: Array<{ timestamp: number[]; indicators: { quote: Array<{ close: (number | null)[] }> } }> | null };
-            };
-            const result = data.chart?.result?.[0];
-            const closes = result?.indicators?.quote?.[0]?.close;
-            if (result?.timestamp && closes) {
-              const daily: PricePoint[] = result.timestamp
-                .map((ts, i) => ({ date: new Date(ts * 1000).toISOString().slice(0, 10), price: closes[i] }))
-                .filter((p): p is PricePoint => p.price != null);
-              if (daily.length > 0) points = aggregate(daily.sort((a, b) => a.date.localeCompare(b.date)), period);
-            }
-          }
-        } catch (e) {
-          console.error(`Yahoo Finance fallback error for ${symbol}-USD:`, e);
-        }
-      }
-
-      if (points && points.length > 0) {
-        history[symbol] = points;
-        await supabase.from("api_cache").upsert(
-          { cache_key: keyFor(symbol), response: { points }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
-          { onConflict: "cache_key" },
-        );
-      }
+    const cryptoResults = await fetchCryptoHistoryFlow(needCrypto, days, fromTs, toTs);
+    for (const result of cryptoResults) {
+      const points = aggregate(result.points, period);
+      if (points.length === 0) continue;
+      history[result.symbol] = points;
+      await supabase.from("api_cache").upsert(
+        {
+          cache_key: cacheKeyFor(result.symbol, "crypto", period),
+          response: { points },
+          updated_at: new Date().toISOString(),
+          expires_at: new Date(now + ttlMs).toISOString(),
+        },
+        { onConflict: "cache_key" },
+      );
     }
 
-    // All priceable assets: SA primary, Yahoo fallback for plain symbols (no exchange prefix).
-    // Fetch the SA quote in parallel with history to get the currency for normalization.
-    // Raw (unaggregated) points are cached so the same entry serves all periods.
-    if (needPriceable.length > 0) {
-      await Promise.all(needPriceable.map(async ({ symbol: sym, asset_type }) => {
-        const { exchange, ticker } = parseSymbol(sym);
-        let rawPoints: PricePoint[] | null = null;
-
-        const [saPoints, saQuote] = await Promise.all([
-          fetchSAHistory(sym, asset_type, fetchFromTs, toTs, period),
-          fetchSAQuote(sym, asset_type),
-        ]);
-        if (saPoints.length > 0) rawPoints = saPoints;
-
-        if (!rawPoints && !exchange) {
-          const yahooPoints = await fetchYahooCloseHistory(ticker, fetchFromTs, toTs);
-          if (yahooPoints.length > 0) rawPoints = yahooPoints;
-        }
-
-        if (rawPoints && rawPoints.length > 0) {
-          // Normalize prices from minor currency units (e.g. GBX pence → GBP pounds).
-          const minor = saQuote.rawCurrency ? MINOR_CURRENCIES[saQuote.rawCurrency] : null;
-          const normalizedRaw = minor
-            ? rawPoints.map((p) => ({ date: p.date, price: p.price / minor.factor }))
-            : rawPoints;
-          const normalizedCurrency = saQuote.currency ?? undefined;
-          if (normalizedCurrency) currencies[sym] = normalizedCurrency;
-          history[sym] = filterAndAggregate(normalizedRaw);
-          await supabase.from("api_cache").upsert(
-            { cache_key: keyFor(sym), response: { points: normalizedRaw, currency: normalizedCurrency }, updated_at: new Date().toISOString(), expires_at: new Date(now + ttlMs).toISOString() },
-            { onConflict: "cache_key" },
-          );
-        }
-      }));
+    const priceableResults = await fetchPriceableHistoryFlow(needPriceable, fetchFromTs, toTs, period);
+    for (const result of priceableResults) {
+      if (result.points.length === 0) continue;
+      history[result.symbol] = filterAndAggregate(result.points);
+      if (result.currency) currencies[result.symbol] = result.currency;
+      await supabase.from("api_cache").upsert(
+        {
+          cache_key: cacheKeyFor(result.symbol, result.asset_type, period),
+          response: { points: result.points, currency: result.currency },
+          updated_at: new Date().toISOString(),
+          expires_at: new Date(now + ttlMs).toISOString(),
+        },
+        { onConflict: "cache_key" },
+      );
     }
 
-    return new Response(JSON.stringify({ history, currencies }), {
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    return json({ history, currencies });
   } catch (err) {
     console.error("fetch-price-history error:", err);
     return new Response(JSON.stringify({ error: String(err) }), {
@@ -273,3 +184,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 });
+
+function json(data: unknown) {
+  return new Response(JSON.stringify(data), {
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}

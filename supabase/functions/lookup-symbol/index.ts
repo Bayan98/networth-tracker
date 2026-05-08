@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
-import { fetchSAQuote, parseSymbol } from "../_shared/stockanalysis.ts";
+import { fetchStockAnalysisQuote, parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -177,7 +177,7 @@ Deno.serve(async (req: Request) => {
       // Primary: StockAnalysis.com (price + name)
       // Run SA and Yahoo in parallel for speed; SA takes priority for price
       const [saResult, yahooResult] = await Promise.all([
-        fetchSAQuote(sym, asset_type),
+        fetchStockAnalysisQuote(sym, asset_type),
         fetchYahooSummary(exchange ? ticker : sym),
       ]);
 

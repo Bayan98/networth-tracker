@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { fetchSAInfo, parseSymbol } from "../_shared/stockanalysis.ts";
+import { fetchStockAnalysisInfo, parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -110,7 +110,7 @@ Deno.serve(async (req: Request) => {
 
       // Source 1: StockAnalysis (primary for all non-crypto)
       if (asset_type !== "crypto") {
-        const saInfo = await fetchSAInfo(sym, asset_type);
+        const saInfo = await fetchStockAnalysisInfo(sym, asset_type);
         if (saInfo.pe != null) info.pe = saInfo.pe;
         if (saInfo.eps != null) info.eps = saInfo.eps;
         if (saInfo.sector) info.sector = saInfo.sector;

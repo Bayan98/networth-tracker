@@ -50,15 +50,6 @@ function saBaseUrl(sym: string, assetType?: string): string {
   return `https://stockanalysis.com/stocks/${ticker.toLowerCase()}`;
 }
 
-/** Kept for backward compat with fetchSAHistory old callers */
-export function buildSAPath(sym: string, assetType?: string): string {
-  const { exchange, ticker } = parseSymbol(sym);
-  if (exchange) return `quote/${exchange.toLowerCase()}/${ticker.toLowerCase()}`;
-  if (assetType === "etf") return `etf/${ticker.toLowerCase()}`;
-  if (assetType === "crypto") return `crypto/${ticker.toLowerCase()}`;
-  return `stocks/${ticker.toLowerCase()}`;
-}
-
 type DataArray = unknown[];
 
 function res(data: DataArray, val: unknown): unknown {
@@ -104,7 +95,7 @@ function saParseQuote(data: DataArray): { price: number | null; name: string | n
   return { price, name, currency: rawCurrency, rawCurrency, description };
 }
 
-export async function fetchSAQuote(sym: string, assetType?: string): Promise<SAResult> {
+export async function fetchStockAnalysisQuote(sym: string, assetType?: string): Promise<SAResult> {
   const base = saBaseUrl(sym, assetType);
   const empty: SAResult = { price: null, name: null, currency: null, rawCurrency: null, description: null };
 
@@ -119,7 +110,7 @@ export async function fetchSAQuote(sym: string, assetType?: string): Promise<SAR
 
     return saParseQuote(data);
   } catch (e) {
-    console.log(`SA fetchSAQuote error for ${sym}:`, String(e));
+    console.log(`SA fetchStockAnalysisQuote error for ${sym}:`, String(e));
     return empty;
   }
 }
@@ -137,7 +128,7 @@ export interface SAInfo {
   news: Array<{ title: string; publisher: string; link: string; publishedAt: number }> | null;
 }
 
-export async function fetchSAInfo(sym: string, assetType?: string): Promise<SAInfo> {
+export async function fetchStockAnalysisInfo(sym: string, assetType?: string): Promise<SAInfo> {
   const base = saBaseUrl(sym, assetType);
   const empty: SAInfo = { pe: null, eps: null, sector: null, country: null, description: null, analystRating: null, analystCount: null, dividend: null, beta: null, news: null };
 
@@ -265,7 +256,7 @@ export async function fetchSAInfo(sym: string, assetType?: string): Promise<SAIn
       news,
     };
   } catch (e) {
-    console.log(`SA fetchSAInfo error for ${sym}:`, String(e));
+    console.log(`SA fetchStockAnalysisInfo error for ${sym}:`, String(e));
     return empty;
   }
 }
@@ -275,7 +266,7 @@ function saApiSymbol(sym: string): string {
   return exchange ? `${exchange}-${ticker}` : ticker;
 }
 
-export async function fetchSAHistory(
+export async function fetchStockAnalysisHistory(
   sym: string,
   _assetType: string,
   fromTimestamp: number,
@@ -302,7 +293,7 @@ export async function fetchSAHistory(
       .map((row) => ({ date: row.t.slice(0, 10), price: row.c }))
       .sort((a, b) => a.date.localeCompare(b.date));
   } catch (e) {
-    console.log(`SA fetchSAHistory error for ${sym}:`, String(e));
+    console.log(`SA fetchStockAnalysisHistory error for ${sym}:`, String(e));
     return [];
   }
 }
