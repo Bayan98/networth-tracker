@@ -32,6 +32,11 @@ Thumbs.db
 .playwright-mcp/
 .codex/
 AGENTS.md
+CLAUDE.md
+.socraticodecontextartifacts.json
+
+# Next.js generated
+apps/web/next-env.d.ts
 
 # Supabase
 supabase/.temp/
