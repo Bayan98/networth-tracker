@@ -12,7 +12,7 @@ import {
   Plus,
 } from 'lucide-react'
 import type { Profile, Portfolio } from '@networth/types'
-import { AddPortfolioDialog } from '@/components/assets/add-portfolio-dialog'
+import { AddPortfolioDialog } from '@/components/assets'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, countKey: null },

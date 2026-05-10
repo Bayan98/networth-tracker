@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import type { Asset } from '@networth/types'
 import { calculateHoldingValuation, PRICEABLE_TYPES, safePercentChange } from '@networth/utils'
 import type { SeriesPoint } from '@networth/utils'
-import type { Period } from '@/components/ui/area-chart'
+import type { Period } from '@/components/charts/chart-utils'
 import { usePortfolioHistory } from './use-portfolio-history'
 import { usePrices } from './use-prices'
 

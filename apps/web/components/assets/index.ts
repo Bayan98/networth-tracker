@@ -1,0 +1,6 @@
+export { AssetsClient } from './main-page/assets-client'
+export { AssetDetailClient } from './individual-page/asset-detail-client'
+export { AddAssetDialog } from './dialogs/add-asset-dialog'
+export { EditAssetDialog } from './dialogs/edit-asset-dialog'
+export { AddPortfolioDialog } from './dialogs/add-portfolio-dialog'
+export { EditPortfolioDialog } from './dialogs/edit-portfolio-dialog'

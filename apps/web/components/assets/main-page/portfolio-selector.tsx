@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, ChevronDown, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Portfolio } from '@networth/types'
-import { AddPortfolioDialog } from './add-portfolio-dialog'
-import { EditPortfolioDialog } from './edit-portfolio-dialog'
+import { AddPortfolioDialog } from '../dialogs/add-portfolio-dialog'
+import { EditPortfolioDialog } from '../dialogs/edit-portfolio-dialog'
 
 interface Props {
   portfolios: Portfolio[]

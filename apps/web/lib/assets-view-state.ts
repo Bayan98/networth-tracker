@@ -1,7 +1,7 @@
 'use client'
 
 import type { AssetType } from '@networth/types'
-import type { Period } from '@/components/ui/area-chart'
+import type { Period } from '@/components/charts/chart-utils'
 import { getClientCache, setClientCache } from './client-cache'
 
 export interface AssetsViewState {

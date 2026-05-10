@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { AssetsClient } from '@/components/assets/assets-client'
+import { AssetsClient } from '@/components/assets'
 import type { CurrencyCode } from '@networth/types'
 
 export const revalidate = 300

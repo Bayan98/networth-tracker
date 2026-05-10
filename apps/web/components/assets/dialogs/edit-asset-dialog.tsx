@@ -9,7 +9,7 @@ import type { AssetType, CurrencyCode, Asset, Portfolio } from '@networth/types'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
-import { SymbolSearchInput } from '@/components/assets/symbol-search-input'
+import { SymbolSearchInput } from './symbol-search-input'
 import type { SymbolResult } from '@/lib/hooks/use-symbol-search'
 
 const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'deposit', 'other']

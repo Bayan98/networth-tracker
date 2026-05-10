@@ -6,11 +6,11 @@ import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import { formatCurrency, ASSET_TYPE_LABELS } from '@networth/utils'
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
-import { AssetsChart } from '@/components/assets/assets-chart'
+import { PortfolioAreaChart } from '@/components/charts/portfolio-area-chart'
 import { AllocationCard } from '@/components/ui/allocation-card'
 import type { Enriched } from '@/components/ui/allocation-card'
 import type { Asset, Portfolio, Debt, CurrencyCode } from '@networth/types'
-import type { Period } from '@/components/ui/area-chart'
+import type { Period } from '@/components/charts/chart-utils'
 import { AssetAvatar } from '@/components/ui/asset-avatar'
 
 interface Props {
@@ -46,7 +46,7 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
-      <AssetsChart
+      <PortfolioAreaChart
         series={liveSeries}
         currency={selectedCurrency}
         loading={chartLoading}

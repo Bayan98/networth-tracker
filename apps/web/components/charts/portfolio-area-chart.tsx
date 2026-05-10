@@ -11,7 +11,7 @@ import {
 } from 'recharts'
 import { formatCurrency, formatCompact } from '@networth/utils'
 import type { CurrencyCode } from '@networth/types'
-import { CHART_TOOLTIP_STYLE, formatChartDate, type Period } from '@/components/ui/area-chart'
+import { CHART_TOOLTIP_STYLE, formatChartDate, type Period } from '@/components/charts/chart-utils'
 import type { SeriesPoint } from '@/lib/hooks/use-portfolio-history'
 
 interface Props {
@@ -88,7 +88,7 @@ function splitMarketSeries(series: SeriesPoint[]): ChartPoint[] {
   return out
 }
 
-export function AssetsChart({ series, currency, loading, period, onPeriodChange, totalValue, hideAmounts, height = 320 }: Props) {
+export function PortfolioAreaChart({ series, currency, loading, period, onPeriodChange, totalValue, hideAmounts, height = 320 }: Props) {
   const isEmpty = !loading && series.length === 0
   const chartData = splitMarketSeries(series)
   const seriesMin = series.length > 0
@@ -259,3 +259,5 @@ export function AssetsChart({ series, currency, loading, period, onPeriodChange,
     </div>
   )
 }
+
+export { PortfolioAreaChart as AssetsChart }

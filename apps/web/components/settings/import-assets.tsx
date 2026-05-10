@@ -6,7 +6,7 @@ import { Upload, Plus, Sparkles, Copy, Check, ChevronDown, FileText } from 'luci
 import { parseAndVerify } from '@networth/utils'
 import type { ParsedRow, ImportRow } from '@networth/utils'
 import type { Portfolio } from '@networth/types'
-import { AddPortfolioDialog } from '@/components/assets/add-portfolio-dialog'
+import { AddPortfolioDialog } from '@/components/assets'
 import { Dialog } from '@/components/ui/dialog'
 import { importAssets } from '@/app/(main)/settings/actions'
 import type { ImportResult } from '@/app/(main)/settings/actions'

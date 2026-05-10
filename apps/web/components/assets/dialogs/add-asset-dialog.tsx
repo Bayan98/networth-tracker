@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { AssetType, CurrencyCode, Portfolio } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
-import { SymbolSearchInput } from '@/components/assets/symbol-search-input'
+import { SymbolSearchInput } from './symbol-search-input'
 import type { SymbolResult } from '@/lib/hooks/use-symbol-search'
 
 const ASSET_TYPE_CARDS: Array<{ id: AssetType; label: string; desc: string; Icon: React.FC<{ size?: number }> }> = [

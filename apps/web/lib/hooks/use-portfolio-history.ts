@@ -6,7 +6,7 @@ import { getClientCache, setClientCache } from '@/lib/client-cache'
 import type { Asset } from '@networth/types'
 import { buildTimeAxis, computeSeries, lookupFxRate, manualPriceForDate, nearestPriceForDate, PRICEABLE_TYPES } from '@networth/utils'
 import type { SeriesPoint, PriceHistory, RawTransaction, FxRates } from '@networth/utils'
-import type { Period } from '@/components/ui/area-chart'
+import type { Period } from '@/components/charts/chart-utils'
 
 export type { SeriesPoint } from '@networth/utils'
 

@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { usePortfolioHistory } from '@/lib/hooks/use-portfolio-history'
 import { useAppStore } from '@/lib/store'
-import { AssetsChart } from './assets-chart'
+import { PortfolioAreaChart } from './portfolio-area-chart'
 import type { Asset, CurrencyCode } from '@networth/types'
-import type { Period } from '@/components/ui/area-chart'
+import type { Period } from '@/components/charts/chart-utils'
 
 interface Props {
   assets: Asset[]
@@ -19,7 +19,7 @@ export function PortfolioChart({ assets, currency }: Props) {
   const { series, loading } = usePortfolioHistory(assets, period, displayCurrency)
 
   return (
-    <AssetsChart
+    <PortfolioAreaChart
       series={series}
       currency={displayCurrency}
       loading={loading}

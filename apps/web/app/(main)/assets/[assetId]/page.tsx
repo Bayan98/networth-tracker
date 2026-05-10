@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { AssetDetailClient } from '@/components/assets/asset-detail-client'
+import { AssetDetailClient } from '@/components/assets'
 
 interface Props {
   params: Promise<{ assetId: string }>
