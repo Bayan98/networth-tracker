@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getClientCache, setClientCache } from '@/lib/client-cache'
 import type { Asset } from '@networth/types'
-import { buildTimeAxis, computeSeries, lookupFxRate, nearestPriceForDate, PRICEABLE_TYPES } from '@networth/utils'
+import { buildTimeAxis, computeSeries, lookupFxRate, manualPriceForDate, nearestPriceForDate, PRICEABLE_TYPES } from '@networth/utils'
 import type { SeriesPoint, PriceHistory, RawTransaction, FxRates } from '@networth/utils'
 import type { Period } from '@/components/ui/area-chart'
 
@@ -390,14 +390,18 @@ export function usePortfolioHistory(
       const qty = quantityPerAsset[h.id] ?? 0
       if (qty <= 0) continue
       const sym = h.symbol?.toUpperCase()
-      if (sym && PRICEABLE_TYPES.has(h.asset_type)) {
+      const avgCost = avgCostPerAsset[h.id] ?? 0
+      const manualPrice = manualPriceForDate(h, previousDate, avgCost, firstTxDate[h.id])
+      if (manualPrice != null) {
+        const fx = lookupFxRate(fxRates, h.currency, displayCurrency, today) ?? 1
+        total += qty * manualPrice * fx
+      } else if (sym && PRICEABLE_TYPES.has(h.asset_type)) {
         const hist = daily[sym]
         const prevPrice = hist ? [...hist].filter((p) => p.date < today).slice(-1)[0]?.price : undefined
         if (prevPrice == null) {
           // No daily history — fall back to avg cost basis, same as computeSeries does for
           // assets without price history. Without this fallback, assets with no 1w data
           // contribute $0 to prevDayValue but their full live value to totalValue, inflating "Today".
-          const avgCost = avgCostPerAsset[h.id]
           if (avgCost != null && avgCost > 0) {
             const fx = lookupFxRate(fxRates, h.currency, displayCurrency, today) ?? 1
             total += qty * avgCost * fx
@@ -408,26 +412,8 @@ export function usePortfolioHistory(
         const fx = lookupFxRate(fxRates, priceCcy, displayCurrency, today) ?? 1
         total += qty * prevPrice * fx
       } else {
-        const avgCost = avgCostPerAsset[h.id] ?? 0
-        let price = avgCost
-
-        if (h.manual_price != null) {
-          if (h.manual_price_date == null || previousDate >= h.manual_price_date) {
-            price = h.manual_price
-          } else {
-            const startDate = firstTxDate[h.id]
-            if (startDate && startDate < h.manual_price_date) {
-              const startMs = new Date(startDate + 'T12:00:00Z').getTime()
-              const manualMs = new Date(h.manual_price_date + 'T12:00:00Z').getTime()
-              const previousMs = new Date(previousDate + 'T12:00:00Z').getTime()
-              const t = Math.max(0, Math.min(1, (previousMs - startMs) / (manualMs - startMs)))
-              price = avgCost + (h.manual_price - avgCost) * t
-            }
-          }
-        }
-
         const fx = lookupFxRate(fxRates, h.currency, displayCurrency, today) ?? 1
-        total += qty * price * fx
+        total += qty * avgCost * fx
       }
     }
     return total

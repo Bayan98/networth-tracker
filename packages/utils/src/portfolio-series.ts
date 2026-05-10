@@ -5,6 +5,7 @@
 
 import type { Asset } from '@networth/types'
 import { nearestPriceForDate } from './fx-utils'
+import { manualPriceForDate } from './valuation-utils'
 
 export const PRICEABLE_TYPES = new Set(['stock', 'etf', 'bond', 'mutual_fund', 'commodity', 'crypto'])
 
@@ -163,45 +164,24 @@ export function computeSeries(
       if (qty <= 0) continue
 
       const sym = h.symbol?.toUpperCase()
+      const avgCostPerUnit = assetCost / qty
+      const manualPrice = manualPriceForDate(h, dateStr, avgCostPerUnit, firstTxDate[h.id])
       const histPrice =
-        sym && PRICEABLE_TYPES.has(h.asset_type)
+        manualPrice === null && sym && PRICEABLE_TYPES.has(h.asset_type)
           ? nearestPriceForDate(priceHistory[sym], dateStr)
           : null
 
-      if (histPrice != null) {
+      if (manualPrice != null) {
+        marketValue += qty * manualPrice * getFx(assetCcy, display, dateStr)
+      } else if (histPrice != null) {
         // Price history is in the asset's quote currency (USD for US stocks, GBP for LSE, etc.)
         // fetch-price-history normalizes minor currency units (e.g. GBX→GBP) server-side.
         const priceCcy = (sym && priceCurrencies[sym]) ? priceCurrencies[sym].toUpperCase() : 'USD'
         marketValue += qty * histPrice * getFx(priceCcy, display, dateStr)
-      } else if (
-        h.manual_price != null &&
-        (h.manual_price_date == null || dateStr >= h.manual_price_date)
-      ) {
-        // At or after manual_price_date: use manual_price directly.
-        // manual_price is in asset.currency → convert to displayCurrency.
-        marketValue += qty * h.manual_price * getFx(assetCcy, display, dateStr)
-      } else if (h.manual_price != null && h.manual_price_date != null) {
-        // Before manual_price_date: linearly interpolate between avg cost per unit
-        // and manual_price so the chart rises smoothly rather than jumping at
-        // manual_price_date. Interpolation spans [first_tx_date, manual_price_date].
-        const avgCostPerUnit = assetCost / qty
-        const startDate = firstTxDate[h.id]
-        if (!startDate || startDate >= h.manual_price_date) {
-          // Edge: no tx date or tx after manual date — stay at avg cost
-          marketValue += qty * avgCostPerUnit * getFx(assetCcy, display, dateStr)
-        } else {
-          const startMs = new Date(startDate + 'T12:00:00Z').getTime()
-          const manualMs = new Date(h.manual_price_date + 'T12:00:00Z').getTime()
-          const dateMs = new Date(dateStr + 'T12:00:00Z').getTime()
-          const t = Math.max(0, Math.min(1, (dateMs - startMs) / (manualMs - startMs)))
-          const interpolatedPrice = avgCostPerUnit + (h.manual_price - avgCostPerUnit) * t
-          marketValue += qty * interpolatedPrice * getFx(assetCcy, display, dateStr)
-        }
       } else {
         // No live or manual price: use the running average cost of held units.
         // This makes marketValue = costBasis for non-priceable assets (the two lines overlap).
-        const runningAvgCost = assetCost / qty  // qty > 0 is guaranteed by the check above
-        marketValue += qty * runningAvgCost * getFx(assetCcy, display, dateStr)
+        marketValue += qty * avgCostPerUnit * getFx(assetCcy, display, dateStr)
       }
     }
 

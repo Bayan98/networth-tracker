@@ -58,20 +58,6 @@ export const INCOME_FREQUENCY_LABELS: Record<string, string> = {
   annually: 'Annually',
 }
 
-export function resolveAssetPrice(
-  asset: { symbol: string | null; manual_price: number | null },
-  prices: Record<string, number>,
-): { price: number; source: 'live' | 'manual' | 'cost_basis' } {
-  if (asset.symbol) {
-    const live = prices[asset.symbol.toUpperCase()]
-    if (live != null) return { price: live, source: 'live' }
-  }
-  if (asset.manual_price != null) {
-    return { price: asset.manual_price, source: 'manual' }
-  }
-  return { price: 0, source: 'cost_basis' }
-}
-
 export const POPULAR_CURRENCIES = ['USD', 'EUR', 'KZT', 'RUB', 'GBP', 'CNY']
 
 export const TRANSACTION_TYPE_LABELS: Record<string, string> = {

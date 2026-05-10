@@ -167,10 +167,10 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
       case 'alpha':      return a.asset.asset_name.localeCompare(b.asset.asset_name)
       case 'value-desc': return (b.value ?? 0) - (a.value ?? 0)
       case 'value-asc':  return (a.value ?? 0) - (b.value ?? 0)
-      case 'abs-gain':   return (b.changeAbs ?? 0) - (a.changeAbs ?? 0)
-      case 'abs-loss':   return (a.changeAbs ?? 0) - (b.changeAbs ?? 0)
-      case 'rel-gain':   return (b.changePct ?? 0) - (a.changePct ?? 0)
-      case 'rel-loss':   return (a.changePct ?? 0) - (b.changePct ?? 0)
+      case 'abs-gain':   return (b.priceReturnAbs ?? 0) - (a.priceReturnAbs ?? 0)
+      case 'abs-loss':   return (a.priceReturnAbs ?? 0) - (b.priceReturnAbs ?? 0)
+      case 'rel-gain':   return (b.priceReturnPct ?? 0) - (a.priceReturnPct ?? 0)
+      case 'rel-loss':   return (a.priceReturnPct ?? 0) - (b.priceReturnPct ?? 0)
     }
   })
 
@@ -357,9 +357,9 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
               </tr>
             </thead>
             <tbody>
-              {sorted.map(({ asset, qty, price, priceCcy, value, changeAbs, changePct }) => {
+              {sorted.map(({ asset, qty, price, priceCcy, value, priceReturnAbs, priceReturnPct }) => {
                 const portfolio = asset.portfolio_id ? portfolioMap[asset.portfolio_id] : null
-                const isPositive = changeAbs !== null && changeAbs >= 0
+                const isPositive = priceReturnAbs !== null && priceReturnAbs >= 0
                 const share = totalValue && value !== null ? (value / totalValue) * 100 : null
                 return (
                   <tr
@@ -402,9 +402,9 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
                       )}
                     </td>
                     <td className="num">
-                      {!hideAmounts && changeAbs !== null && changePct !== null ? (
+                      {!hideAmounts && priceReturnAbs !== null && priceReturnPct !== null ? (
                         <span className={`delta-pill ${isPositive ? 'pos' : 'neg'}`}>
-                          {formatPercent(changePct)}
+                          {formatPercent(priceReturnPct)}
                         </span>
                       ) : ''}
                     </td>

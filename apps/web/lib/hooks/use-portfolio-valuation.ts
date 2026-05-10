@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { Asset } from '@networth/types'
-import { PRICEABLE_TYPES, resolveAssetPrice, safePercentChange } from '@networth/utils'
+import { calculateHoldingValuation, PRICEABLE_TYPES, safePercentChange } from '@networth/utils'
 import type { SeriesPoint } from '@networth/utils'
 import type { Period } from '@/components/ui/area-chart'
 import { usePortfolioHistory } from './use-portfolio-history'
@@ -10,16 +10,17 @@ import { usePrices } from './use-prices'
 
 export interface AssetValuation {
   asset: Asset
-  source: 'live' | 'manual' | 'cost_basis'
+  source: 'manual' | 'live' | 'cost_basis'
   qty: number
   avgCost: number
   price: number
   priceCcy: string
   value: number | null
   costBasis: number | null
-  startValue: number | null
-  changeAbs: number | null
-  changePct: number | null
+  periodStartPrice: number | null
+  periodStartValue: number | null
+  priceReturnAbs: number | null
+  priceReturnPct: number | null
 }
 
 interface Options {
@@ -50,7 +51,6 @@ export function usePortfolioValuation(
   const history = usePortfolioHistory(assets, period, displayCurrency)
 
   const valuations = useMemo<AssetValuation[]>(() => assets.map((asset) => {
-    const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
     const overrideQty = quantityOverrides?.[asset.id]
     const hookQty = history.quantityPerAsset[asset.id]
     const qty = overrideQty !== undefined
@@ -59,22 +59,30 @@ export function usePortfolioValuation(
       ? hookQty
       : missingQuantityFallback
     const avgCost = history.avgCostPerAsset[asset.id] ?? 0
-    const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
-    const price = source === 'cost_basis' ? avgCost : rawPrice
-    const fxToday = history.todayFx(priceCcy)
-    const fxAsset = history.todayFx(asset.currency)
-    const value: number | null = fxToday !== null && price > 0 ? qty * price * fxToday : null
-    const costBasis: number | null = fxAsset !== null ? qty * avgCost * fxAsset : null
-    const startPrice = source === 'live' ? (history.startPricePerAsset[asset.id] ?? null) : null
-    const startValue: number | null = startPrice !== null && fxToday !== null
-      ? qty * startPrice * fxToday
-      : null
-    const changeAbs: number | null = source === 'live' && value !== null && startValue !== null
-      ? value - startValue
-      : null
-    const changePct = safePercentChange(changeAbs, startValue)
+    const valuation = calculateHoldingValuation({
+      asset,
+      prices,
+      priceCurrencies: currencies,
+      quantity: qty,
+      averageCost: avgCost,
+      periodStartPrice: history.startPricePerAsset[asset.id] ?? null,
+      todayFx: history.todayFx,
+    })
 
-    return { asset, source, qty, avgCost, price, priceCcy, value, costBasis, startValue, changeAbs, changePct }
+    return {
+      asset,
+      source: valuation.source,
+      qty: valuation.quantity,
+      avgCost: valuation.averageCost,
+      price: valuation.currentPrice,
+      priceCcy: valuation.currentPriceCurrency,
+      value: valuation.currentValue,
+      costBasis: valuation.costBasis,
+      periodStartPrice: valuation.periodStartPrice,
+      periodStartValue: valuation.periodStartValue,
+      priceReturnAbs: valuation.priceReturnAbs,
+      priceReturnPct: valuation.priceReturnPct,
+    }
   }), [
     assets,
     prices,

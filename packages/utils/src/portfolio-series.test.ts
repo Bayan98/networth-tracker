@@ -445,3 +445,42 @@ describe('Stock splits', () => {
     expect(series[2].marketValue).toBeCloseTo(120 * 196.5, 2)
   })
 })
+
+describe('Manual price priority', () => {
+  it('uses manual price instead of live history when both are present', () => {
+    const asset = makeAsset({
+      id: 'h-manual',
+      symbol: 'AAPL',
+      asset_type: 'stock',
+      currency: 'USD',
+      manual_price: 180,
+      manual_price_date: '2024-01-02',
+    })
+    const tx = makeTx({
+      asset_id: 'h-manual',
+      quantity: 10,
+      price: 100,
+      currency: 'USD',
+      executed_at: '2024-01-01',
+      transaction_type: 'buy',
+    })
+    const priceHistory: PriceHistory = {
+      AAPL: [
+        { date: '2024-01-01', price: 120 },
+        { date: '2024-01-02', price: 150 },
+      ],
+    }
+
+    const series = computeSeries(
+      ['2024-01-01', '2024-01-02'],
+      [tx],
+      [asset],
+      priceHistory,
+      {},
+      'USD',
+    )
+
+    expect(series[0].marketValue).toBeCloseTo(1000, 2)
+    expect(series[1].marketValue).toBeCloseTo(1800, 2)
+  })
+})

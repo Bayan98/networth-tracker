@@ -4,7 +4,6 @@ import {
   formatPercent,
   formatNumber,
   formatCompact,
-  resolveAssetPrice,
   ASSET_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
   INCOME_FREQUENCY_LABELS,
@@ -96,47 +95,6 @@ describe('formatCompact', () => {
 
   it('uses USD by default', () => {
     expect(formatCompact(10_000)).toBe('$10K')
-  })
-})
-
-describe('resolveAssetPrice', () => {
-  const base = { symbol: 'AAPL', manual_price: null }
-
-  it('returns live price when symbol matches prices map', () => {
-    const result = resolveAssetPrice(base, { AAPL: 175 })
-    expect(result).toEqual({ price: 175, source: 'live' })
-  })
-
-  it('is case-insensitive for symbol lookup', () => {
-    const result = resolveAssetPrice({ ...base, symbol: 'aapl' }, { AAPL: 175 })
-    expect(result).toEqual({ price: 175, source: 'live' })
-  })
-
-  it('falls back to manual_price when no live price', () => {
-    const result = resolveAssetPrice({ ...base, manual_price: 150 }, {})
-    expect(result).toEqual({ price: 150, source: 'manual' })
-  })
-
-  it('returns 0 as cost_basis when no live or manual price', () => {
-    const result = resolveAssetPrice(base, {})
-    expect(result).toEqual({ price: 0, source: 'cost_basis' })
-  })
-
-  it('prefers live price over manual_price', () => {
-    const result = resolveAssetPrice({ ...base, manual_price: 150 }, { AAPL: 175 })
-    expect(result).toEqual({ price: 175, source: 'live' })
-  })
-
-  it('falls back to manual_price when symbol is null', () => {
-    const asset = { symbol: null, manual_price: 120 }
-    const result = resolveAssetPrice(asset, { AAPL: 175 })
-    expect(result).toEqual({ price: 120, source: 'manual' })
-  })
-
-  it('returns 0 as cost_basis when symbol is null and no manual_price', () => {
-    const asset = { symbol: null, manual_price: null }
-    const result = resolveAssetPrice(asset, {})
-    expect(result).toEqual({ price: 0, source: 'cost_basis' })
   })
 })
 
