@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react'
-import { ASSET_TYPE_LABELS, formatCurrency, formatPercent } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { ASSET_TYPE_LABELS, formatPercent } from '@networth/utils'
 import type { Asset, Portfolio, Transaction } from '@networth/types'
 import type { AssetInfo } from '@/lib/hooks/use-asset-info'
 import { fmtDate } from './asset-detail-utils'
@@ -16,7 +17,6 @@ interface Props {
   source: string
   portfolio: Portfolio | undefined
   loading: boolean
-  hideAmounts: boolean
   firstTx: Transaction | null
   lastTx: Transaction | null
   assetInfo: AssetInfo | null
@@ -24,8 +24,10 @@ interface Props {
 
 export function AssetOverviewTab({
   asset, price, avgCostBasis, costBasis, marketValue, unrealized, unrealizedPct,
-  quantity, source, portfolio, loading, hideAmounts, firstTx, lastTx, assetInfo,
+  quantity, source, portfolio, loading, firstTx, lastTx, assetInfo,
 }: Props) {
+  const { displayPrice, displayQuantity } = useAmountDisplay()
+
   const priceUrl = source === 'live' && asset.symbol ? (() => {
     if (asset.asset_type === 'crypto') return `https://finance.yahoo.com/quote/${asset.symbol}-USD/`
     const colonIdx = asset.symbol.indexOf(':')
@@ -50,7 +52,7 @@ export function AssetOverviewTab({
         <div className="empty-label" style={{ marginBottom: 12 }}>Market</div>
         <div>
           <StatRow k="Symbol" v={asset.symbol ?? '—'} />
-          <StatRow k="Price" v={hideAmounts ? '•••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—'} />
+          <StatRow k="Price" v={displayPrice(price, asset.currency, { loading })} />
           {source === 'live' && priceUrl ? (
             <div className="stat-row">
               <span className="stat-key">Source</span>
@@ -67,7 +69,7 @@ export function AssetOverviewTab({
           {assetInfo?.sector && <StatRow k="Sector" v={assetInfo.sector} />}
           {assetInfo?.country && <StatRow k="Country" v={assetInfo.country} />}
           {assetInfo?.pe != null && <StatRow k="P/E" v={assetInfo.pe.toFixed(1) + 'x'} />}
-          {assetInfo?.eps != null && <StatRow k="EPS" v={formatCurrency(assetInfo.eps, asset.currency)} />}
+          {assetInfo?.eps != null && <StatRow k="EPS" v={displayPrice(assetInfo.eps, asset.currency)} />}
           {assetInfo?.beta != null && <StatRow k="Beta" v={assetInfo.beta.toFixed(2)} />}
           {assetInfo?.dividend && <StatRow k="Dividend" v={assetInfo.dividend} />}
           {assetInfo?.analystRating && (
@@ -88,16 +90,16 @@ export function AssetOverviewTab({
       <div>
         <div className="empty-label" style={{ marginBottom: 12 }}>Position</div>
         <div>
-          <StatRow k="Quantity" v={hideAmounts ? '••••' : loading ? '…' : quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })} />
-          <StatRow k="Avg cost" v={hideAmounts ? '•••' : loading ? '…' : avgCostBasis > 0 ? formatCurrency(avgCostBasis, asset.currency) : '—'} />
-          <StatRow k="Total cost" v={hideAmounts ? '••••••' : loading ? '…' : costBasis > 0 ? formatCurrency(costBasis, asset.currency) : '—'} />
-          <StatRow k="Market value" v={hideAmounts ? '••••••' : loading ? '…' : marketValue !== null ? formatCurrency(marketValue, asset.currency) : '—'} />
+          <StatRow k="Quantity" v={displayQuantity(quantity, { loading })} />
+          <StatRow k="Avg cost" v={displayPrice(avgCostBasis > 0 ? avgCostBasis : null, asset.currency, { loading })} />
+          <StatRow k="Total cost" v={displayPrice(costBasis > 0 ? costBasis : null, asset.currency, { loading, maskLength: 6 })} />
+          <StatRow k="Market value" v={displayPrice(marketValue, asset.currency, { loading, maskLength: 6 })} />
           <StatRow
             k="Unrealized"
-            v={hideAmounts ? '•••' : loading ? '…' : unrealized !== null ? (unrealized >= 0 ? '+' : '') + formatCurrency(unrealized, asset.currency) : '—'}
+            v={displayPrice(unrealized, asset.currency, { loading, withSign: true })}
             color={unrealized !== null ? (unrealized >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined}
           />
-          <StatRow k="Return %" v={hideAmounts ? '•••' : loading ? '…' : unrealizedPct !== null ? formatPercent(unrealizedPct) : '—'}
+          <StatRow k="Return %" v={loading ? '…' : unrealizedPct !== null ? formatPercent(unrealizedPct) : '—'}
             color={unrealizedPct !== null ? (unrealizedPct >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined}
           />
           <StatRow k="First bought" v={firstTx ? fmtDate(firstTx.executed_at) : '—'} />

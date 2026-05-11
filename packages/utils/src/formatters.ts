@@ -35,6 +35,91 @@ export function formatCompact(amount: number, currency: string = 'USD'): string 
   }).format(amount)
 }
 
+export function currencySymbol(currency: string = 'USD'): string {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).formatToParts(0).find((part) => part.type === 'currency')?.value ?? currency
+  } catch {
+    return currency
+  }
+}
+
+export function displayHiddenPrice(currencyOrLength: string | number = 'USD', length = 5): string {
+  const currency = typeof currencyOrLength === 'number' ? 'USD' : currencyOrLength
+  const rawLength = typeof currencyOrLength === 'number' ? currencyOrLength : length
+  const safeLength = Number.isFinite(rawLength) ? Math.max(1, Math.floor(rawLength)) : 5
+  return currencySymbol(currency).repeat(safeLength)
+}
+
+export function displayPrice(
+  amount: number | null | undefined,
+  currency: string = 'USD',
+  options: Intl.NumberFormatOptions & {
+    compact?: boolean
+    empty?: string
+    hideAmounts?: boolean
+    loading?: boolean
+    loadingText?: string
+    maskLength?: number
+    withSign?: boolean
+  } = {},
+): string {
+  const {
+    compact = false,
+    empty = '—',
+    hideAmounts = false,
+    loading = false,
+    loadingText = '…',
+    maskLength,
+    withSign = false,
+    ...intlOptions
+  } = options
+
+  if (loading) return loadingText
+  if (hideAmounts) return displayHiddenPrice(currency, maskLength)
+  if (amount == null) return empty
+
+  const value = withSign ? Math.abs(amount) : amount
+  const formatted = compact
+    ? formatCompact(value, currency)
+    : formatCurrency(value, currency, intlOptions)
+
+  return withSign && amount >= 0 ? `+${formatted}` : withSign ? `-${formatted}` : formatted
+}
+
+export function displayQuantity(
+  quantity: number | null | undefined,
+  options: Intl.NumberFormatOptions & {
+    empty?: string
+    hideAmounts?: boolean
+    loading?: boolean
+    loadingText?: string
+  } = {},
+): string {
+  const {
+    empty = '—',
+    hideAmounts = false,
+    loading = false,
+    loadingText = '…',
+    maximumFractionDigits = 6,
+    ...intlOptions
+  } = options
+
+  if (loading) return loadingText
+  if (hideAmounts) return 'X'
+  if (quantity == null) return empty
+
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits,
+    ...intlOptions,
+  }).format(quantity)
+}
+
 export const ASSET_TYPE_LABELS: Record<string, string> = {
   stock: 'Stock',
   bond: 'Bond',

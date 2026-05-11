@@ -2,8 +2,8 @@
 
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
-import { formatCurrency, formatPercent, resolveAssetPrice } from '@networth/utils'
-import { useAppStore } from '@/lib/store'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { formatPercent, resolveAssetPrice } from '@networth/utils'
 import type { Asset, Transaction } from '@networth/types'
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function AssetMarketStats({ asset, transactions }: Props) {
-  const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const { displayPrice, displayQuantity } = useAmountDisplay()
 
   const priceItems =
     asset.symbol
@@ -42,37 +42,31 @@ export function AssetMarketStats({ asset, transactions }: Props) {
   const stats = [
     {
       label: 'Quantity',
-      value: hideAmounts ? '••••' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(quantity),
+      value: displayQuantity(quantity),
     },
     {
       label: 'Avg Buy Price',
-      value: hideAmounts ? '••••' : loading ? '…' : formatCurrency(avgCostBasis, asset.currency),
+      value: displayPrice(avgCostBasis, asset.currency, { loading }),
     },
     {
       label: 'Market Value / unit',
-      value: hideAmounts ? '••••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—',
+      value: displayPrice(price, asset.currency, { loading }),
       sub: source === 'live' ? 'live' : source === 'manual' ? 'manual price' : 'avg cost basis',
     },
     {
       label: 'Market Value total',
-      value: hideAmounts ? '••••••' : loading ? '…' : marketValueTotal !== null ? formatCurrency(marketValueTotal, asset.currency) : '—',
+      value: displayPrice(marketValueTotal, asset.currency, { loading, maskLength: 6 }),
     },
     {
       label: 'Change / unit',
-      value: hideAmounts
-        ? '••••'
-        : hasLiveData && changeAbs !== null
-          ? formatCurrency(changeAbs, asset.currency)
-          : '—',
+      value: hasLiveData && changeAbs !== null
+        ? displayPrice(changeAbs, asset.currency)
+        : '—',
       color: changeColor,
     },
     {
       label: 'Change %',
-      value: hideAmounts
-        ? '••••'
-        : hasLiveData && changePct !== null
-          ? formatPercent(changePct)
-          : '—',
+      value: hasLiveData && changePct !== null ? formatPercent(changePct) : '—',
       color: changeColor,
     },
   ]

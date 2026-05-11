@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, ASSET_TYPE_LABELS } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { PortfolioAreaChart } from '@/components/charts/portfolio-area-chart'
 import { AllocationCard } from '@/components/ui/allocation-card'
@@ -26,9 +27,7 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => setIsMounted(true), [])
 
-  const _hideAmounts = useAppStore((s) => s.hideAmounts)
   const _selectedCurrency = useAppStore((s) => s.selectedCurrency)
-  const hideAmounts = isMounted ? _hideAmounts : false
   const selectedCurrency = isMounted ? _selectedCurrency : currency
 
   const [period, setPeriod] = useState<Period>('1y')
@@ -53,30 +52,29 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
         period={period}
         onPeriodChange={setPeriod}
         totalValue={totalValue}
-        hideAmounts={hideAmounts}
         height={420}
       />
 
       <div className="three-col">
-        <AllocationCard defaultType="category" enriched={enriched} portfolios={portfolios} hideAmounts={hideAmounts} selectedCurrency={selectedCurrency} />
-        <AllocationCard defaultType="portfolio" enriched={enriched} portfolios={portfolios} hideAmounts={hideAmounts} selectedCurrency={selectedCurrency} />
-        <AllocationCard defaultType="currency" enriched={enriched} portfolios={portfolios} hideAmounts={hideAmounts} selectedCurrency={selectedCurrency} />
+        <AllocationCard defaultType="category" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
+        <AllocationCard defaultType="portfolio" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
+        <AllocationCard defaultType="currency" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
       </div>
 
       <div className="bottom-row">
-        <TopPositions enriched={enriched} hideAmounts={hideAmounts} selectedCurrency={selectedCurrency} onAssetClick={(id) => router.push(`/assets/${id}`)} />
-        <AllocationCard defaultType="assets" enriched={enriched} portfolios={portfolios} hideAmounts={hideAmounts} selectedCurrency={selectedCurrency} />
+        <TopPositions enriched={enriched} selectedCurrency={selectedCurrency} onAssetClick={(id) => router.push(`/assets/${id}`)} />
+        <AllocationCard defaultType="assets" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
       </div>
     </div>
   )
 }
 
-function TopPositions({ enriched, hideAmounts, selectedCurrency, onAssetClick }: {
+function TopPositions({ enriched, selectedCurrency, onAssetClick }: {
   enriched: Enriched[]
-  hideAmounts: boolean
   selectedCurrency: CurrencyCode
   onAssetClick: (id: string) => void
 }) {
+  const { displayPrice } = useAmountDisplay()
   const sorted = [...enriched]
     .filter((e) => e.value !== null)
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
@@ -118,7 +116,7 @@ function TopPositions({ enriched, hideAmounts, selectedCurrency, onAssetClick }:
               </div>
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-              {hideAmounts ? '•••' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}
+              {displayPrice(value, selectedCurrency)}
             </div>
           </div>
         ))}

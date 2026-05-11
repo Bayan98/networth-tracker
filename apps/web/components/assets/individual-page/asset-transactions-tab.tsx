@@ -1,18 +1,20 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { formatCurrency, TRANSACTION_TYPE_LABELS } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { Asset, Transaction } from '@networth/types'
 import { fmtDate, tdStyle, thStyle, TX_BG, TX_INK } from './asset-detail-utils'
 
 interface Props {
   transactions: Transaction[]
   asset: Asset
-  hideAmounts: boolean
   onEdit: (transaction: Transaction) => void
   onDelete: (id: string) => void
   onAdd: () => void
 }
 
-export function AssetTransactionsTab({ transactions, asset, hideAmounts, onEdit, onDelete, onAdd }: Props) {
+export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, onAdd }: Props) {
+  const { displayPrice, displayQuantity, hideAmounts } = useAmountDisplay()
+
   if (transactions.length === 0) {
     return (
       <div style={{ padding: '32px 0', textAlign: 'center' }}>
@@ -63,14 +65,14 @@ export function AssetTransactionsTab({ transactions, asset, hideAmounts, onEdit,
                 </td>
                 <td style={{ ...tdStyle, color: 'var(--ink-2)' }}>{transaction.notes ?? '—'}</td>
                 <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                  {Number(transaction.quantity).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                  {displayQuantity(Number(transaction.quantity))}
                 </td>
                 <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                  {formatCurrency(Number(transaction.price), transaction.currency)}
+                  {displayPrice(Number(transaction.price), transaction.currency)}
                   {isCrossRate && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--ink-faint)' }}>{transaction.currency}</span>}
                 </td>
                 <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: isCredit ? 'var(--neg)' : 'var(--ink)' }}>
-                  {hideAmounts ? '•••' : (isCredit ? '-' : '') + formatCurrency(Math.abs(total), transaction.currency)}
+                  {hideAmounts ? displayPrice(total, transaction.currency) : (isCredit ? '-' : '') + displayPrice(Math.abs(total), transaction.currency)}
                 </td>
                 <td style={{ ...tdStyle, width: 60, textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>

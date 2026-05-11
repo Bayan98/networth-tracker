@@ -6,9 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
 import { useAssetInfo } from '@/lib/hooks/use-asset-info'
-import { useAppStore } from '@/lib/store'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { getAssetsViewState, normalizeAssetsPath } from '@/lib/assets-view-state'
-import { formatCurrency, formatPercent, resolveAssetPrice } from '@networth/utils'
+import { formatPercent, resolveAssetPrice } from '@networth/utils'
 import type { Asset, Portfolio, Transaction, ScheduledEvent } from '@networth/types'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
@@ -36,7 +36,7 @@ interface Props {
 
 export function AssetDetailClient({ asset, transactions, scheduledEvents, portfolios, userId }: Props) {
   const router = useRouter()
-  const hideAmounts = useAppStore((state) => state.hideAmounts)
+  const { displayPrice, displayQuantity } = useAmountDisplay()
   const [tab, setTab] = useState<Tab>('Overview')
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
@@ -155,7 +155,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               Market price · {asset.currency}
             </div>
             <div className="hero-big">
-              {hideAmounts ? '••••••' : loading ? '…' : price !== null ? formatCurrency(price, asset.currency) : '—'}
+              {displayPrice(price, asset.currency, { loading, maskLength: 6 })}
             </div>
             <span className="hero-delta neutral">
               {source === 'live' ? 'Today' : source === 'manual' ? 'manual' : 'est. from cost basis'}
@@ -167,12 +167,12 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               Your position
             </div>
             <div className="hero-big">
-              {hideAmounts ? '••••••' : loading ? '…' : marketValue !== null ? formatCurrency(marketValue, asset.currency) : '—'}
+              {displayPrice(marketValue, asset.currency, { loading, maskLength: 6 })}
             </div>
             {unrealized !== null && unrealizedPct !== null ? (
               <span className={`hero-delta ${unrealized < 0 ? 'neg' : ''}`}>
                 {unrealized >= 0 ? '↑' : '↓'}
-                {hideAmounts ? ' •••' : ` ${formatCurrency(Math.abs(unrealized), asset.currency)} · ${formatPercent(Math.abs(unrealizedPct))}`}
+                {` ${displayPrice(Math.abs(unrealized), asset.currency)} · ${formatPercent(Math.abs(unrealizedPct))}`}
               </span>
             ) : (
               <span className="hero-delta neutral">no cost basis yet</span>
@@ -184,27 +184,25 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
           <div>
             <div className="hero-stat-k">Quantity</div>
             <div className="hero-stat-v">
-              {hideAmounts ? '••••' : loading ? '…' : quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+              {displayQuantity(quantity, { loading })}
             </div>
           </div>
           <div>
             <div className="hero-stat-k">Avg buy price</div>
             <div className="hero-stat-v">
-              {hideAmounts ? '•••' : loading ? '…' : avgCostBasis > 0 ? formatCurrency(avgCostBasis, asset.currency) : '—'}
+              {displayPrice(avgCostBasis > 0 ? avgCostBasis : null, asset.currency, { loading })}
             </div>
           </div>
           <div>
             <div className="hero-stat-k">Cost basis</div>
             <div className="hero-stat-v">
-              {hideAmounts ? '••••••' : loading ? '…' : costBasis > 0 ? formatCurrency(costBasis, asset.currency) : '—'}
+              {displayPrice(costBasis > 0 ? costBasis : null, asset.currency, { loading, maskLength: 6 })}
             </div>
           </div>
           <div>
             <div className="hero-stat-k">Unrealized</div>
             <div className="hero-stat-v" style={{ color: unrealized !== null ? (unrealized >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined }}>
-              {hideAmounts ? '•••' : loading ? '…' : unrealized !== null
-                ? (unrealized >= 0 ? '+' : '') + formatCurrency(unrealized, asset.currency)
-                : '—'}
+              {displayPrice(unrealized, asset.currency, { loading, withSign: true })}
             </div>
           </div>
         </div>
@@ -239,7 +237,6 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               source={source}
               portfolio={portfolio}
               loading={loading}
-              hideAmounts={hideAmounts}
               firstTx={firstTx}
               lastTx={lastTx}
               assetInfo={assetInfo}
@@ -252,7 +249,6 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
             <AssetTransactionsTab
               transactions={transactions}
               asset={asset}
-              hideAmounts={hideAmounts}
               onEdit={setEditingTx}
               onDelete={handleDeleteTx}
               onAdd={() => setShowAddTx(true)}
@@ -264,7 +260,6 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               onEdit={setEditingEvent}
               onDelete={handleDeleteEvent}
               onAdd={() => setShowAddEvent(true)}
-              hideAmounts={hideAmounts}
             />
           )}
           {tab === 'News' && assetInfo?.news && (

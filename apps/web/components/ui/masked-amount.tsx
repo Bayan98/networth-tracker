@@ -1,7 +1,6 @@
 'use client'
 
-import { useAppStore } from '@/lib/store'
-import { formatCurrency, formatCompact } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import type { CurrencyCode } from '@networth/types'
 
 interface MaskedAmountProps {
@@ -12,15 +11,7 @@ interface MaskedAmountProps {
 }
 
 export function MaskedAmount({ amount, currency = 'USD', compact = false, className }: MaskedAmountProps) {
-  const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const { displayPrice } = useAmountDisplay()
 
-  if (hideAmounts) {
-    return <span className={className}>••••••</span>
-  }
-
-  const formatted = compact
-    ? formatCompact(amount, currency)
-    : formatCurrency(amount, currency)
-
-  return <span className={className}>{formatted}</span>
+  return <span className={className}>{displayPrice(amount, currency, { compact })}</span>
 }

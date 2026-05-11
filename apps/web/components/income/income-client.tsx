@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Pencil, Trash2, DollarSign } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, INCOME_FREQUENCY_LABELS } from '@networth/utils'
-import { useAppStore } from '@/lib/store'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { INCOME_FREQUENCY_LABELS } from '@networth/utils'
 import type { ScheduledEvent, CurrencyCode, IncomeFrequency } from '@networth/types'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
@@ -60,9 +60,14 @@ function MiniStat({ label, value, sub, trend }: {
 
 export function ScheduledEventsClient({ events, userId, currency }: Props) {
   const router = useRouter()
-  const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const { displayPrice } = useAmountDisplay()
   const [showAdd, setShowAdd] = useState(false)
   const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null)
+
+  function formatEventAmount(event: ScheduledEvent): string {
+    if (event.amount_type === 'percent') return `${Number(event.amount).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+    return displayPrice(Number(event.amount), event.currency)
+  }
 
   async function handleDelete(id: string) {
     const supabase = createClient()
@@ -83,7 +88,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
     ? nextEvent.next!.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : '—'
   const nextSub = nextEvent
-    ? `${nextEvent.event.name} · ${hideAmounts ? '•••' : formatCurrency(Number(nextEvent.event.amount), nextEvent.event.currency)}`
+    ? `${nextEvent.event.name} · ${formatEventAmount(nextEvent.event)}`
     : 'No upcoming events'
 
   return (
@@ -103,12 +108,12 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--density-gap)' }}>
         <MiniStat
           label="Monthly (recurring)"
-          value={hideAmounts ? '••••••' : formatCurrency(totalMonthly, currency)}
+          value={displayPrice(totalMonthly, currency, { maskLength: 6 })}
           sub={`${activeIncome.length} source${activeIncome.length !== 1 ? 's' : ''}`}
         />
         <MiniStat
           label="Annualized"
-          value={hideAmounts ? '••••••' : formatCurrency(totalAnnual, currency)}
+          value={displayPrice(totalAnnual, currency, { maskLength: 6 })}
           sub="Gross"
           trend="pos"
         />
@@ -168,7 +173,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
                     {INCOME_FREQUENCY_LABELS[ev.frequency]}
                   </td>
                   <td className="num" style={{ fontWeight: 600 }}>
-                    {hideAmounts ? '••••' : formatCurrency(Number(ev.amount), ev.currency)}
+                    {formatEventAmount(ev)}
                   </td>
                   <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {formatNextDate(ev)}

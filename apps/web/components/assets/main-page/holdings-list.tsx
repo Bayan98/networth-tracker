@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { formatCurrency, formatPercent, ASSET_TYPE_LABELS } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { formatPercent, ASSET_TYPE_LABELS } from '@networth/utils'
 import type { CurrencyCode } from '@networth/types'
 import type { AssetValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { AssetAvatar } from '@/components/ui/asset-avatar'
@@ -11,7 +12,6 @@ interface Props {
   portfolioMap: Record<string, string>
   totalValue: number | null
   selectedCurrency: CurrencyCode
-  hideAmounts: boolean
   loading: boolean
   onAssetClick: (assetId: string) => void
 }
@@ -22,11 +22,11 @@ export function HoldingsList({
   portfolioMap,
   totalValue,
   selectedCurrency,
-  hideAmounts,
   loading,
   onAssetClick,
 }: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('value-desc')
+  const { displayPrice, displayQuantity, hideAmounts } = useAmountDisplay()
   const sorted = useMemo(() => [...valuations].sort((a, b) => {
     switch (sortBy) {
       case 'alpha':      return a.asset.asset_name.localeCompare(b.asset.asset_name)
@@ -97,27 +97,27 @@ export function HoldingsList({
                     {portfolio ?? ''}
                   </td>
                   <td className="num" style={{ fontSize: 12 }}>
-                    {hideAmounts ? '••••' : loading ? '…' : (
+                    {loading ? '…' : (
                       <>
-                        {qty !== 1 && (
+                        {qty !== 1 && !hideAmounts && (
                           <span style={{ color: 'var(--ink-faint)', marginRight: 4 }}>
-                            {qty.toLocaleString('en-US', { maximumFractionDigits: 4 })}
+                            {displayQuantity(qty, { maximumFractionDigits: 4 })}
                             <span style={{ margin: '0 3px', opacity: 0.45 }}>|</span>
                           </span>
                         )}
-                        {formatCurrency(price, priceCcy)}
+                        {displayPrice(price, priceCcy)}
                       </>
                     )}
                   </td>
                   <td className="num">
-                    {!hideAmounts && priceReturnAbs !== null && priceReturnPct !== null ? (
+                    {priceReturnAbs !== null && priceReturnPct !== null ? (
                       <span className={`delta-pill ${isPositive ? 'pos' : 'neg'}`}>
                         {formatPercent(priceReturnPct)}
                       </span>
                     ) : ''}
                   </td>
                   <td className="num" style={{ fontWeight: 600 }}>
-                    {hideAmounts ? '••••••' : loading ? '—' : value !== null ? formatCurrency(value, selectedCurrency) : '—'}
+                    {displayPrice(value, selectedCurrency, { loading, loadingText: '—' })}
                   </td>
                   <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {share !== null ? `${share.toFixed(1)}%` : '—'}

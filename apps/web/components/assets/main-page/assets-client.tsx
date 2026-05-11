@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
-import { formatCurrency, formatPercent } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { formatPercent } from '@networth/utils'
 import type { Portfolio, Asset, CurrencyCode, AssetType } from '@networth/types'
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { getAssetsViewState, setAssetsViewState } from '@/lib/assets-view-state'
@@ -27,7 +28,7 @@ interface Props {
 
 export function AssetsClient({ portfolios, assets, currency, userId, initialPortfolioId, portfolioName }: Props) {
   const pathname = usePathname()
-  const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const { displayPrice } = useAmountDisplay()
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const setSelectedCurrency = useAppStore((s) => s.setSelectedCurrency)
 
@@ -143,14 +144,10 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
   }
 
   const fmt = (value: number | null, withSign = false, loading = baseLoading) => {
-    if (hideAmounts) return '••••••'
-    if (loading || value === null) return '—'
-    return withSign
-      ? `${value >= 0 ? '+' : ''}${formatCurrency(value, selectedCurrency)}`
-      : formatCurrency(value, selectedCurrency)
+    return displayPrice(value, selectedCurrency, { loading, loadingText: '—', withSign })
   }
   const fmtPct = (value: number | null, loading = baseLoading) => {
-    if (hideAmounts || loading || value === null) return '—'
+    if (loading || value === null) return '—'
     return formatPercent(value)
   }
 
@@ -207,7 +204,6 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
         portfolioMap={portfolioMap}
         totalValue={totalValue}
         selectedCurrency={selectedCurrency}
-        hideAmounts={hideAmounts}
         loading={baseLoading}
         onAssetClick={openAsset}
       />

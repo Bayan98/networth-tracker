@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { formatCurrency } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import type { Transaction } from '@networth/types'
 import { AddTransactionDialog } from './add-transaction-dialog'
 
@@ -22,6 +22,7 @@ const TX_TYPE_COLORS: Record<string, string> = {
 
 export function TransactionsClient({ transactions, userId }: Props) {
   const [showAdd, setShowAdd] = useState(false)
+  const { displayPrice, displayQuantity } = useAmountDisplay()
 
   return (
     <div className="space-y-4">
@@ -75,12 +76,14 @@ export function TransactionsClient({ transactions, userId }: Props) {
                         {tx.transaction_type.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">{Number(tx.quantity).toFixed(4)}</td>
+                    <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">
+                      {displayQuantity(Number(tx.quantity), { maximumFractionDigits: 4 })}
+                    </td>
                     <td className="hidden md:table-cell px-4 md:px-5 py-3 tabular-nums">
-                      {formatCurrency(Number(tx.price), tx.currency)}
+                      {displayPrice(Number(tx.price), tx.currency)}
                     </td>
                     <td className="px-4 md:px-5 py-3 font-medium tabular-nums">
-                      {formatCurrency(Number(tx.quantity) * Number(tx.price), tx.currency)}
+                      {displayPrice(Number(tx.quantity) * Number(tx.price), tx.currency)}
                     </td>
                   </tr>
                 ))}

@@ -4,6 +4,10 @@ import {
   formatPercent,
   formatNumber,
   formatCompact,
+  currencySymbol,
+  displayHiddenPrice,
+  displayPrice,
+  displayQuantity,
   ASSET_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
   INCOME_FREQUENCY_LABELS,
@@ -95,6 +99,69 @@ describe('formatCompact', () => {
 
   it('uses USD by default', () => {
     expect(formatCompact(10_000)).toBe('$10K')
+  })
+})
+
+describe('displayHiddenPrice', () => {
+  it('gets a narrow currency symbol', () => {
+    expect(currencySymbol('USD')).toBe('$')
+  })
+
+  it('uses a five-character mask by default', () => {
+    expect(displayHiddenPrice()).toBe('$$$$$')
+  })
+
+  it('supports custom mask lengths', () => {
+    expect(displayHiddenPrice('USD', 3)).toBe('$$$')
+  })
+
+  it('uses the requested currency symbol', () => {
+    expect(displayHiddenPrice('EUR', 3)).toBe('€€€')
+  })
+
+  it('keeps the mask non-empty', () => {
+    expect(displayHiddenPrice(0)).toBe('$')
+  })
+})
+
+describe('displayPrice', () => {
+  it('shows loading before masking', () => {
+    expect(displayPrice(100, 'USD', { hideAmounts: true, loading: true })).toBe('…')
+  })
+
+  it('masks hidden prices', () => {
+    expect(displayPrice(100, 'USD', { hideAmounts: true, maskLength: 4 })).toBe('$$$$')
+  })
+
+  it('masks hidden prices with the requested currency symbol', () => {
+    expect(displayPrice(100, 'EUR', { hideAmounts: true, maskLength: 4 })).toBe('€€€€')
+  })
+
+  it('formats visible prices', () => {
+    expect(displayPrice(1234.5, 'USD')).toBe('$1,234.50')
+  })
+
+  it('formats signed prices', () => {
+    expect(displayPrice(12, 'USD', { withSign: true })).toBe('+$12.00')
+    expect(displayPrice(-12, 'USD', { withSign: true })).toBe('-$12.00')
+  })
+
+  it('returns an empty placeholder for missing prices', () => {
+    expect(displayPrice(null, 'USD')).toBe('—')
+  })
+})
+
+describe('displayQuantity', () => {
+  it('shows loading before masking', () => {
+    expect(displayQuantity(10, { hideAmounts: true, loading: true })).toBe('…')
+  })
+
+  it('masks hidden quantities with X', () => {
+    expect(displayQuantity(10, { hideAmounts: true })).toBe('X')
+  })
+
+  it('formats visible quantities', () => {
+    expect(displayQuantity(1234.56789, { maximumFractionDigits: 2 })).toBe('1,234.57')
   })
 })
 

@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
-import { formatCurrency } from '@networth/utils'
 import type { Transaction, CurrencyCode } from '@networth/types'
 import { createClient } from '@/lib/supabase/client'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { AddTransactionDialog } from '@/components/transactions/add-transaction-dialog'
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
 
@@ -27,6 +27,7 @@ interface Props {
 
 export function AssetTransactionSection({ transactions, assetId, currency, userId }: Props) {
   const router = useRouter()
+  const { displayPrice, displayQuantity } = useAmountDisplay()
   const [showAdd, setShowAdd] = useState(false)
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
 
@@ -99,10 +100,10 @@ export function AssetTransactionSection({ transactions, assetId, currency, userI
                       </span>
                     </td>
                     <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">
-                      {Number(tx.quantity).toFixed(4)}
+                      {displayQuantity(Number(tx.quantity), { maximumFractionDigits: 4 })}
                     </td>
                     <td className="hidden sm:table-cell px-4 md:px-5 py-3 tabular-nums">
-                      {formatCurrency(Number(tx.price), tx.currency)}
+                      {displayPrice(Number(tx.price), tx.currency)}
                       {isCrossRate && (
                         <span className="ml-1.5 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                           ({tx.currency})
@@ -110,7 +111,7 @@ export function AssetTransactionSection({ transactions, assetId, currency, userI
                       )}
                     </td>
                     <td className="px-4 md:px-5 py-3 font-medium tabular-nums">
-                      {formatCurrency(total, tx.currency)}
+                      {displayPrice(total, tx.currency)}
                     </td>
                     <td className="px-2 md:px-3 py-3">
                       <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">

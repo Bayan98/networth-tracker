@@ -9,8 +9,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
-import { formatCurrency, formatCompact } from '@networth/utils'
 import type { CurrencyCode } from '@networth/types'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { CHART_TOOLTIP_STYLE, formatChartDate, type Period } from '@/components/charts/chart-utils'
 import type { SeriesPoint } from '@/lib/hooks/use-portfolio-history'
 
@@ -21,7 +21,6 @@ interface Props {
   period: Period
   onPeriodChange: (p: Period) => void
   totalValue?: number | null
-  hideAmounts?: boolean
   height?: number
 }
 
@@ -88,7 +87,8 @@ function splitMarketSeries(series: SeriesPoint[]): ChartPoint[] {
   return out
 }
 
-export function PortfolioAreaChart({ series, currency, loading, period, onPeriodChange, totalValue, hideAmounts, height = 320 }: Props) {
+export function PortfolioAreaChart({ series, currency, loading, period, onPeriodChange, totalValue, height = 320 }: Props) {
+  const { displayPrice } = useAmountDisplay()
   const isEmpty = !loading && series.length === 0
   const chartData = splitMarketSeries(series)
   const seriesMin = series.length > 0
@@ -121,13 +121,7 @@ export function PortfolioAreaChart({ series, currency, loading, period, onPeriod
                 lineHeight: 1,
                 color: 'var(--ink)',
               }}>
-                {hideAmounts
-                  ? '•••••'
-                  : loading
-                  ? '—'
-                  : totalValue !== null
-                  ? formatCurrency(totalValue, currency)
-                  : '—'}
+                {displayPrice(totalValue, currency, { loading, loadingText: '—' })}
               </div>
             </>
           ) : (
@@ -206,7 +200,7 @@ export function PortfolioAreaChart({ series, currency, loading, period, onPeriod
                 minTickGap={52}
               />
               <YAxis
-                tickFormatter={(v: number) => formatCompact(v, currency)}
+                tickFormatter={(v: number) => displayPrice(v, currency, { compact: true })}
                 tick={{ fontSize: 10, fill: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono, monospace)' }}
                 axisLine={false}
                 tickLine={false}
@@ -217,7 +211,7 @@ export function PortfolioAreaChart({ series, currency, loading, period, onPeriod
                 contentStyle={CHART_TOOLTIP_STYLE}
                 labelFormatter={(v: number) => formatChartDate(new Date(v).toISOString().slice(0, 10), period)}
                 formatter={(value: number, name: string) => [
-                  formatCurrency(value, currency),
+                  displayPrice(value, currency),
                   name === 'costBasis' ? 'Invested' : 'Market Value',
                 ]}
               />

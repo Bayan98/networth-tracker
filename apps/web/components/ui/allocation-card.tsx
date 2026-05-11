@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { formatCurrency, ASSET_TYPE_LABELS } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { Donut } from '@/components/ui/donut'
 import {
   ASSET_TYPE_COLOR,
@@ -139,7 +140,6 @@ interface AllocationCardProps {
   defaultType: AllocationType
   enriched: Enriched[]
   portfolios: Portfolio[]
-  hideAmounts: boolean
   selectedCurrency: CurrencyCode
 }
 
@@ -147,12 +147,12 @@ export function AllocationCard({
   defaultType,
   enriched,
   portfolios,
-  hideAmounts,
   selectedCurrency,
 }: AllocationCardProps) {
   const [allocType, setAllocType] = useState<AllocationType>(defaultType)
   const [excluded, setExcluded] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(false)
+  const { displayPrice } = useAmountDisplay()
 
   const items = useMemo(
     () => buildItems(enriched, portfolios, allocType),
@@ -264,7 +264,7 @@ export function AllocationCard({
       <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 16px' }}>
         <Donut
           segments={donutSegments}
-          formatValue={(v) => hideAmounts ? '•••' : formatCurrency(v, selectedCurrency)}
+          formatValue={(v) => displayPrice(v, selectedCurrency)}
         />
       </div>
 

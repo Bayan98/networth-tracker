@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
-import { useAppStore } from '@/lib/store'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { ScheduledEvent, CurrencyCode } from '@networth/types'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
@@ -19,9 +19,14 @@ interface Props {
 
 export function AssetScheduledEventsSection({ events, assetId, userId, currency }: Props) {
   const router = useRouter()
-  const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const { displayPrice } = useAmountDisplay()
   const [showAdd, setShowAdd] = useState(false)
   const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null)
+
+  function formatEventAmount(event: ScheduledEvent): string {
+    if (event.amount_type === 'percent') return `${Number(event.amount).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+    return displayPrice(Number(event.amount), event.currency)
+  }
 
   async function handleDelete(id: string) {
     const supabase = createClient()
@@ -79,9 +84,7 @@ export function AssetScheduledEventsSection({ events, assetId, userId, currency 
                     {TRANSACTION_TYPE_LABELS[ev.transaction_type] ?? ev.transaction_type}
                   </td>
                   <td className="px-4 md:px-5 py-3 tabular-nums">
-                    {hideAmounts
-                      ? '••••'
-                      : `${formatCurrency(Number(ev.amount), ev.currency)}${ev.amount_type === 'percent' ? '%' : ''}`}
+                    {formatEventAmount(ev)}
                   </td>
                   <td className="hidden sm:table-cell px-4 md:px-5 py-3" style={{ color: 'var(--color-muted-foreground)' }}>
                     {INCOME_FREQUENCY_LABELS[ev.frequency]}

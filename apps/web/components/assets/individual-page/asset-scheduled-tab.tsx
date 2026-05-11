@@ -1,5 +1,6 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { formatCurrency, INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { ScheduledEvent } from '@networth/types'
 
 interface Props {
@@ -7,10 +8,16 @@ interface Props {
   onEdit: (event: ScheduledEvent) => void
   onDelete: (id: string) => void
   onAdd: () => void
-  hideAmounts: boolean
 }
 
-export function AssetScheduledTab({ events, onEdit, onDelete, onAdd, hideAmounts }: Props) {
+export function AssetScheduledTab({ events, onEdit, onDelete, onAdd }: Props) {
+  const { displayPrice } = useAmountDisplay()
+
+  function formatEventAmount(event: ScheduledEvent): string {
+    if (event.amount_type === 'percent') return `${Number(event.amount).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+    return displayPrice(Number(event.amount), event.currency)
+  }
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
       {events.map((event) => (
@@ -41,8 +48,7 @@ export function AssetScheduledTab({ events, onEdit, onDelete, onAdd, hideAmounts
             </div>
           </div>
           <div className="num" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em' }}>
-            {hideAmounts ? '••••' : formatCurrency(Number(event.amount), event.currency)}
-            {event.amount_type === 'percent' && '%'}
+            {formatEventAmount(event)}
           </div>
         </div>
       ))}

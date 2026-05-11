@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, CreditCard, Home } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency } from '@networth/utils'
-import { useAppStore } from '@/lib/store'
+import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import type { Debt, CurrencyCode } from '@networth/types'
 import { AddDebtDialog } from './add-debt-dialog'
 import { EditDebtDialog } from './edit-debt-dialog'
@@ -40,7 +39,7 @@ function DebtIcon({ name }: { name: string }) {
 
 export function DebtsClient({ debts, userId, currency }: Props) {
   const router = useRouter()
-  const hideAmounts = useAppStore((s) => s.hideAmounts)
+  const { displayPrice } = useAmountDisplay()
   const [showAdd, setShowAdd] = useState(false)
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null)
 
@@ -79,13 +78,13 @@ export function DebtsClient({ debts, userId, currency }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--density-gap)' }}>
         <MiniStat
           label="Total owed"
-          value={hideAmounts ? '••••••' : formatCurrency(totalDebt, currency)}
+          value={displayPrice(totalDebt, currency, { maskLength: 6 })}
           sub={`${activeDebts.length} active loan${activeDebts.length !== 1 ? 's' : ''}`}
           trend="neg"
         />
         <MiniStat
           label="Monthly payment"
-          value={hideAmounts ? '•••' : formatCurrency(totalMinPayment, currency)}
+          value={displayPrice(totalMinPayment, currency)}
           sub={`${activeDebts.length} active loan${activeDebts.length !== 1 ? 's' : ''}`}
         />
         <MiniStat
@@ -161,10 +160,10 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                       {fmtAPR(Number(d.interest_rate))}
                     </td>
                     <td className="num" style={{ fontSize: 12 }}>
-                      {hideAmounts ? '••••' : formatCurrency(monthlyPayment, d.currency)}
+                      {displayPrice(monthlyPayment, d.currency)}
                     </td>
                     <td className="num" style={{ fontWeight: 600, color: 'var(--neg)' }}>
-                      {hideAmounts ? '•••' : formatCurrency(balance, d.currency)}
+                      {displayPrice(balance, d.currency)}
                     </td>
                     <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                       {typeof payoffYears === 'string' ? payoffYears : `${payoffYears}y`}
