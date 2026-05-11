@@ -9,6 +9,14 @@ export function formatSymbolForDisplay(sym: string): string {
   return exchange ? `${exchange}:${ticker}` : ticker
 }
 
+export function normalizeAssetSymbol(sym: string, assetType: string): string {
+  const formatted = formatSymbolForDisplay(sym.trim())
+  if (assetType !== 'crypto') return formatted
+
+  const ticker = getPrimaryTicker(formatted)
+  return ticker.replace(/[-/](USD|USDT|USDC|BUSD|EUR|GBP|BTC|ETH)$/, '')
+}
+
 export function isExchangePrefixed(sym: string): boolean {
   return sym.includes(':')
 }

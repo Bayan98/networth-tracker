@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { X, Sparkles, TrendingUp, Coins, Wallet, Home, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { AssetType, CurrencyCode, Portfolio } from '@networth/types'
+import { normalizeAssetSymbol } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 import { SymbolSearchInput } from './symbol-search-input'
@@ -76,7 +77,8 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   }, [symbol, assetType]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSymbolSelect(result: SymbolResult) {
-    const sym = result.exchange ? `${result.exchange}:${result.symbol}` : result.symbol.toUpperCase()
+    const rawSymbol = result.exchange ? `${result.exchange}:${result.symbol}` : result.symbol
+    const sym = normalizeAssetSymbol(rawSymbol, assetType ?? '')
     setSymbol(sym)
     setAutoFilled(false)
     setLookupStatus('loading')

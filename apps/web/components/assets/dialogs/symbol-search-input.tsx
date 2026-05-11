@@ -5,6 +5,7 @@ import { Loader2, AlertCircle } from 'lucide-react'
 import { useSymbolSearch, type SymbolResult } from '@/lib/hooks/use-symbol-search'
 import type { LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 import type { AssetType } from '@networth/types'
+import { normalizeAssetSymbol } from '@networth/utils'
 
 interface Props {
   value: string
@@ -42,6 +43,11 @@ export function SymbolSearchInput({ value, onChange, onSelect, lookupStatus, loo
   function handleBlur() {
     // Delay so mousedown on dropdown item fires first
     setTimeout(() => setOpen(false), 150)
+  }
+
+  function displaySymbol(result: SymbolResult) {
+    const rawSymbol = result.exchange ? `${result.exchange}:${result.symbol}` : result.symbol
+    return normalizeAssetSymbol(rawSymbol, assetType ?? '')
   }
 
   const showDropdown = open && results.length > 0
@@ -104,12 +110,12 @@ export function SymbolSearchInput({ value, onChange, onSelect, lookupStatus, loo
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none' }}
             >
               <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, fontSize: 12, minWidth: 72, color: 'var(--ink)', flexShrink: 0 }}>
-                {r.symbol}
+                {displaySymbol(r)}
               </span>
               <span style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.name}
               </span>
-              {r.exchange && (
+              {r.exchange && assetType !== 'crypto' && (
                 <span style={{ fontSize: 10, color: 'var(--ink-faint)', flexShrink: 0, background: 'var(--bg-2)', borderRadius: 4, padding: '2px 5px' }}>
                   {r.exchange}
                 </span>

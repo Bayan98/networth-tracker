@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { X, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { AssetType, CurrencyCode, Asset, Portfolio } from '@networth/types'
-import { ASSET_TYPE_LABELS } from '@networth/utils'
+import { ASSET_TYPE_LABELS, normalizeAssetSymbol } from '@networth/utils'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 import { SymbolSearchInput } from './symbol-search-input'
@@ -60,7 +60,8 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
   }, [symbol, assetType]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSymbolSelect(result: SymbolResult) {
-    const sym = result.exchange ? `${result.exchange}:${result.symbol}` : result.symbol.toUpperCase()
+    const rawSymbol = result.exchange ? `${result.exchange}:${result.symbol}` : result.symbol
+    const sym = normalizeAssetSymbol(rawSymbol, assetType)
     setSymbol(sym)
     setAutoFilled(false)
     setLookupStatus('loading')

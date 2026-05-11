@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { parseSymbol, formatSymbolForDisplay, isExchangePrefixed, getPrimaryTicker } from './symbol-utils'
+import {
+  parseSymbol,
+  formatSymbolForDisplay,
+  isExchangePrefixed,
+  getPrimaryTicker,
+  normalizeAssetSymbol,
+} from './symbol-utils'
 
 describe('parseSymbol', () => {
   it('parses plain symbol without exchange', () => {
@@ -54,6 +60,24 @@ describe('formatSymbolForDisplay', () => {
 
   it('normalizes lowercase to uppercase', () => {
     expect(formatSymbolForDisplay('lse:hsbk')).toBe('LSE:HSBK')
+  })
+})
+
+describe('normalizeAssetSymbol', () => {
+  it('keeps exchange prefixes for stocks', () => {
+    expect(normalizeAssetSymbol('kase:hsbk', 'stock')).toBe('KASE:HSBK')
+  })
+
+  it('removes crypto exchange prefixes', () => {
+    expect(normalizeAssetSymbol('CCC:BTC', 'crypto')).toBe('BTC')
+  })
+
+  it('removes crypto quote suffixes', () => {
+    expect(normalizeAssetSymbol('BTC-USD', 'crypto')).toBe('BTC')
+  })
+
+  it('removes crypto exchange prefixes and quote suffixes together', () => {
+    expect(normalizeAssetSymbol('CCC:BTC-USD', 'crypto')).toBe('BTC')
   })
 })
 
