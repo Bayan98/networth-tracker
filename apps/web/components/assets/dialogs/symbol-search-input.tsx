@@ -14,10 +14,11 @@ interface Props {
   lookupStatus: LookupStatus
   lookupLoading: boolean
   assetType?: AssetType
+  placeholder?: string
   inputRef?: React.RefObject<HTMLInputElement | null>
 }
 
-export function SymbolSearchInput({ value, onChange, onSelect, lookupStatus, lookupLoading, assetType, inputRef }: Props) {
+export function SymbolSearchInput({ value, onChange, onSelect, lookupStatus, lookupLoading, assetType, placeholder = 'e.g. AAPL, BTC, VOO, HSBK', inputRef }: Props) {
   const { results, loading: searchLoading, search, clear } = useSymbolSearch()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -58,7 +59,7 @@ export function SymbolSearchInput({ value, onChange, onSelect, lookupStatus, loo
         <input
           ref={inputRef}
           className="minput mono"
-          placeholder="e.g. AAPL, BTC, VOO, HSBK"
+          placeholder={placeholder}
           value={value}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => { if (results.length > 0) setOpen(true) }}

@@ -10,8 +10,8 @@ import { usePriceAtDate } from '@/lib/hooks/use-price-at-date'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { TransactionType, CurrencyCode, AssetType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
+import { getAssetTypeConfig } from '@/components/assets/asset-type-config'
 
-const TX_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'deposit', 'withdrawal', 'split']
 const PRICE_TYPES: TransactionType[] = ['buy', 'sell']
 
 interface Props {
@@ -26,9 +26,10 @@ interface Props {
 export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymbol, assetType, onClose }: Props) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
+  const assetConfig = getAssetTypeConfig(assetType)
 
-  const [txType, setTxType] = useState<TransactionType>('buy')
-  const [quantity, setQuantity] = useState('')
+  const [txType, setTxType] = useState<TransactionType>(assetConfig.transactions.defaultType)
+  const [quantity, setQuantity] = useState(assetConfig.transactions.showQuantity ? '' : '1')
   const [price, setPrice] = useState('')
   const [priceManual, setPriceManual] = useState(false)
   const [currency, setCurrency] = useState<CurrencyCode>(assetCurrency ?? 'USD')
@@ -54,6 +55,13 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
     }
   }, [autoPrice, autoPriceEnabled])
 
+  useEffect(() => {
+    if (!assetConfig.transactions.allowedTypes.includes(txType)) {
+      setTxType(assetConfig.transactions.defaultType)
+      setPriceManual(false)
+    }
+  }, [assetConfig, txType])
+
   useModalClose(onClose)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -66,7 +74,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
       user_id: userId,
       asset_id: assetId ?? null,
       transaction_type: txType,
-      quantity: parseFloat(quantity),
+      quantity: assetConfig.transactions.showQuantity ? parseFloat(quantity) : 1,
       price: parseFloat(price),
       currency,
       executed_at: new Date(executedAt + 'T12:00:00.000Z').toISOString(),
@@ -80,6 +88,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
 
   const priceNum = parseFloat(price)
   const convertedPrice = needsFx && !isNaN(priceNum) ? priceNum * fxRate : null
+  const txLabels = assetConfig.transactions.labels
 
   return (
     <div className="rmodal-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -97,42 +106,44 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
             <div className="mfield">
               <label className="mfield-label">Type</label>
               <div className="toggle-row" style={{ flexWrap: 'wrap' }}>
-                {TX_TYPES.map((t) => (
+                {assetConfig.transactions.allowedTypes.map((t) => (
                   <button
                     key={t}
                     type="button"
                     className={txType === t ? 'on' : ''}
                     onClick={() => { setTxType(t); setPriceManual(false) }}
                   >
-                    {TRANSACTION_TYPE_LABELS[t] ?? t}
+                    {txLabels[t] ?? TRANSACTION_TYPE_LABELS[t] ?? t}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="mfield-row">
-              <div className="mfield" style={{ margin: 0 }}>
-                <label className="mfield-label">Quantity</label>
-                <input
-                  type="number"
-                  className="minput mono"
-                  placeholder="10"
-                  min="0"
-                  step="any"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  required
-                />
-              </div>
+              {assetConfig.transactions.showQuantity && (
+                <div className="mfield" style={{ margin: 0 }}>
+                  <label className="mfield-label">{assetConfig.transactions.quantityLabel}</label>
+                  <input
+                    type="number"
+                    className="minput mono"
+                    placeholder={assetConfig.transactions.quantityPlaceholder}
+                    min="0"
+                    step="any"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
               <div className="mfield" style={{ margin: 0 }}>
                 <label className="mfield-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  Price / unit
+                  {assetConfig.transactions.priceLabel}
                   {autoPriceLoading && <Loader2 size={11} style={{ color: 'var(--ink-faint)', animation: 'spin 1s linear infinite' }} />}
                 </label>
                 <input
                   type="number"
                   className="minput mono"
-                  placeholder="150.00"
+                  placeholder={assetConfig.transactions.pricePlaceholder}
                   min="0"
                   step="any"
                   value={price}
@@ -173,7 +184,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
               <label className="mfield-label">Notes <span className="mfield-opt">Optional</span></label>
               <input
                 className="minput"
-                placeholder="e.g. Quarterly rebalance"
+                placeholder={assetConfig.transactions.notePlaceholder}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />

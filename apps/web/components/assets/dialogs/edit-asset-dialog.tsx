@@ -11,8 +11,7 @@ import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 import { SymbolSearchInput } from './symbol-search-input'
 import type { SymbolResult } from '@/lib/hooks/use-symbol-search'
-
-const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'deposit', 'other']
+import { getAssetTypeConfig } from '../asset-type-config'
 
 interface Props {
   asset: Asset
@@ -39,16 +38,17 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const needsSymbol = !NO_SYMBOL_TYPES.includes(assetType)
+  const assetConfig = getAssetTypeConfig(assetType)
+  const needsSymbol = assetConfig.assetDialog.showSymbol
 
   useModalClose(onClose)
 
   const isFirstRender = useRef(true)
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
-    if (NO_SYMBOL_TYPES.includes(assetType)) nameRef.current?.focus()
-    else symbolRef.current?.focus()
-  }, [assetType])
+    if (needsSymbol) symbolRef.current?.focus()
+    else nameRef.current?.focus()
+  }, [assetType, needsSymbol])
 
   useEffect(() => {
     if (!needsSymbol || !symbol.trim()) { cancel(); return }
@@ -144,6 +144,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
                   lookupStatus={lookupStatus}
                   lookupLoading={lookupLoading}
                   assetType={assetType}
+                  placeholder={assetConfig.assetDialog.symbolPlaceholder}
                   inputRef={symbolRef}
                 />
               </div>
@@ -162,6 +163,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
                 <input
                   ref={nameRef}
                   className="minput"
+                  placeholder={assetConfig.assetDialog.displayNamePlaceholder}
                   value={assetName}
                   onChange={(e) => setAssetName(e.target.value)}
                   required
@@ -193,11 +195,11 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
               </div>
             )}
 
-            {!needsSymbol && (
+            {assetConfig.assetDialog.manualPrice.show && (
               <div className="mfield">
                 <label className="mfield-label">
-                  Current market value
-                  <span className="mfield-opt">per unit · optional</span>
+                  {assetConfig.assetDialog.manualPrice.label}
+                  <span className="mfield-opt">{assetConfig.assetDialog.manualPrice.helper}</span>
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
@@ -205,7 +207,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
                     min="0"
                     step="any"
                     className="minput mono"
-                    placeholder="e.g. 250000"
+                    placeholder={assetConfig.assetDialog.manualPrice.placeholder}
                     value={manualPrice}
                     onChange={(e) => setManualPrice(e.target.value)}
                     style={{ flex: 1 }}
@@ -225,7 +227,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
               <label className="mfield-label">Notes <span className="mfield-opt">Optional</span></label>
               <textarea
                 className="minput mtextarea"
-                placeholder="Thesis, target price, reminders…"
+                placeholder={assetConfig.assetDialog.notesPlaceholder}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />

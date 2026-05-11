@@ -2,6 +2,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { Asset, Transaction } from '@networth/types'
+import { getAssetTypeConfig } from '../asset-type-config'
 import { fmtDate, tdStyle, thStyle, TX_BG, TX_INK } from './asset-detail-utils'
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 
 export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, onAdd }: Props) {
   const { displayPrice, displayQuantity, hideAmounts } = useAmountDisplay()
+  const assetConfig = getAssetTypeConfig(asset.asset_type)
 
   if (transactions.length === 0) {
     return (
@@ -34,7 +36,7 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
             <th style={thStyle}>Type</th>
             <th style={thStyle}>Date</th>
             <th style={thStyle}>Note</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Qty</th>
+            {assetConfig.transactions.showQuantity && <th style={{ ...thStyle, textAlign: 'right' }}>Qty</th>}
             <th style={{ ...thStyle, textAlign: 'right' }}>Price</th>
             <th style={{ ...thStyle, textAlign: 'right' }}>Total</th>
             <th style={thStyle} />
@@ -57,16 +59,18 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
                     background: TX_BG[transaction.transaction_type] ?? 'var(--surface-2)',
                     color: TX_INK[transaction.transaction_type] ?? 'var(--ink-2)',
                   }}>
-                    {TRANSACTION_TYPE_LABELS[transaction.transaction_type] ?? transaction.transaction_type}
+                    {assetConfig.transactions.labels[transaction.transaction_type] ?? TRANSACTION_TYPE_LABELS[transaction.transaction_type] ?? transaction.transaction_type}
                   </span>
                 </td>
                 <td style={{ ...tdStyle, color: 'var(--ink-muted)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                   {fmtDate(transaction.executed_at)}
                 </td>
                 <td style={{ ...tdStyle, color: 'var(--ink-2)' }}>{transaction.notes ?? '—'}</td>
-                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                  {displayQuantity(Number(transaction.quantity))}
-                </td>
+                {assetConfig.transactions.showQuantity && (
+                  <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                    {displayQuantity(Number(transaction.quantity))}
+                  </td>
+                )}
                 <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                   {displayPrice(Number(transaction.price), transaction.currency)}
                   {isCrossRate && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--ink-faint)' }}>{transaction.currency}</span>}

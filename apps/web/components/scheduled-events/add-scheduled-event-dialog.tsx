@@ -1,28 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useModalClose } from '@/lib/hooks/use-modal-close'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
-import type { CurrencyCode, IncomeFrequency, TransactionType } from '@networth/types'
+import type { AssetType, CurrencyCode, IncomeFrequency, TransactionType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
+import { getAssetTypeConfig } from '@/components/assets/asset-type-config'
 
 const FREQUENCIES: IncomeFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'annually']
-const EVENT_TYPES: TransactionType[] = ['dividend', 'deposit', 'withdrawal']
 
 interface Props {
   userId: string
   assetId?: string
+  assetType?: AssetType
   defaultCurrency: CurrencyCode
   onClose: () => void
 }
 
-export function AddScheduledEventDialog({ userId, assetId, defaultCurrency, onClose }: Props) {
+export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCurrency, onClose }: Props) {
   const router = useRouter()
+  const assetConfig = getAssetTypeConfig(assetType)
   const [name, setName] = useState('')
-  const [txType, setTxType] = useState<TransactionType>('dividend')
+  const [txType, setTxType] = useState<TransactionType>(assetConfig.scheduledEvents.defaultType)
   const [amountType, setAmountType] = useState<'fixed' | 'percent'>('fixed')
   const [amount, setAmount] = useState('')
   const [freq, setFreq] = useState<IncomeFrequency>('monthly')
@@ -32,6 +34,12 @@ export function AddScheduledEventDialog({ userId, assetId, defaultCurrency, onCl
   const [error, setError] = useState<string | null>(null)
 
   useModalClose(onClose)
+
+  useEffect(() => {
+    if (!assetConfig.scheduledEvents.allowedTypes.includes(txType)) {
+      setTxType(assetConfig.scheduledEvents.defaultType)
+    }
+  }, [assetConfig, txType])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -73,7 +81,7 @@ export function AddScheduledEventDialog({ userId, assetId, defaultCurrency, onCl
               <label className="mfield-label">Event name</label>
               <input
                 className="minput"
-                placeholder="e.g. Quarterly dividend"
+                placeholder={assetConfig.scheduledEvents.eventNamePlaceholder}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -84,14 +92,14 @@ export function AddScheduledEventDialog({ userId, assetId, defaultCurrency, onCl
               <div className="mfield" style={{ margin: 0 }}>
                 <label className="mfield-label">Type</label>
                 <div className="toggle-row">
-                  {EVENT_TYPES.map((t) => (
+                  {assetConfig.scheduledEvents.allowedTypes.map((t) => (
                     <button
                       key={t}
                       type="button"
                       className={txType === t ? 'on' : ''}
                       onClick={() => setTxType(t)}
                     >
-                      {TRANSACTION_TYPE_LABELS[t] ?? t}
+                      {assetConfig.scheduledEvents.labels[t] ?? TRANSACTION_TYPE_LABELS[t] ?? t}
                     </button>
                   ))}
                 </div>
@@ -123,11 +131,11 @@ export function AddScheduledEventDialog({ userId, assetId, defaultCurrency, onCl
 
             <div className="mfield-row">
               <div className="mfield" style={{ margin: 0 }}>
-                <label className="mfield-label">Amount</label>
+                <label className="mfield-label">{assetConfig.scheduledEvents.amountLabel}</label>
                 <input
                   type="number"
                   className="minput mono"
-                  placeholder="500"
+                  placeholder={assetConfig.scheduledEvents.amountPlaceholder}
                   min="0"
                   step="any"
                   value={amount}
@@ -149,7 +157,7 @@ export function AddScheduledEventDialog({ userId, assetId, defaultCurrency, onCl
               <label className="mfield-label">Notes <span className="mfield-opt">Optional</span></label>
               <input
                 className="minput"
-                placeholder="Optional note"
+                placeholder={assetConfig.scheduledEvents.notePlaceholder}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />

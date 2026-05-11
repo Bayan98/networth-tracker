@@ -22,8 +22,8 @@ const PRICE_CACHE_TTL_MS = 3 * 60 * 60 * 1000
 export function usePrices(items: PriceItem[]) {
   const key = items.map((i) => `${i.symbol}:${i.asset_type}`).sort().join(',')
   const cacheKey = `prices:${key}`
-  const [entry, setEntry] = useState<CacheEntry>(() => getClientCache<CacheEntry>(cacheKey) ?? { prices: {}, currencies: {} })
-  const [loading, setLoading] = useState(() => items.length > 0 && getClientCache<CacheEntry>(cacheKey) === null)
+  const [entry, setEntry] = useState<CacheEntry>({ prices: {}, currencies: {} })
+  const [loading, setLoading] = useState(items.length > 0)
 
   useEffect(() => {
     if (items.length === 0) {

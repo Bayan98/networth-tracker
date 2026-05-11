@@ -3,6 +3,7 @@ import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { ASSET_TYPE_LABELS, formatPercent } from '@networth/utils'
 import type { Asset, Portfolio, Transaction } from '@networth/types'
 import type { AssetInfo } from '@/lib/hooks/use-asset-info'
+import { getAssetTypeConfig } from '../asset-type-config'
 import { fmtDate } from './asset-detail-utils'
 
 interface Props {
@@ -27,6 +28,7 @@ export function AssetOverviewTab({
   quantity, source, portfolio, loading, firstTx, lastTx, assetInfo,
 }: Props) {
   const { displayPrice, displayQuantity } = useAmountDisplay()
+  const assetConfig = getAssetTypeConfig(asset.asset_type)
 
   const priceUrl = source === 'live' && asset.symbol ? (() => {
     if (asset.asset_type === 'crypto') return `https://finance.yahoo.com/quote/${asset.symbol}-USD/`
@@ -90,7 +92,7 @@ export function AssetOverviewTab({
       <div>
         <div className="empty-label" style={{ marginBottom: 12 }}>Position</div>
         <div>
-          <StatRow k="Quantity" v={displayQuantity(quantity, { loading })} />
+          {assetConfig.transactions.showQuantity && <StatRow k="Quantity" v={displayQuantity(quantity, { loading })} />}
           <StatRow k="Avg cost" v={displayPrice(avgCostBasis > 0 ? avgCostBasis : null, asset.currency, { loading })} />
           <StatRow k="Total cost" v={displayPrice(costBasis > 0 ? costBasis : null, asset.currency, { loading, maskLength: 6 })} />
           <StatRow k="Market value" v={displayPrice(marketValue, asset.currency, { loading, maskLength: 6 })} />

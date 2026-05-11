@@ -14,6 +14,7 @@ import { AddScheduledEventDialog } from '@/components/scheduled-events/add-sched
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
 import { AddTransactionDialog } from '@/components/transactions/add-transaction-dialog'
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
+import { getAssetTypeConfig } from '../asset-type-config'
 import { EditAssetDialog } from '../dialogs/edit-asset-dialog'
 import { AssetDetailHeader } from './asset-detail-header'
 import { ASSET_TYPE_COLOR } from './asset-detail-utils'
@@ -54,6 +55,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
   const { avgCostBasis, quantity, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
   const { info: assetInfo } = useAssetInfo(asset.symbol, asset.asset_type)
+  const assetConfig = getAssetTypeConfig(asset.asset_type)
 
   const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
   const fxRate = source === 'live' ? fx(priceCcy) : null
@@ -181,12 +183,14 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
         </div>
 
         <div className="hero-stats">
-          <div>
-            <div className="hero-stat-k">Quantity</div>
-            <div className="hero-stat-v">
-              {displayQuantity(quantity, { loading })}
+          {assetConfig.transactions.showQuantity && (
+            <div>
+              <div className="hero-stat-k">Quantity</div>
+              <div className="hero-stat-v">
+                {displayQuantity(quantity, { loading })}
+              </div>
             </div>
-          </div>
+          )}
           <div>
             <div className="hero-stat-k">Avg buy price</div>
             <div className="hero-stat-v">
@@ -257,6 +261,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
           {tab === 'Scheduled' && (
             <AssetScheduledTab
               events={scheduledEvents}
+              assetType={asset.asset_type}
               onEdit={setEditingEvent}
               onDelete={handleDeleteEvent}
               onAdd={() => setShowAddEvent(true)}
@@ -279,9 +284,9 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
       {showEdit && <EditAssetDialog asset={asset} portfolios={portfolios} onClose={() => setShowEdit(false)} />}
       {showAddTx && <AddTransactionDialog userId={userId} assetId={asset.id} assetCurrency={asset.currency} assetSymbol={asset.symbol} assetType={asset.asset_type} onClose={() => setShowAddTx(false)} />}
-      {editingTx && <EditTransactionDialog transaction={editingTx} assetCurrency={asset.currency} onClose={() => setEditingTx(null)} />}
-      {showAddEvent && <AddScheduledEventDialog userId={userId} assetId={asset.id} defaultCurrency={asset.currency} onClose={() => setShowAddEvent(false)} />}
-      {editingEvent && <EditScheduledEventDialog event={editingEvent} onClose={() => setEditingEvent(null)} />}
+      {editingTx && <EditTransactionDialog transaction={editingTx} assetCurrency={asset.currency} assetType={asset.asset_type} onClose={() => setEditingTx(null)} />}
+      {showAddEvent && <AddScheduledEventDialog userId={userId} assetId={asset.id} assetType={asset.asset_type} defaultCurrency={asset.currency} onClose={() => setShowAddEvent(false)} />}
+      {editingEvent && <EditScheduledEventDialog event={editingEvent} assetType={asset.asset_type} onClose={() => setEditingEvent(null)} />}
     </div>
   )
 }

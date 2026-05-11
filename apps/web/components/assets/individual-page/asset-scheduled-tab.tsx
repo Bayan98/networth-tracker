@@ -1,17 +1,20 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
-import type { ScheduledEvent } from '@networth/types'
+import type { AssetType, ScheduledEvent } from '@networth/types'
+import { getAssetTypeConfig } from '../asset-type-config'
 
 interface Props {
   events: ScheduledEvent[]
+  assetType?: AssetType
   onEdit: (event: ScheduledEvent) => void
   onDelete: (id: string) => void
   onAdd: () => void
 }
 
-export function AssetScheduledTab({ events, onEdit, onDelete, onAdd }: Props) {
+export function AssetScheduledTab({ events, assetType, onEdit, onDelete, onAdd }: Props) {
   const { displayPrice } = useAmountDisplay()
+  const assetConfig = getAssetTypeConfig(assetType)
 
   function formatEventAmount(event: ScheduledEvent): string {
     if (event.amount_type === 'percent') return `${Number(event.amount).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
@@ -30,7 +33,7 @@ export function AssetScheduledTab({ events, onEdit, onDelete, onAdd }: Props) {
             <div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{event.name}</div>
               <div style={{ fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                {TRANSACTION_TYPE_LABELS[event.transaction_type] ?? event.transaction_type} · {INCOME_FREQUENCY_LABELS[event.frequency] ?? event.frequency}
+                {assetConfig.scheduledEvents.labels[event.transaction_type] ?? TRANSACTION_TYPE_LABELS[event.transaction_type] ?? event.transaction_type} · {INCOME_FREQUENCY_LABELS[event.frequency] ?? event.frequency}
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

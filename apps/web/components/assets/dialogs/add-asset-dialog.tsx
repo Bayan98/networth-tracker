@@ -11,6 +11,7 @@ import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 import { SymbolSearchInput } from './symbol-search-input'
 import type { SymbolResult } from '@/lib/hooks/use-symbol-search'
+import { getAssetTypeConfig } from '../asset-type-config'
 
 const ASSET_TYPE_CARDS: Array<{ id: AssetType; label: string; desc: string; Icon: React.FC<{ size?: number }> }> = [
   { id: 'stock',        label: 'Stock',        desc: 'Shares, ETFs',         Icon: TrendingUp },
@@ -26,8 +27,6 @@ const ASSET_TYPE_CARDS: Array<{ id: AssetType; label: string; desc: string; Icon
   { id: 'transport',    label: 'Transport',    desc: 'Vehicles, boats',      Icon: Package },
   { id: 'other',        label: 'Other',        desc: 'Collectibles, misc.',  Icon: Package },
 ]
-
-const NO_SYMBOL_TYPES: AssetType[] = ['real_estate', 'cash', 'business', 'transport', 'other', 'deposit']
 
 interface Props {
   portfolios: Portfolio[]
@@ -53,7 +52,8 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   const symbolRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
 
-  const needsSymbol = assetType ? !NO_SYMBOL_TYPES.includes(assetType) : false
+  const assetConfig = getAssetTypeConfig(assetType)
+  const needsSymbol = assetType ? assetConfig.assetDialog.showSymbol : false
 
   useModalClose(onClose)
 
@@ -61,9 +61,9 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
     if (!assetType) return
-    if (NO_SYMBOL_TYPES.includes(assetType)) nameRef.current?.focus()
-    else symbolRef.current?.focus()
-  }, [assetType])
+    if (needsSymbol) symbolRef.current?.focus()
+    else nameRef.current?.focus()
+  }, [assetType, needsSymbol])
 
   useEffect(() => {
     if (!assetType || !needsSymbol || !symbol.trim()) { cancel(); return }
@@ -187,6 +187,7 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
                       lookupStatus={lookupStatus}
                       lookupLoading={lookupLoading}
                       assetType={assetType ?? undefined}
+                      placeholder={assetConfig.assetDialog.symbolPlaceholder}
                       inputRef={symbolRef}
                     />
                   </div>
@@ -205,11 +206,7 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
                     <input
                       ref={nameRef}
                       className="minput"
-                      placeholder={
-                        assetType === 'real_estate' ? 'e.g. Primary residence'
-                        : assetType === 'cash' ? 'e.g. Marcus High-Yield Savings'
-                        : 'e.g. Apple Inc.'
-                      }
+                      placeholder={assetConfig.assetDialog.displayNamePlaceholder}
                       value={assetName}
                       onChange={(e) => setAssetName(e.target.value)}
                       required
@@ -247,7 +244,7 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
                   </label>
                   <textarea
                     className="minput mtextarea"
-                    placeholder="Thesis, target price, sell trigger…"
+                    placeholder={assetConfig.assetDialog.notesPlaceholder}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />

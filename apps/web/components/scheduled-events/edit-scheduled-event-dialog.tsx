@@ -6,19 +6,21 @@ import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
-import type { ScheduledEvent, CurrencyCode, IncomeFrequency, TransactionType } from '@networth/types'
+import type { AssetType, ScheduledEvent, CurrencyCode, IncomeFrequency, TransactionType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
+import { getAssetTypeConfig, withCurrentType } from '@/components/assets/asset-type-config'
 
 const FREQUENCIES: IncomeFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'annually']
-const EVENT_TYPES: TransactionType[] = ['dividend', 'deposit', 'withdrawal']
 
 interface Props {
   event: ScheduledEvent
+  assetType?: AssetType
   onClose: () => void
 }
 
-export function EditScheduledEventDialog({ event, onClose }: Props) {
+export function EditScheduledEventDialog({ event, assetType, onClose }: Props) {
   const router = useRouter()
+  const assetConfig = getAssetTypeConfig(assetType)
   const [name, setName] = useState(event.name)
   const [txType, setTxType] = useState<TransactionType>(event.transaction_type)
   const [amountType, setAmountType] = useState<'fixed' | 'percent'>(event.amount_type)
@@ -52,6 +54,8 @@ export function EditScheduledEventDialog({ event, onClose }: Props) {
     onClose()
   }
 
+  const availableTypes = withCurrentType(assetConfig.scheduledEvents.allowedTypes, txType)
+
   return (
     <div className="rmodal-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="rmodal">
@@ -69,7 +73,7 @@ export function EditScheduledEventDialog({ event, onClose }: Props) {
               <label className="mfield-label">Event name</label>
               <input
                 className="minput"
-                placeholder="e.g. Quarterly dividend"
+                placeholder={assetConfig.scheduledEvents.eventNamePlaceholder}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -80,14 +84,14 @@ export function EditScheduledEventDialog({ event, onClose }: Props) {
               <div className="mfield" style={{ margin: 0 }}>
                 <label className="mfield-label">Type</label>
                 <div className="toggle-row">
-                  {EVENT_TYPES.map((t) => (
+                  {availableTypes.map((t) => (
                     <button
                       key={t}
                       type="button"
                       className={txType === t ? 'on' : ''}
                       onClick={() => setTxType(t)}
                     >
-                      {TRANSACTION_TYPE_LABELS[t] ?? t}
+                      {assetConfig.scheduledEvents.labels[t] ?? TRANSACTION_TYPE_LABELS[t] ?? t}
                     </button>
                   ))}
                 </div>
@@ -119,10 +123,11 @@ export function EditScheduledEventDialog({ event, onClose }: Props) {
 
             <div className="mfield-row">
               <div className="mfield" style={{ margin: 0 }}>
-                <label className="mfield-label">Amount</label>
+                <label className="mfield-label">{assetConfig.scheduledEvents.amountLabel}</label>
                 <input
                   type="number"
                   className="minput mono"
+                  placeholder={assetConfig.scheduledEvents.amountPlaceholder}
                   min="0"
                   step="any"
                   value={amount}
@@ -144,7 +149,7 @@ export function EditScheduledEventDialog({ event, onClose }: Props) {
               <label className="mfield-label">Notes <span className="mfield-opt">Optional</span></label>
               <input
                 className="minput"
-                placeholder="Optional note"
+                placeholder={assetConfig.scheduledEvents.notePlaceholder}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
