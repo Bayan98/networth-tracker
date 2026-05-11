@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
 import { deleteAllUserData } from '@/app/(main)/settings/actions'
@@ -30,6 +31,7 @@ export function SettingsClient({ profile, userEmail }: Props) {
     profile?.default_currency ?? 'USD',
   )
   const [loading, setLoading] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -54,6 +56,23 @@ export function SettingsClient({ profile, userEmail }: Props) {
     setSaved(true)
     setLoading(false)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    setError(null)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      setError(error.message)
+      setLoggingOut(false)
+      return
+    }
+
+    router.push('/login')
+    router.refresh()
   }
 
   const inputStyle: React.CSSProperties = {
@@ -98,33 +117,39 @@ export function SettingsClient({ profile, userEmail }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
-      {/* Profile */}
-      <div className="card">
-        <div className="card-head"><h3>Profile</h3></div>
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="card settings-profile-card">
+        <div className="card-head">
           <div>
-            <div className="empty-label" style={{ marginBottom: 6 }}>Email</div>
-            <input value={userEmail} disabled style={{ ...inputStyle, opacity: 0.6 }} />
+            <h3>Profile</h3>
+            <div className="sub">Account identity and preferred display currency.</div>
           </div>
-          <div>
-            <div className="empty-label" style={{ marginBottom: 6 }}>Full name</div>
-            <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Jordan Smith"
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <div className="empty-label" style={{ marginBottom: 6 }}>Default currency</div>
-            <CurrencyPicker
-              value={defaultCurrency}
-              onChange={(c) => setDefaultCurrency(c as CurrencyCode)}
-              style={inputStyle}
-            />
+        </div>
+        <form onSubmit={handleSave} className="settings-profile-form">
+          <div className="settings-profile-grid">
+            <div className="settings-profile-field">
+              <div className="empty-label" style={{ marginBottom: 6 }}>Full name</div>
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Jordan Smith"
+                style={inputStyle}
+              />
+            </div>
+            <div className="settings-profile-field">
+              <div className="empty-label" style={{ marginBottom: 6 }}>Email</div>
+              <input value={userEmail} disabled style={{ ...inputStyle, opacity: 0.6 }} />
+            </div>
+            <div className="settings-profile-field">
+              <div className="empty-label" style={{ marginBottom: 6 }}>Default currency</div>
+              <CurrencyPicker
+                value={defaultCurrency}
+                onChange={(c) => setDefaultCurrency(c as CurrencyCode)}
+                style={inputStyle}
+              />
+            </div>
           </div>
           {error && <p style={{ fontSize: 13, color: 'var(--neg)' }}>{error}</p>}
-          <div>
+          <div className="settings-profile-actions">
             <button
               type="submit"
               disabled={loading}
@@ -132,6 +157,16 @@ export function SettingsClient({ profile, userEmail }: Props) {
               style={{ fontSize: 13 }}
             >
               {loading ? 'Saving…' : saved ? 'Saved!' : 'Save changes'}
+            </button>
+            <button
+              type="button"
+              disabled={loggingOut}
+              className="btn btn-secondary"
+              onClick={handleLogout}
+              style={{ fontSize: 13 }}
+            >
+              <LogOut size={14} />
+              {loggingOut ? 'Logging out…' : 'Log out'}
             </button>
           </div>
         </form>

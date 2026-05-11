@@ -129,4 +129,20 @@ describe('calculateHoldingValuation', () => {
     expect(result.currentValue).toBe(100)
     expect(result.priceReturnPct).toBeNull()
   })
+
+  it('values zero-quantity holdings as zero even when no price is available', () => {
+    const result = calculateHoldingValuation({
+      asset: { symbol: null, currency: 'USD', manual_price: null, manual_price_date: null },
+      prices: {},
+      priceCurrencies: {},
+      quantity: 0,
+      averageCost: 0,
+      periodStartPrice: null,
+      todayFx: () => null,
+    })
+
+    expect(result.currentValue).toBe(0)
+    expect(result.costBasis).toBe(0)
+    expect(result.priceReturnPct).toBeNull()
+  })
 })

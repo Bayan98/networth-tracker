@@ -96,10 +96,12 @@ export function calculateHoldingValuation(input: HoldingValuationInput): Holding
     : asset.currency.toUpperCase()
   const currentFx = todayFx(currentPriceCurrency)
   const assetFx = todayFx(asset.currency)
-  const currentValue = currentFx !== null && currentPrice > 0
+  const currentValue = quantity <= 0
+    ? 0
+    : currentFx !== null && currentPrice > 0
     ? quantity * currentPrice * currentFx
     : null
-  const costBasis = assetFx !== null ? quantity * averageCost * assetFx : null
+  const costBasis = quantity <= 0 ? 0 : assetFx !== null ? quantity * averageCost * assetFx : null
   const normalizedPeriodStartPrice = resolved.source === 'live' ? periodStartPrice : null
   const periodStartValue = normalizedPeriodStartPrice !== null && currentFx !== null
     ? quantity * normalizedPeriodStartPrice * currentFx

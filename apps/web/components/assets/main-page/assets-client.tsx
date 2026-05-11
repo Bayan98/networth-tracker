@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { formatPercent } from '@networth/utils'
@@ -27,7 +27,7 @@ interface Props {
 }
 
 export function AssetsClient({ portfolios, assets, currency, userId, initialPortfolioId, portfolioName }: Props) {
-  const pathname = usePathname()
+  const router = useRouter()
   const { displayPrice } = useAmountDisplay()
   const selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const setSelectedCurrency = useAppStore((s) => s.setSelectedCurrency)
@@ -55,9 +55,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
     : byPortfolio
 
   const allTypes = Array.from(new Set(byPortfolio.map((asset) => asset.asset_type))) as AssetType[]
-  const assetsViewPath = pathname.startsWith('/portfolios/') && selectedPortfolioId === initialPortfolioId
-    ? pathname
-    : '/assets'
+  const assetsViewPath = selectedPortfolioId ? `/portfolios/${selectedPortfolioId}` : '/assets'
 
   const {
     valuations,
@@ -82,11 +80,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
       return
     }
 
-    const portfolioIds = new Set(portfolios.map((portfolio) => portfolio.id))
-    const cachedPortfolioId = cached.selectedPortfolioId && portfolioIds.has(cached.selectedPortfolioId)
-      ? cached.selectedPortfolioId
-      : null
-    const nextPortfolioId = initialPortfolioId !== undefined ? initialPortfolioId : cachedPortfolioId
+    const nextPortfolioId = initialPortfolioId !== undefined ? initialPortfolioId : null
     const assetsForPortfolio = nextPortfolioId
       ? assets.filter((asset) => asset.portfolio_id === nextPortfolioId)
       : assets
@@ -127,6 +121,13 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
   function handlePortfolioSelect(id: string | null) {
     setSelectedPortfolioId(id)
     setSelectedTypes(new Set())
+    setAssetsViewState({
+      path: id ? `/portfolios/${id}` : '/assets',
+      selectedPortfolioId: id,
+      selectedTypes: [],
+      period,
+    })
+    router.push(id ? `/portfolios/${id}` : '/assets')
   }
 
   function toggleType(type: AssetType) {
