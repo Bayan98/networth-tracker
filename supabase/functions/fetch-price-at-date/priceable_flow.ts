@@ -2,7 +2,7 @@ import {
   fetchStockAnalysisHistory,
   fetchStockAnalysisQuote,
 } from "../_shared/price-providers/stockanalysis.ts";
-import { fetchYahooPriceNearDate, toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
+import { convertYahooCommodityPrice, fetchYahooPriceNearDate, toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
 
 export async function fetchPriceablePriceAtDateFlow(
   symbol: string,
@@ -12,6 +12,12 @@ export async function fetchPriceablePriceAtDateFlow(
   period2: number,
   isToday: boolean,
 ): Promise<number | null> {
+  if (assetType === "commodity") {
+    const yahooSymbol = toYahooSymbol(symbol);
+    const price = await fetchYahooPriceNearDate(yahooSymbol, dateEpoch, period1, period2, isToday);
+    return price != null ? convertYahooCommodityPrice(yahooSymbol, price) : null;
+  }
+
   let price: number | null = null;
 
   if (isToday) {

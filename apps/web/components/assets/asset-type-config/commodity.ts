@@ -5,6 +5,12 @@ export const commodityConfig = defineAssetTypeConfig(priceTradedConfig, {
   assetDialog: {
     symbolPlaceholder: 'e.g. GC=F',
     symbolExamples: ['GC=F', 'SI=F', 'GLD'],
+    symbolPresetLabel: 'Commodity',
+    symbolPresets: [
+      { id: 'gold', label: 'Gold', symbol: 'GC=F', name: 'Gold' },
+      { id: 'silver', label: 'Silver', symbol: 'SI=F', name: 'Silver' },
+      { id: 'other', label: 'Other', symbol: null, symbolRequired: false, name: '' },
+    ],
     displayNamePlaceholder: 'e.g. Gold',
   },
   scheduledEvents: {

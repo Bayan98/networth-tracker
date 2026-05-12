@@ -26,10 +26,20 @@ export const VALID_TRANSACTION_TYPES = [
 
 export type TransactionLabels = Partial<Record<TransactionType, string>>
 
+export interface AssetDialogSymbolPreset {
+  id: string
+  label: string
+  symbol: string | null
+  symbolRequired?: boolean
+  name: string
+}
+
 export interface AssetDialogConfig {
   showSymbol: boolean
   symbolPlaceholder: string
   symbolExamples: readonly string[]
+  symbolPresetLabel?: string
+  symbolPresets?: readonly AssetDialogSymbolPreset[]
   displayNamePlaceholder: string
   manualPrice: {
     show: boolean

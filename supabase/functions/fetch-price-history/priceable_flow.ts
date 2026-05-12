@@ -3,7 +3,12 @@ import {
   fetchStockAnalysisQuote,
   MINOR_CURRENCIES,
 } from "../_shared/price-providers/stockanalysis.ts";
-import { fetchYahooCloseHistory, toYahooSymbol, type PricePoint } from "../_shared/price-providers/yahoo.ts";
+import {
+  convertYahooCommodityHistory,
+  fetchYahooCloseHistory,
+  toYahooSymbol,
+  type PricePoint,
+} from "../_shared/price-providers/yahoo.ts";
 
 export interface PriceableHistoryItem {
   symbol: string;
@@ -25,23 +30,34 @@ export async function fetchPriceableHistoryFlow(
 ): Promise<PriceableHistoryResult[]> {
   return Promise.all(items.map(async ({ symbol: sym, asset_type }) => {
     let rawPoints: PricePoint[] | null = null;
+    let currency: string | undefined;
+    let rawCurrency: string | null = null;
 
-    const [saPoints, saQuote] = await Promise.all([
-      fetchStockAnalysisHistory(sym, asset_type, fetchFromTs, toTs, period),
-      fetchStockAnalysisQuote(sym, asset_type),
-    ]);
-    if (saPoints.length > 0) rawPoints = saPoints;
+    if (asset_type !== "commodity") {
+      const [saPoints, saQuote] = await Promise.all([
+        fetchStockAnalysisHistory(sym, asset_type, fetchFromTs, toTs, period),
+        fetchStockAnalysisQuote(sym, asset_type),
+      ]);
+      if (saPoints.length > 0) rawPoints = saPoints;
+      currency = saQuote.currency ?? undefined;
+      rawCurrency = saQuote.rawCurrency;
+    }
 
     if (!rawPoints) {
-      const yahooPoints = await fetchYahooCloseHistory(toYahooSymbol(sym), fetchFromTs, toTs);
-      if (yahooPoints.length > 0) rawPoints = yahooPoints;
+      const yahooSymbol = toYahooSymbol(sym);
+      const yahooPoints = await fetchYahooCloseHistory(yahooSymbol, fetchFromTs, toTs);
+      if (asset_type === "commodity") {
+        rawPoints = convertYahooCommodityHistory(yahooSymbol, yahooPoints);
+      } else if (yahooPoints.length > 0) {
+        rawPoints = yahooPoints;
+      }
     }
 
     if (!rawPoints || rawPoints.length === 0) {
       return { symbol: sym, asset_type, points: [] };
     }
 
-    const minor = saQuote.rawCurrency ? MINOR_CURRENCIES[saQuote.rawCurrency] : null;
+    const minor = rawCurrency ? MINOR_CURRENCIES[rawCurrency] : null;
     const points = minor
       ? rawPoints.map((p) => ({ date: p.date, price: p.price / minor.factor }))
       : rawPoints;
@@ -50,7 +66,7 @@ export async function fetchPriceableHistoryFlow(
       symbol: sym,
       asset_type,
       points,
-      currency: saQuote.currency ?? undefined,
+      currency,
     };
   }));
 }

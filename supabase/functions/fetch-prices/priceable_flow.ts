@@ -1,6 +1,6 @@
 import { fetchFinnhubQuotes } from "../_shared/price-providers/finnhub.ts";
 import { fetchStockAnalysisQuote, type SAResult } from "../_shared/price-providers/stockanalysis.ts";
-import { fetchYahooQuotes, toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
+import { convertYahooCommodityPrice, fetchYahooQuotes, toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
 
 export interface PriceablePriceItem {
   symbol: string;
@@ -34,28 +34,34 @@ export async function fetchPriceablePricesFlow(
   const prices: Record<string, number> = {};
   const currencies: Record<string, string> = {};
 
-  await Promise.all(items.map(async ({ symbol, asset_type }) => {
-    const saResult = await safeQuote(() => providers.fetchStockAnalysisQuote(symbol, asset_type));
-    if (saResult.price != null && saResult.price > 0) {
-      prices[symbol] = saResult.price;
-      if (saResult.currency) currencies[symbol] = saResult.currency;
-    }
-  }));
+  await Promise.all(items
+    .filter(({ asset_type }) => asset_type !== "commodity")
+    .map(async ({ symbol, asset_type }) => {
+      const saResult = await safeQuote(() => providers.fetchStockAnalysisQuote(symbol, asset_type));
+      if (saResult.price != null && saResult.price > 0) {
+        prices[symbol] = saResult.price;
+        if (saResult.currency) currencies[symbol] = saResult.currency;
+      }
+    }));
 
   const missingYahoo = items
     .filter(({ symbol }) => prices[symbol] == null)
-    .map(({ symbol }) => ({ symbol, yahooSymbol: toYahooSymbol(symbol) }));
+    .map(({ symbol, asset_type }) => ({ symbol, asset_type, yahooSymbol: toYahooSymbol(symbol) }));
   const yahooSymbols = Array.from(new Set(missingYahoo.map(({ yahooSymbol }) => yahooSymbol)));
   const yahooResult = yahooSymbols.length > 0
     ? await safeRecord(() => providers.fetchYahooQuotes(yahooSymbols))
     : {};
-  for (const { symbol, yahooSymbol } of missingYahoo) {
+  for (const { symbol, asset_type, yahooSymbol } of missingYahoo) {
     const price = yahooResult[yahooSymbol];
-    if (price != null && price > 0) prices[symbol] = price;
+    if (price != null && price > 0) {
+      prices[symbol] = asset_type === "commodity"
+        ? convertYahooCommodityPrice(yahooSymbol, price)
+        : price;
+    }
   }
 
   const finnhubMissing = items
-    .filter(({ symbol, exchange }) => !exchange && prices[symbol] == null)
+    .filter(({ symbol, asset_type, exchange }) => asset_type !== "commodity" && !exchange && prices[symbol] == null)
     .map(({ ticker }) => ticker);
   const finnhubResult = finnhubMissing.length > 0
     ? await safeRecord(() => providers.fetchFinnhubQuotes(finnhubMissing, finnhubToken))

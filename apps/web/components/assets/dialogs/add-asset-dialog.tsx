@@ -42,6 +42,7 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   const [assetType, setAssetType] = useState<AssetType | null>(null)
   const [symbol, setSymbol] = useState('')
   const [assetName, setAssetName] = useState('')
+  const [symbolPresetId, setSymbolPresetId] = useState<string | null>(null)
   const [currency, setCurrency] = useState<CurrencyCode>('USD')
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(defaultPortfolioId ?? null)
   const [notes, setNotes] = useState('')
@@ -54,6 +55,13 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
 
   const assetConfig = getAssetTypeConfig(assetType)
   const needsSymbol = assetType ? assetConfig.assetDialog.showSymbol : false
+  const symbolPresets = assetConfig.assetDialog.symbolPresets ?? []
+  const selectedSymbolPreset = symbolPresets.find((preset) => preset.id === symbolPresetId)
+  const selectedPresetRequiresSymbol = selectedSymbolPreset?.symbolRequired !== false
+  const showSymbolInput = needsSymbol && (symbolPresets.length === 0 || selectedSymbolPreset?.symbol === null)
+  const symbolInputHint = symbolPresets.length > 0
+    ? selectedPresetRequiresSymbol ? 'Yahoo Finance symbol' : 'Optional Yahoo Finance symbol'
+    : 'Search to auto-fill name'
 
   useModalClose(onClose)
 
@@ -61,9 +69,9 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
     if (!assetType) return
-    if (needsSymbol) symbolRef.current?.focus()
+    if (showSymbolInput) symbolRef.current?.focus()
     else nameRef.current?.focus()
-  }, [assetType, needsSymbol])
+  }, [assetType, showSymbolInput])
 
   useEffect(() => {
     if (!assetType || !needsSymbol || !symbol.trim()) { cancel(); return }
@@ -102,13 +110,31 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
     setAssetType(t)
     setSymbol('')
     setAssetName('')
+    setSymbolPresetId(null)
     setAutoFilled(false)
     setLookupStatus('idle')
+  }
+
+  function handleSymbolPresetSelect(id: string) {
+    setSymbolPresetId(id)
+    setAutoFilled(false)
+    setLookupStatus('idle')
+
+    const preset = symbolPresets.find((item) => item.id === id)
+    if (!preset || preset.symbol === null) {
+      setSymbol('')
+      setAssetName('')
+      return
+    }
+
+    setSymbol(preset.symbol)
+    setAssetName(preset.name)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!assetType || !assetName.trim()) return
+    if (symbolPresets.length > 0 && (!symbolPresetId || (selectedPresetRequiresSymbol && !symbol.trim()))) return
     setLoading(true)
     setError(null)
 
@@ -128,7 +154,10 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
     onClose()
   }
 
-  const canSubmit = !!assetType && !!assetName.trim() && !loading
+  const canSubmit = !!assetType
+    && !!assetName.trim()
+    && !loading
+    && (symbolPresets.length === 0 || (!!symbolPresetId && (!selectedPresetRequiresSymbol || !!symbol.trim())))
 
   return (
     <div
@@ -170,11 +199,42 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
 
             {assetType && (
               <>
-                {needsSymbol && (
+                {symbolPresets.length > 0 && (
+                  <div className="mfield">
+                    <label className="mfield-label">{assetConfig.assetDialog.symbolPresetLabel ?? 'Type'}</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
+                      {symbolPresets.map((preset) => {
+                        const selected = symbolPresetId === preset.id
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            className={`type-card ${selected ? 'selected' : ''}`}
+                            onClick={() => handleSymbolPresetSelect(preset.id)}
+                            style={{
+                              minHeight: 54,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              gap: 4,
+                              textAlign: 'center',
+                            }}
+                          >
+                            <div className="type-card-name" style={{ fontSize: 12 }}>{preset.label}</div>
+                            {preset.symbol && (
+                              <div className="type-card-desc mono" style={{ fontSize: 10 }}>{preset.symbol}</div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {showSymbolInput && (
                   <div className="mfield">
                     <label className="mfield-label">
                       Ticker symbol
-                      <span className="mfield-opt">Search to auto-fill name</span>
+                      <span className="mfield-opt">{symbolInputHint}</span>
                     </label>
                     <SymbolSearchInput
                       value={symbol}
@@ -209,7 +269,8 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
                       placeholder={assetConfig.assetDialog.displayNamePlaceholder}
                       value={assetName}
                       onChange={(e) => setAssetName(e.target.value)}
-                      required
+                      required={symbolPresets.length === 0 || symbolPresetId !== null}
+                      disabled={symbolPresets.length > 0 && symbolPresetId === null}
                     />
                   </div>
                   <div className="mfield" style={{ margin: 0 }}>

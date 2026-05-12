@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
 import { fetchStockAnalysisQuote, parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
+import { convertYahooCommodityPrice } from "../_shared/price-providers/yahoo.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -235,6 +236,13 @@ export async function handleLookupSymbol(
         result.name = await coinGeckoName(ticker);
       }
     }
+  } else if (assetType === "commodity") {
+    const yahooResult = await yahooSummary(sym);
+    if (yahooResult.name) result.name = yahooResult.name;
+    if (yahooResult.price != null) result.price = convertYahooCommodityPrice(sym, yahooResult.price);
+    if (yahooResult.currency) result.currency = yahooResult.currency;
+    if (yahooResult.description) result.description = yahooResult.description;
+    if (yahooResult.logoUrl) result.logoUrl = yahooResult.logoUrl;
   } else {
     const [saResult, yahooResult] = await Promise.all([
       stockAnalysisQuote(sym, assetType),

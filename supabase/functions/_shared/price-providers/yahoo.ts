@@ -13,6 +13,9 @@ const YAHOO_EXCHANGE_SUFFIXES: Record<string, string> = {
   LSE: "L",
 };
 
+const TROY_OUNCES_PER_KILOGRAM = 32.15074656862798;
+const PER_KG_COMMODITY_SYMBOLS = new Set(["GC=F", "SI=F"]);
+
 export function toYahooSymbol(symbol: string): string {
   const normalized = symbol.toUpperCase().trim();
   const separator = normalized.indexOf(":");
@@ -22,6 +25,20 @@ export function toYahooSymbol(symbol: string): string {
   const ticker = normalized.slice(separator + 1);
   const suffix = YAHOO_EXCHANGE_SUFFIXES[exchange];
   return suffix ? `${ticker}.${suffix}` : ticker;
+}
+
+export function convertYahooCommodityPrice(symbol: string, price: number): number {
+  return PER_KG_COMMODITY_SYMBOLS.has(symbol.toUpperCase().trim())
+    ? price * TROY_OUNCES_PER_KILOGRAM
+    : price;
+}
+
+export function convertYahooCommodityHistory(symbol: string, points: PricePoint[]): PricePoint[] {
+  if (!PER_KG_COMMODITY_SYMBOLS.has(symbol.toUpperCase().trim())) return points;
+  return points.map((point) => ({
+    ...point,
+    price: point.price * TROY_OUNCES_PER_KILOGRAM,
+  }));
 }
 
 export async function fetchYahooQuotes(
