@@ -9,7 +9,7 @@ interface Props {
 
 export function AssetTypeFilter({ allTypes, selectedTypes, onToggle }: Props) {
   if (allTypes.length <= 1) return null
-
+  
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
       {allTypes.map((type) => {

@@ -38,7 +38,7 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
     selectedCurrency,
     {
       quantityOverrides: quantityPerAsset,
-      missingQuantityFallback: 1,
+      missingQuantityFallback: 0,
       replaceLiveCostBasis: false,
     },
   )

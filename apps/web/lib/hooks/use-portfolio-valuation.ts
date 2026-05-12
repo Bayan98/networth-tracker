@@ -100,15 +100,15 @@ export function usePortfolioValuation(
     [valuations],
   )
 
-  const totalValue = useMemo(() => valuations.reduce<number | null>(
-    (sum, e) => (sum !== null && e.value !== null ? sum + e.value : null),
-    0,
-  ), [valuations])
+  const totalValue = useMemo(
+    () => valuations.reduce((sum, e) => sum + (e.value ?? 0), 0),
+    [valuations],
+  )
 
-  const totalCostBasis = useMemo(() => valuations.reduce<number | null>(
-    (sum, e) => (sum !== null && e.costBasis !== null ? sum + e.costBasis : null),
-    0,
-  ), [valuations])
+  const totalCostBasis = useMemo(
+    () => valuations.reduce((sum, e) => sum + (e.costBasis ?? 0), 0),
+    [valuations],
+  )
 
   const totalGainAbs = totalValue !== null && totalCostBasis !== null ? totalValue - totalCostBasis : null
   const totalGainPct = totalCostBasis !== null && totalCostBasis > 0
