@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
@@ -39,6 +39,10 @@ const ALLOC_LABELS: Record<AllocationType, string> = {
   country:   'Country allocation',
   sector:    'Sector allocation',
 }
+
+const MIN_VISIBLE_ITEMS = 5
+const FALLBACK_ALLOC_ROW_HEIGHT = 22
+const FALLBACK_ALLOC_BUTTON_HEIGHT = 34
 
 interface AllocItem {
   key: string
@@ -152,6 +156,11 @@ export function AllocationCard({
   const [allocType, setAllocType] = useState<AllocationType>(defaultType)
   const [excluded, setExcluded] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(false)
+  const [listExpanded, setListExpanded] = useState(false)
+  const [collapsedVisibleCount, setCollapsedVisibleCount] = useState(MIN_VISIBLE_ITEMS)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const expandButtonRef = useRef<HTMLButtonElement>(null)
   const { displayPrice } = useAmountDisplay()
 
   const items = useMemo(
@@ -165,16 +174,92 @@ export function AllocationCard({
 
   const donutSegments = useMemo(() => {
     const activeItems = items.filter((i) => !excluded.has(i.key))
-    if (allocType === 'assets') {
-      const top8 = activeItems.slice(0, 8)
-      const othersValue = activeItems.slice(8).reduce((s, i) => s + i.value, 0)
-      return [
-        ...top8.map((i) => ({ color: i.color, value: i.value, label: i.label })),
-        ...(othersValue > 0 ? [{ color: 'var(--border-strong)', value: othersValue, label: 'Others' }] : []),
-      ]
+    const total = activeItems.reduce((s, i) => s + i.value, 0)
+    if (total <= 0) return []
+
+    let cumulative = 0
+    let splitIndex = activeItems.length
+    for (let i = 0; i < activeItems.length; i += 1) {
+      cumulative += activeItems[i].value
+      if (cumulative / total >= 0.8) {
+        splitIndex = i + 1
+        break
+      }
     }
-    return activeItems.map((i) => ({ color: i.color, value: i.value, label: i.label }))
-  }, [items, excluded, allocType])
+
+    const topItems = activeItems.slice(0, splitIndex)
+    const otherItems = activeItems.slice(splitIndex)
+    if (otherItems.length <= 2) {
+      return activeItems.map((i) => ({ color: i.color, value: i.value, label: i.label }))
+    }
+
+    const othersValue = otherItems.reduce((s, i) => s + i.value, 0)
+    return [
+      ...topItems.map((i) => ({ color: i.color, value: i.value, label: i.label })),
+      ...(othersValue > 0 ? [{ color: 'var(--border-strong)', value: othersValue, label: 'Others' }] : []),
+    ]
+  }, [items, excluded])
+
+  useEffect(() => {
+    if (listExpanded) return
+
+    const card = cardRef.current
+    const list = listRef.current
+    if (!card || !list) return
+
+    function calculateVisibleCount() {
+      const currentCard = cardRef.current
+      const currentList = listRef.current
+      if (!currentCard || !currentList) return
+
+      const totalCount = active.length + inactive.length
+      if (totalCount <= MIN_VISIBLE_ITEMS) {
+        setCollapsedVisibleCount(totalCount)
+        return
+      }
+
+      const cardRect = currentCard.getBoundingClientRect()
+      const listRect = currentList.getBoundingClientRect()
+      const cardStyle = window.getComputedStyle(currentCard)
+      const listStyle = window.getComputedStyle(currentList)
+      const bottomPadding = Number.parseFloat(cardStyle.paddingBottom) || 0
+      const listGap = Number.parseFloat(listStyle.rowGap || listStyle.gap) || 0
+      const firstRow = currentList.querySelector<HTMLElement>('.alloc-row')
+      const rowHeight = firstRow?.getBoundingClientRect().height || FALLBACK_ALLOC_ROW_HEIGHT
+      const buttonHeight = expandButtonRef.current?.getBoundingClientRect().height || FALLBACK_ALLOC_BUTTON_HEIGHT
+      const availableHeight = Math.max(0, cardRect.bottom - bottomPadding - listRect.top)
+      const minimumCount = Math.min(MIN_VISIBLE_ITEMS, totalCount)
+      let nextCount = minimumCount
+
+      for (let count = minimumCount; count <= totalCount; count += 1) {
+        const rowGaps = Math.max(0, count - 1) * listGap
+        const rowsHeight = count * rowHeight + rowGaps
+        const hasHiddenRows = count < totalCount
+        const buttonSpace = hasHiddenRows ? buttonHeight + listGap : 0
+        if (rowsHeight + buttonSpace <= availableHeight) {
+          nextCount = count
+        }
+      }
+
+      setCollapsedVisibleCount(nextCount)
+    }
+
+    calculateVisibleCount()
+
+    const observer = new ResizeObserver(calculateVisibleCount)
+    observer.observe(card)
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [active.length, inactive.length, listExpanded])
+
+  const displayedActive = listExpanded ? active : active.slice(0, collapsedVisibleCount)
+  const displayedInactive = listExpanded
+    ? inactive
+    : inactive.slice(0, Math.max(0, collapsedVisibleCount - displayedActive.length))
+  const displayedCount = displayedActive.length + displayedInactive.length
+  const totalListCount = active.length + inactive.length
+  const hasHiddenItems = displayedCount < totalListCount
+  const showListButton = listExpanded ? totalListCount > MIN_VISIBLE_ITEMS : hasHiddenItems
 
   function toggle(key: string) {
     setExcluded((prev) => {
@@ -189,6 +274,7 @@ export function AllocationCard({
     setAllocType(t)
     setExcluded(new Set())
     setOpen(false)
+    setListExpanded(false)
   }
 
   if (items.length === 0) {
@@ -203,7 +289,7 @@ export function AllocationCard({
   }
 
   return (
-    <div className="card">
+    <div ref={cardRef} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="card-head">
         <div style={{ position: 'relative' }}>
           <button
@@ -268,8 +354,8 @@ export function AllocationCard({
         />
       </div>
 
-      <div className="alloc-list">
-        {active.map((item) => {
+      <div ref={listRef} className="alloc-list">
+        {displayedActive.map((item) => {
           const pct = activeTotal > 0 ? (item.value / activeTotal) * 100 : 0
           return (
             <button
@@ -291,10 +377,10 @@ export function AllocationCard({
           )
         })}
 
-        {inactive.length > 0 && (
+        {displayedInactive.length > 0 && (
           <>
-            <div style={{ height: 1, margin: '4px 0' }} />
-            {inactive.map((item) => (
+            {displayedActive.length > 0 && <div style={{ height: 1, margin: '4px 0' }} />}
+            {displayedInactive.map((item) => (
               <button
                 key={item.key}
                 className="alloc-row"
@@ -310,6 +396,41 @@ export function AllocationCard({
               </button>
             ))}
           </>
+        )}
+
+        {showListButton && (
+          <button
+            ref={expandButtonRef}
+            type="button"
+            onClick={() => setListExpanded((value) => !value)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              width: '100%',
+              minHeight: 34,
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'var(--surface-2)',
+              color: 'var(--ink-muted)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 12,
+              fontWeight: 500,
+            }}
+          >
+            {listExpanded ? 'Collapse' : `View all ${totalListCount} items`}
+            <ChevronDown
+              size={13}
+              style={{
+                flexShrink: 0,
+                transform: listExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform .15s',
+              }}
+            />
+          </button>
         )}
       </div>
     </div>
