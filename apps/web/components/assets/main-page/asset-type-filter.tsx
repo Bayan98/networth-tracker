@@ -1,5 +1,10 @@
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import type { AssetType } from '@networth/types'
+import { ASSET_TYPES } from '../asset-type-config/common'
+
+const ASSET_TYPE_ORDER = new Map<AssetType, number>(
+  ASSET_TYPES.map((type, index) => [type, index]),
+)
 
 interface Props {
   allTypes: AssetType[]
@@ -9,10 +14,14 @@ interface Props {
 
 export function AssetTypeFilter({ allTypes, selectedTypes, onToggle }: Props) {
   if (allTypes.length <= 1) return null
+
+  const orderedTypes = [...allTypes].sort((a, b) => {
+    return (ASSET_TYPE_ORDER.get(a) ?? Number.MAX_SAFE_INTEGER) - (ASSET_TYPE_ORDER.get(b) ?? Number.MAX_SAFE_INTEGER)
+  })
   
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {allTypes.map((type) => {
+      {orderedTypes.map((type) => {
         const active = selectedTypes.has(type)
         return (
           <button

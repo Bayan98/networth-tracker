@@ -2,16 +2,16 @@ import type { AssetType, TransactionType } from '@networth/types'
 
 export const ASSET_TYPES = [
   'stock',
-  'bond',
   'etf',
-  'crypto',
   'mutual_fund',
-  'real_estate',
-  'cash',
+  'bond',
   'commodity',
+  'crypto',
+  'cash',
   'deposit',
-  'transport',
   'business',
+  'real_estate',
+  'transport',
   'other',
 ] as const satisfies readonly AssetType[]
 
