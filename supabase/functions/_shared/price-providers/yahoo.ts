@@ -8,6 +8,22 @@ const YAHOO_HEADERS = {
   "Accept": "application/json",
 };
 
+const YAHOO_EXCHANGE_SUFFIXES: Record<string, string> = {
+  HKG: "HK",
+  LSE: "L",
+};
+
+export function toYahooSymbol(symbol: string): string {
+  const normalized = symbol.toUpperCase().trim();
+  const separator = normalized.indexOf(":");
+  if (separator < 0) return normalized;
+
+  const exchange = normalized.slice(0, separator);
+  const ticker = normalized.slice(separator + 1);
+  const suffix = YAHOO_EXCHANGE_SUFFIXES[exchange];
+  return suffix ? `${ticker}.${suffix}` : ticker;
+}
+
 export async function fetchYahooQuotes(
   symbols: string[],
 ): Promise<Record<string, number>> {

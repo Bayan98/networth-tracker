@@ -50,11 +50,28 @@ function saBaseUrl(sym: string, assetType?: string): string {
   return `https://stockanalysis.com/stocks/${ticker.toLowerCase()}`;
 }
 
+const US_EXCHANGES = new Set(["AMEX", "NASDAQ", "NYSE", "NYSEARCA", "NYSEAMERICAN"]);
+
+function saFallbackBaseUrl(sym: string, assetType?: string): string | null {
+  const { exchange, ticker } = parseSymbol(sym);
+  if (!exchange || !US_EXCHANGES.has(exchange)) return null;
+  if (assetType === "etf") return `https://stockanalysis.com/etf/${ticker.toLowerCase()}`;
+  return `https://stockanalysis.com/stocks/${ticker.toLowerCase()}`;
+}
+
 type DataArray = unknown[];
 
 function res(data: DataArray, val: unknown): unknown {
   if (typeof val === "number" && val >= 0 && val < data.length) return data[val];
   return val;
+}
+
+function stockAnalysisUrl(url: string): string {
+  try {
+    return new URL(url, "https://stockanalysis.com").toString();
+  } catch {
+    return url;
+  }
 }
 
 function saParseQuote(data: DataArray): { price: number | null; name: string | null; currency: string | null; rawCurrency: string | null; description: string | null } {
@@ -96,26 +113,30 @@ function saParseQuote(data: DataArray): { price: number | null; name: string | n
 }
 
 export async function fetchStockAnalysisQuote(sym: string, assetType?: string): Promise<SAResult> {
-  const base = saBaseUrl(sym, assetType);
+  const baseUrls = [saBaseUrl(sym, assetType)];
+  const fallbackBase = saFallbackBaseUrl(sym, assetType);
+  if (fallbackBase) baseUrls.push(fallbackBase);
   const empty: SAResult = { price: null, name: null, currency: null, rawCurrency: null, description: null };
 
-  try {
-    const res_ = await fetch(`${base}/__data.json`, { headers: SA_HEADERS });
-    if (!res_.ok) {
-      await res_.body?.cancel();
-      return empty;
+  for (const base of baseUrls) {
+    try {
+      const res_ = await fetch(`${base}/__data.json`, { headers: SA_HEADERS });
+      if (!res_.ok) {
+        await res_.body?.cancel();
+        continue;
+      }
+
+      // deno-lint-ignore no-explicit-any
+      const nd = await res_.json() as any;
+      const data: DataArray = nd?.nodes?.[1]?.data;
+      if (!Array.isArray(data)) continue;
+
+      return saParseQuote(data);
+    } catch (e) {
+      console.log(`SA fetchStockAnalysisQuote error for ${sym}:`, String(e));
     }
-
-    // deno-lint-ignore no-explicit-any
-    const nd = await res_.json() as any;
-    const data: DataArray = nd?.nodes?.[1]?.data;
-    if (!Array.isArray(data)) return empty;
-
-    return saParseQuote(data);
-  } catch (e) {
-    console.log(`SA fetchStockAnalysisQuote error for ${sym}:`, String(e));
-    return empty;
   }
+  return empty;
 }
 
 export interface SAInfo {
@@ -132,7 +153,23 @@ export interface SAInfo {
 }
 
 export async function fetchStockAnalysisInfo(sym: string, assetType?: string): Promise<SAInfo> {
-  const base = saBaseUrl(sym, assetType);
+  const baseUrls = [saBaseUrl(sym, assetType)];
+  const fallbackBase = saFallbackBaseUrl(sym, assetType);
+  if (fallbackBase) baseUrls.push(fallbackBase);
+  const empty: SAInfo = { pe: null, eps: null, sector: null, country: null, description: null, analystRating: null, analystCount: null, dividend: null, beta: null, news: null };
+
+  try {
+    for (const base of baseUrls) {
+      const info = await fetchStockAnalysisInfoFromBase(base);
+      if (hasStockAnalysisInfo(info)) return info;
+    }
+  } catch (e) {
+    console.log(`SA fetchStockAnalysisInfo error for ${sym}:`, String(e));
+  }
+  return empty;
+}
+
+async function fetchStockAnalysisInfoFromBase(base: string): Promise<SAInfo> {
   const empty: SAInfo = { pe: null, eps: null, sector: null, country: null, description: null, analystRating: null, analystCount: null, dividend: null, beta: null, news: null };
 
   try {
@@ -140,6 +177,7 @@ export async function fetchStockAnalysisInfo(sym: string, assetType?: string): P
       fetch(`${base}/__data.json`, { headers: SA_HEADERS }),
       fetch(`${base}/__data.json?x-sveltekit-invalidated=001`, { headers: SA_HEADERS }),
     ]);
+
     if (!statsRes.ok) {
       await quoteRes.body?.cancel();
       await statsRes.body?.cancel();
@@ -246,7 +284,7 @@ export async function fetchStockAnalysisInfo(sym: string, assetType?: string): P
           const time = typeof r.time === "number" ? data[r.time] : r.time;
           if (!url || !title) return [];
           const ts = typeof time === "string" ? new Date(time).getTime() : 0;
-          return [{ title: String(title), publisher: String(source ?? ""), link: String(url), publishedAt: ts }];
+          return [{ title: String(title), publisher: String(source ?? ""), link: stockAnalysisUrl(String(url)), publishedAt: ts }];
         });
         if (items.length > 0) news = items;
       }
@@ -264,10 +302,22 @@ export async function fetchStockAnalysisInfo(sym: string, assetType?: string): P
       beta,
       news,
     };
-  } catch (e) {
-    console.log(`SA fetchStockAnalysisInfo error for ${sym}:`, String(e));
+  } catch {
     return empty;
   }
+}
+
+function hasStockAnalysisInfo(info: SAInfo): boolean {
+  return info.pe != null ||
+    info.eps != null ||
+    info.sector != null ||
+    info.country != null ||
+    info.description != null ||
+    info.analystRating != null ||
+    info.analystCount != null ||
+    info.dividend != null ||
+    info.beta != null ||
+    info.news != null;
 }
 
 function saApiSymbol(sym: string): string {

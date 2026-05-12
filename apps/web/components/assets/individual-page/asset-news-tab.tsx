@@ -1,5 +1,5 @@
 import { ExternalLink } from 'lucide-react'
-import type { NewsItem } from '@/lib/hooks/use-asset-info'
+import type { NewsItem } from '@/lib/hooks/use-asset-news'
 
 export function AssetNewsTab({ news }: { news: NewsItem[] }) {
   return (

@@ -100,6 +100,8 @@ async function fetchYahooSummary(yahooSym: string): Promise<Partial<LookupResult
           result.logoUrl = `https://logo.clearbit.com/${domain}`;
         } catch (_) { /* ignore */ }
       }
+    } else {
+      await res.body?.cancel();
     }
   } catch (_) { /* ignore */ }
 
@@ -114,6 +116,8 @@ async function fetchYahooSummary(yahooSym: string): Promise<Partial<LookupResult
         const data = await res.json() as { quotes?: Array<{ logoUrl?: string }> };
         const logoUrl = data?.quotes?.[0]?.logoUrl;
         if (logoUrl) result.logoUrl = logoUrl;
+      } else {
+        await res.body?.cancel();
       }
     } catch (_) { /* ignore */ }
   }
@@ -128,7 +132,10 @@ async function findYahooSymbol(ticker: string): Promise<string | null> {
       `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0`,
       { headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" } },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      await res.body?.cancel();
+      return null;
+    }
     const data = await res.json() as {
       quotes?: Array<{ symbol?: string; typeDisp?: string; quoteType?: string }>;
     };
@@ -142,13 +149,16 @@ async function findYahooSymbol(ticker: string): Promise<string | null> {
   }
 }
 
-async function fetchCoinGeckoCoin(coinGeckoId: string): Promise<CoinGeckoCoin | null> {
+export async function fetchCoinGeckoCoin(coinGeckoId: string): Promise<CoinGeckoCoin | null> {
   try {
     const res = await fetch(
       `https://api.coingecko.com/api/v3/coins/${coinGeckoId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
       { headers: { Accept: "application/json" } },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      await res.body?.cancel();
+      return null;
+    }
     return await res.json() as CoinGeckoCoin;
   } catch (_) {
     return null;
@@ -161,7 +171,10 @@ async function searchCoinGeckoName(ticker: string): Promise<string | null> {
       `https://api.coingecko.com/api/v3/search?query=${ticker}`,
       { headers: { Accept: "application/json" } },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      await res.body?.cancel();
+      return null;
+    }
     const data = await res.json() as { coins?: Array<{ name: string; symbol: string }> };
     const match = data.coins?.find((c) => c.symbol.toUpperCase() === ticker);
     return match?.name ?? null;

@@ -1,6 +1,6 @@
 import { fetchFinnhubQuotes } from "../_shared/price-providers/finnhub.ts";
 import { fetchStockAnalysisQuote, type SAResult } from "../_shared/price-providers/stockanalysis.ts";
-import { fetchYahooQuotes } from "../_shared/price-providers/yahoo.ts";
+import { fetchYahooQuotes, toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
 
 export interface PriceablePriceItem {
   symbol: string;
@@ -42,14 +42,16 @@ export async function fetchPriceablePricesFlow(
     }
   }));
 
-  const missingPlain = items
-    .filter(({ symbol, exchange }) => !exchange && prices[symbol] == null)
-    .map(({ ticker }) => ticker);
-  const yahooResult = missingPlain.length > 0
-    ? await safeRecord(() => providers.fetchYahooQuotes(missingPlain))
+  const missingYahoo = items
+    .filter(({ symbol }) => prices[symbol] == null)
+    .map(({ symbol }) => ({ symbol, yahooSymbol: toYahooSymbol(symbol) }));
+  const yahooSymbols = Array.from(new Set(missingYahoo.map(({ yahooSymbol }) => yahooSymbol)));
+  const yahooResult = yahooSymbols.length > 0
+    ? await safeRecord(() => providers.fetchYahooQuotes(yahooSymbols))
     : {};
-  for (const [symbol, price] of Object.entries(yahooResult)) {
-    prices[symbol] = price;
+  for (const { symbol, yahooSymbol } of missingYahoo) {
+    const price = yahooResult[yahooSymbol];
+    if (price != null && price > 0) prices[symbol] = price;
   }
 
   const finnhubMissing = items

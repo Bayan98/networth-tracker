@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
 import { useAssetInfo } from '@/lib/hooks/use-asset-info'
+import { useAssetNews } from '@/lib/hooks/use-asset-news'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { getAssetsViewState, normalizeAssetsPath } from '@/lib/assets-view-state'
 import { formatPercent, resolveAssetPrice } from '@networth/utils'
@@ -55,6 +56,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
   const { avgCostBasis, quantity, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
   const { info: assetInfo } = useAssetInfo(asset.symbol, asset.asset_type)
+  const { news: assetNews, loading: newsLoading } = useAssetNews(asset.symbol, asset.asset_type, asset.asset_name)
   const assetConfig = getAssetTypeConfig(asset.asset_type)
 
   const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
@@ -123,7 +125,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
     ...(assetInfo?.holdings && assetInfo.holdings.length > 0 ? ['Holdings'] : []),
     'Transactions',
     'Scheduled',
-    ...(assetInfo?.news && assetInfo.news.length > 0 ? ['News'] : []),
+    ...(asset.symbol ? ['News'] : []),
     'Notes',
   ] as Tab[]
 
@@ -267,8 +269,14 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               onAdd={() => setShowAddEvent(true)}
             />
           )}
-          {tab === 'News' && assetInfo?.news && (
-            <AssetNewsTab news={assetInfo.news} />
+          {tab === 'News' && (
+            newsLoading ? (
+              <div className="empty-label">Loading news…</div>
+            ) : assetNews?.length ? (
+              <AssetNewsTab news={assetNews} />
+            ) : (
+              <div className="empty-label">No recent news available</div>
+            )
           )}
           {tab === 'Notes' && (
             <AssetNotesTab

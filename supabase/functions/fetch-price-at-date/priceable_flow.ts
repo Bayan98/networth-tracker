@@ -1,9 +1,8 @@
 import {
   fetchStockAnalysisHistory,
   fetchStockAnalysisQuote,
-  parseSymbol,
 } from "../_shared/price-providers/stockanalysis.ts";
-import { fetchYahooPriceNearDate } from "../_shared/price-providers/yahoo.ts";
+import { fetchYahooPriceNearDate, toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
 
 export async function fetchPriceablePriceAtDateFlow(
   symbol: string,
@@ -35,7 +34,5 @@ export async function fetchPriceablePriceAtDateFlow(
 
   if (price != null) return price;
 
-  const { exchange, ticker } = parseSymbol(symbol);
-  const yahooSym = exchange ? ticker : symbol;
-  return fetchYahooPriceNearDate(yahooSym, dateEpoch, period1, period2, isToday);
+  return fetchYahooPriceNearDate(toYahooSymbol(symbol), dateEpoch, period1, period2, isToday);
 }
