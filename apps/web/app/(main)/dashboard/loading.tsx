@@ -106,18 +106,16 @@ export default function DashboardLoading() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
         <SkeletonRow>
           <div className="card" style={{ padding: 0 }}>
-            <div
-              style={{
-                padding: 'var(--density-pad-y) var(--density-pad-x) 20px',
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'space-between',
-                gap: 16,
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <Skeleton width={220} height={10} radius={3} />
-                <Skeleton width={260} height={44} radius={6} />
+            <div className="chart-header">
+              <div className="chart-header-stats">
+                <div className="chart-header-stat">
+                  <Skeleton width={220} height={10} radius={3} />
+                  <Skeleton width={260} height={44} radius={6} />
+                </div>
+                <div className="chart-header-stat">
+                  <Skeleton width={220} height={10} radius={3} />
+                  <Skeleton width={220} height={44} radius={6} />
+                </div>
               </div>
               <Skeleton width={172} height={28} radius={8} inline />
             </div>

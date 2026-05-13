@@ -55,7 +55,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const priceItems = asset.symbol ? [{ symbol: asset.symbol, asset_type: asset.asset_type }] : []
   const { prices, currencies } = usePrices(priceItems)
   const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
-  const { avgCostBasis, quantity, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
+  const { avgCostBasis, quantity, totalIncome, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
   const { info: assetInfo } = useAssetInfo(asset.symbol, asset.asset_type)
   const { news: assetNews, loading: newsLoading } = useAssetNews(asset.symbol, asset.asset_type, asset.asset_name)
   const assetConfig = getAssetTypeConfig(asset.asset_type)
@@ -153,7 +153,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
       )}
 
       <div className="hero">
-        <div className="hero-2col">
+        <div className="hero-3col">
           <div>
             <div className="hero-label">
               <span className="hero-label-dot" />
@@ -182,6 +182,27 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
             ) : (
               <span className="hero-delta neutral">no cost basis yet</span>
             )}
+          </div>
+          <div>
+            <div className="hero-label">
+              <span className="hero-label-dot" style={{ background: 'var(--ink-faint)' }} />
+              Income · {asset.currency}
+            </div>
+            <div
+              className="hero-big"
+              style={{ color: totalIncome > 0 ? 'var(--pos)' : totalIncome < 0 ? 'var(--neg)' : undefined }}
+            >
+              <MoneyText
+                value={totalIncome}
+                currency={asset.currency}
+                loading={loading}
+                withSign
+                maskLength={6}
+                skelWidth={180}
+                skelHeight={32}
+              />
+            </div>
+            <span className="hero-delta neutral">approximated value</span>
           </div>
         </div>
 

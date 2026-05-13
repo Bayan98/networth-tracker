@@ -23,6 +23,7 @@ interface Props {
   period: Period
   onPeriodChange: (p: Period) => void
   totalValue?: number | null
+  periodIncome?: number | null
   height?: number
 }
 
@@ -89,7 +90,7 @@ function splitMarketSeries(series: SeriesPoint[]): ChartPoint[] {
   return out
 }
 
-export function PortfolioAreaChart({ series, currency, loading, period, onPeriodChange, totalValue, height = 320 }: Props) {
+export function PortfolioAreaChart({ series, currency, loading, period, onPeriodChange, totalValue, periodIncome, height = 320 }: Props) {
   const { displayPrice } = useAmountDisplay()
   const isEmpty = !loading && series.length === 0
   const chartData = splitMarketSeries(series)
@@ -101,37 +102,50 @@ export function PortfolioAreaChart({ series, currency, loading, period, onPeriod
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div style={{
-        padding: 'var(--density-pad-y) var(--density-pad-x) 20px',
-        display: 'flex',
-        alignItems: showNetworth ? 'flex-end' : 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-      }}>
-        <div>
-          {showNetworth ? (
-            <>
+      <div className="chart-header">
+        {showNetworth ? (
+          <div className="chart-header-stats">
+            <div className="chart-header-stat">
               <div className="empty-label">
                 Net worth · {currency} · {PERIOD_HEADER_LABELS[period]}
               </div>
-              <div style={{
-                marginTop: 6,
-                fontFamily: 'var(--font-mono)',
-                fontSize: 48,
-                fontWeight: 700,
-                letterSpacing: '-0.03em',
-                lineHeight: 1,
-                color: 'var(--ink)',
-              }}>
+              <div className="chart-header-big">
                 <MoneyText value={totalValue ?? null} currency={currency} loading={loading} skelWidth={220} skelHeight={40} />
               </div>
-            </>
-          ) : (
-            <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.005em' }}>
-              Portfolio Performance
             </div>
-          )}
-        </div>
+            {periodIncome !== undefined && (
+              <div className="chart-header-stat">
+                <div className="empty-label">
+                  Total income · {currency} · {PERIOD_HEADER_LABELS[period]}
+                </div>
+                <div
+                  className="chart-header-big"
+                  style={{
+                    color:
+                      periodIncome !== null && periodIncome > 0
+                        ? 'var(--pos)'
+                        : periodIncome !== null && periodIncome < 0
+                        ? 'var(--neg)'
+                        : undefined,
+                  }}
+                >
+                  <MoneyText
+                    value={periodIncome ?? null}
+                    currency={currency}
+                    loading={loading || periodIncome === null}
+                    withSign
+                    skelWidth={220}
+                    skelHeight={40}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.005em' }}>
+            Portfolio Performance
+          </div>
+        )}
 
         <div className="segmented" style={{ flexShrink: 0 }}>
           {PERIODS.map((p) => (

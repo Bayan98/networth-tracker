@@ -35,6 +35,7 @@ export function usePortfolioHistory(
   quantityPerAsset: Record<string, number>
   startPricePerAsset: Record<string, number | null>
   prevDayValue: number | null
+  periodIncome: number | null
   loading: boolean
   chartLoading: boolean
   fxError: string | null
@@ -419,12 +420,56 @@ export function usePortfolioHistory(
     return total
   }, [assets, quantityPerAsset, avgCostPerAsset, priceHistory, dailyPriceHistory, rawTransactions, fxRates, displayCurrency, priceableItems.length, priceCurrencies])
 
+  const periodIncome = useMemo<number | null>(() => {
+    if (!fxReady) return null
+    if (rawTransactions.length === 0) return 0
+
+    const timeAxis = buildTimeAxis(period)
+    const periodStart = timeAxis[0]
+    const buyValue: Record<string, number> = {}
+    const buyQty: Record<string, number> = {}
+    let income = 0
+
+    const sorted = [...rawTransactions].sort((a, b) => a.executed_at.localeCompare(b.executed_at))
+    for (const tx of sorted) {
+      const qty = Number(tx.quantity)
+      const price = Number(tx.price)
+      const date = tx.executed_at.slice(0, 10)
+      const rate = lookupFxRate(fxRates, tx.currency, displayCurrency, date) ?? 1
+      const inPeriod = date >= periodStart
+
+      if (tx.transaction_type === 'buy' || tx.transaction_type === 'deposit') {
+        buyValue[tx.asset_id] = (buyValue[tx.asset_id] ?? 0) + qty * price * rate
+        buyQty[tx.asset_id] = (buyQty[tx.asset_id] ?? 0) + qty
+      } else if (tx.transaction_type === 'sell') {
+        const vd = buyValue[tx.asset_id] ?? 0
+        const qq = buyQty[tx.asset_id] ?? 0
+        const avg = qq > 0 ? vd / qq : 0
+        if (inPeriod) income += qty * (price * rate - avg)
+        buyValue[tx.asset_id] = vd - qty * avg
+        buyQty[tx.asset_id] = qq - qty
+      } else if (tx.transaction_type === 'withdrawal') {
+        const vd = buyValue[tx.asset_id] ?? 0
+        const qq = buyQty[tx.asset_id] ?? 0
+        const avg = qq > 0 ? vd / qq : 0
+        buyValue[tx.asset_id] = vd - qty * avg
+        buyQty[tx.asset_id] = qq - qty
+      } else if (tx.transaction_type === 'split') {
+        buyQty[tx.asset_id] = (buyQty[tx.asset_id] ?? 0) * qty
+      } else if (tx.transaction_type === 'dividend') {
+        if (inPeriod) income += qty * price * rate
+      }
+    }
+    return income
+  }, [fxReady, rawTransactions, period, fxRates, displayCurrency])
+
   return {
     series,
     avgCostPerAsset,
     quantityPerAsset,
     startPricePerAsset,
     prevDayValue,
+    periodIncome,
     loading: txLoading,
     chartLoading: priceLoading || fxLoading || !fxReady,
     fxError,

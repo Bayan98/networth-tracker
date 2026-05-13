@@ -32,7 +32,7 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
 
   const [period, setPeriod] = useState<Period>('1y')
 
-  const { enriched, totalValue, liveSeries, chartLoading } = usePortfolioValuation(
+  const { enriched, totalValue, liveSeries, chartLoading, periodIncome } = usePortfolioValuation(
     assets,
     period,
     selectedCurrency,
@@ -52,6 +52,7 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
         period={period}
         onPeriodChange={setPeriod}
         totalValue={totalValue}
+        periodIncome={periodIncome}
         height={420}
       />
 

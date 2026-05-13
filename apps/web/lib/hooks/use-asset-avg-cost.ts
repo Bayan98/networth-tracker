@@ -113,7 +113,16 @@ export function useAssetAvgCost(
           totalBuyQty += qty
         }
         quantity += qty
-      } else if (tx.transaction_type === 'sell' || tx.transaction_type === 'withdrawal') {
+      } else if (tx.transaction_type === 'sell') {
+        const avg = totalBuyQty > 0 ? totalBuyValue / totalBuyQty : 0
+        if (rate !== null) totalIncome += qty * (price * rate - avg)
+        totalBuyValue -= qty * avg
+        totalBuyQty -= qty
+        quantity -= qty
+      } else if (tx.transaction_type === 'withdrawal') {
+        const avg = totalBuyQty > 0 ? totalBuyValue / totalBuyQty : 0
+        totalBuyValue -= qty * avg
+        totalBuyQty -= qty
         quantity -= qty
       } else if (tx.transaction_type === 'split') {
         quantity *= qty

@@ -162,6 +162,7 @@ export function usePortfolioValuation(
     quantityPerAsset: history.quantityPerAsset,
     startPricePerAsset: history.startPricePerAsset,
     prevDayValue: history.prevDayValue,
+    periodIncome: history.periodIncome,
     loading: history.loading,
     chartLoading: history.chartLoading,
     pricesLoading,

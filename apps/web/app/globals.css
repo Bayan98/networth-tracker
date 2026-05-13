@@ -721,6 +721,49 @@ h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
 }
 
 /* ════════════════════════════════════════════════
+   Portfolio chart header (net worth + period income)
+   ════════════════════════════════════════════════ */
+.chart-header {
+  padding: var(--density-pad-y) var(--density-pad-x) 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.chart-header-stats {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: flex-end;
+  column-gap: clamp(24px, 4vw, 56px);
+  row-gap: 18px;
+}
+.chart-header-stats:has(> .chart-header-stat:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.chart-header-stat {
+  min-width: 0;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chart-header-big {
+  font-family: var(--font-mono);
+  font-size: clamp(28px, 11cqi, 48px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .chart-header { flex-direction: column; align-items: stretch; }
+  .chart-header-stats { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ════════════════════════════════════════════════
    Dashboard layout
    ════════════════════════════════════════════════ */
 .three-col {
@@ -815,6 +858,27 @@ h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
   align-items: flex-start;
 }
 @media (max-width: 860px) { .hero-2col { grid-template-columns: 1fr; gap: 20px; } }
+.hero-3col {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 32px;
+  row-gap: 28px;
+  align-items: flex-start;
+}
+.hero-3col > div {
+  min-width: 0;
+  container-type: inline-size;
+}
+.hero-3col .hero-big {
+  font-size: clamp(28px, 10cqi, 76px);
+}
+@media (max-width: 1000px) {
+  .hero-3col { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; row-gap: 22px; }
+}
+@media (max-width: 640px) {
+  .hero-3col { grid-template-columns: minmax(0, 1fr); row-gap: 18px; }
+  .hero-3col .hero-big { font-size: clamp(36px, 11cqi, 64px); }
+}
 .hero-label {
   font-size: 12px;
   color: var(--ink-muted);
