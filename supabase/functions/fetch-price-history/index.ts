@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { coinGeckoIdForSymbol } from "../_shared/price-providers/coingecko.ts";
 import { parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
-import type { PricePoint } from "../_shared/price-providers/yahoo.ts";
+import { perGramCommodityCacheSuffix, type PricePoint } from "../_shared/price-providers/yahoo.ts";
 import { fetchCryptoHistoryFlow, type CryptoHistoryItem } from "./crypto_flow.ts";
 import { fetchPriceableHistoryFlow, type PriceableHistoryItem } from "./priceable_flow.ts";
 
@@ -93,7 +93,8 @@ function isoWeekKey(d: Date): string {
 
 function cacheKeyFor(sym: string, assetType: string, period: Period): string {
   if (assetType === "crypto") return `history:${sym}:${period}:crypto:n5`;
-  return period === "5y" ? `history:${sym}:5y-monthly:n5` : `history:${sym}:5y-daily:n5`;
+  const suffix = assetType === "commodity" ? perGramCommodityCacheSuffix(sym) : "";
+  return period === "5y" ? `history:${sym}:5y-monthly:n5${suffix}` : `history:${sym}:5y-daily:n5${suffix}`;
 }
 
 function ttlFor(period: Period): number {

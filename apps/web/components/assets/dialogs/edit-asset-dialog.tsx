@@ -11,7 +11,7 @@ import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 import { SymbolSearchInput } from './symbol-search-input'
 import type { SymbolResult } from '@/lib/hooks/use-symbol-search'
-import { getAssetTypeConfig } from '../asset-type-config'
+import { getAssetTypeConfig, isGramPricedMetal } from '../asset-type-config'
 
 interface Props {
   asset: Asset
@@ -40,6 +40,10 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
 
   const assetConfig = getAssetTypeConfig(assetType)
   const needsSymbol = assetConfig.assetDialog.showSymbol
+  const isGramMetal = assetType === 'commodity' && isGramPricedMetal(symbol)
+  const manualPriceLabel = isGramMetal ? 'Current price / g' : assetConfig.assetDialog.manualPrice.label
+  const manualPriceHelper = isGramMetal ? 'per gram · optional' : assetConfig.assetDialog.manualPrice.helper
+  const manualPricePlaceholder = isGramMetal ? 'e.g. 96.50' : assetConfig.assetDialog.manualPrice.placeholder
 
   useModalClose(onClose)
 
@@ -198,8 +202,8 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
             {assetConfig.assetDialog.manualPrice.show && (
               <div className="mfield">
                 <label className="mfield-label">
-                  {assetConfig.assetDialog.manualPrice.label}
-                  <span className="mfield-opt">{assetConfig.assetDialog.manualPrice.helper}</span>
+                  {manualPriceLabel}
+                  <span className="mfield-opt">{manualPriceHelper}</span>
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
@@ -207,7 +211,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
                     min="0"
                     step="any"
                     className="minput mono"
-                    placeholder={assetConfig.assetDialog.manualPrice.placeholder}
+                    placeholder={manualPricePlaceholder}
                     value={manualPrice}
                     onChange={(e) => setManualPrice(e.target.value)}
                     style={{ flex: 1 }}

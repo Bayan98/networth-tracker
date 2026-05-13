@@ -11,7 +11,7 @@ import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { useSymbolLookup, type LookupStatus } from '@/lib/hooks/use-symbol-lookup'
 import { SymbolSearchInput } from './symbol-search-input'
 import type { SymbolResult } from '@/lib/hooks/use-symbol-search'
-import { getAssetTypeConfig } from '../asset-type-config'
+import { getAssetTypeConfig, isGramPricedMetal } from '../asset-type-config'
 
 const ASSET_TYPE_CARDS: Array<{ id: AssetType; label: string; desc: string; Icon: React.FC<{ size?: number }> }> = [
   { id: 'stock',        label: 'Stock',        desc: 'Shares, ETFs',         Icon: TrendingUp },
@@ -62,6 +62,8 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   const symbolInputHint = symbolPresets.length > 0
     ? selectedPresetRequiresSymbol ? 'Yahoo Finance symbol' : 'Optional Yahoo Finance symbol'
     : 'Search to auto-fill name'
+  const selectedSymbol = selectedSymbolPreset?.symbol ?? symbol
+  const isGramMetal = assetType === 'commodity' && isGramPricedMetal(selectedSymbol)
 
   useModalClose(onClose)
 
@@ -312,7 +314,9 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
                 </div>
 
                 <p style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 8 }}>
-                  Quantity and cost basis are calculated automatically from your transactions. Add transactions after creating the asset.
+                  {isGramMetal
+                    ? 'Gold and silver quantities use grams; prices and cost basis are tracked per gram.'
+                    : 'Quantity and cost basis are calculated automatically from your transactions. Add transactions after creating the asset.'}
                 </p>
 
                 {error && <p style={{ fontSize: 13, color: 'var(--neg)', marginTop: 8 }}>{error}</p>}

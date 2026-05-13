@@ -21,3 +21,8 @@ export const commodityConfig = defineAssetTypeConfig(priceTradedConfig, {
     eventNamePlaceholder: 'e.g. Storage income',
   },
 })
+
+export function isGramPricedMetal(symbol?: string | null): boolean {
+  const normalized = symbol?.toUpperCase().trim()
+  return normalized === 'GC=F' || normalized === 'SI=F'
+}

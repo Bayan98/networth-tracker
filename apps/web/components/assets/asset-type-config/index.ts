@@ -14,6 +14,10 @@ import { transportConfig } from './transport'
 import { genericAssetTypeConfig, type AssetTypeConfig } from './common'
 
 export {
+  isGramPricedMetal,
+} from './commodity'
+
+export {
   ASSET_TYPES,
   VALID_TRANSACTION_TYPES,
   genericAssetTypeConfig,

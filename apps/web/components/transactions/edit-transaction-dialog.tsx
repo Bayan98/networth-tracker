@@ -9,16 +9,17 @@ import { useTxFxRate } from '@/lib/hooks/use-tx-fx-rate'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { Transaction, TransactionType, CurrencyCode, AssetType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
-import { getAssetTypeConfig, withCurrentType } from '@/components/assets/asset-type-config'
+import { getAssetTypeConfig, isGramPricedMetal, withCurrentType } from '@/components/assets/asset-type-config'
 
 interface Props {
   transaction: Transaction
   assetCurrency?: string
+  assetSymbol?: string | null
   assetType?: AssetType
   onClose: () => void
 }
 
-export function EditTransactionDialog({ transaction, assetCurrency, assetType, onClose }: Props) {
+export function EditTransactionDialog({ transaction, assetCurrency, assetSymbol, assetType, onClose }: Props) {
   const router = useRouter()
   const assetConfig = getAssetTypeConfig(assetType)
   const [txType, setTxType] = useState<TransactionType>(transaction.transaction_type)
@@ -59,6 +60,9 @@ export function EditTransactionDialog({ transaction, assetCurrency, assetType, o
   const convertedPrice = needsFx && !isNaN(priceNum) ? priceNum * fxRate : null
   const availableTypes = withCurrentType(assetConfig.transactions.allowedTypes, txType)
   const txLabels = assetConfig.transactions.labels
+  const isGramMetal = assetType === 'commodity' && isGramPricedMetal(assetSymbol)
+  const quantityLabel = isGramMetal ? 'Quantity (g)' : assetConfig.transactions.quantityLabel
+  const priceLabel = isGramMetal ? 'Price / g' : assetConfig.transactions.priceLabel
 
   return (
     <div className="rmodal-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -92,7 +96,7 @@ export function EditTransactionDialog({ transaction, assetCurrency, assetType, o
             <div className="mfield-row">
               {assetConfig.transactions.showQuantity && (
                 <div className="mfield" style={{ margin: 0 }}>
-                  <label className="mfield-label">{assetConfig.transactions.quantityLabel}</label>
+                  <label className="mfield-label">{quantityLabel}</label>
                   <input
                     type="number"
                     className="minput mono"
@@ -105,7 +109,7 @@ export function EditTransactionDialog({ transaction, assetCurrency, assetType, o
                 </div>
               )}
               <div className="mfield" style={{ margin: 0 }}>
-                <label className="mfield-label">{assetConfig.transactions.priceLabel}</label>
+                <label className="mfield-label">{priceLabel}</label>
                 <input
                   type="number"
                   className="minput mono"

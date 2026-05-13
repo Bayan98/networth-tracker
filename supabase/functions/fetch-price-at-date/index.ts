@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { perGramCommodityCacheSuffix } from "../_shared/price-providers/yahoo.ts";
 import { fetchCryptoPriceAtDateFlow } from "./crypto_flow.ts";
 import { fetchPriceablePriceAtDateFlow } from "./priceable_flow.ts";
 
@@ -10,6 +11,11 @@ const CORS_HEADERS = {
 };
 
 const PRICEABLE_TYPES = ["stock", "etf", "bond", "mutual_fund", "commodity"];
+
+function cacheKeyFor(sym: string, assetType: string, date: string): string {
+  const suffix = assetType === "commodity" ? perGramCommodityCacheSuffix(sym) : "";
+  return `price-at-date:${sym}:${date}${suffix}`;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
@@ -29,7 +35,7 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const cacheKey = `price-at-date:${sym}:${date}`;
+    const cacheKey = cacheKeyFor(sym, asset_type, date);
     const { data: cached } = await supabase
       .from("api_cache")
       .select("response, expires_at")

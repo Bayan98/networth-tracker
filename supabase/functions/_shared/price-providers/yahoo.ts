@@ -13,8 +13,9 @@ const YAHOO_EXCHANGE_SUFFIXES: Record<string, string> = {
   LSE: "L",
 };
 
-const TROY_OUNCES_PER_KILOGRAM = 32.15074656862798;
-const PER_KG_COMMODITY_SYMBOLS = new Set(["GC=F", "SI=F"]);
+const GRAMS_PER_TROY_OUNCE = 31.1034768;
+const PER_GRAM_COMMODITY_SYMBOLS = new Set(["GC=F", "SI=F"]);
+const PER_GRAM_COMMODITY_CACHE_SUFFIX = ":g-v1";
 
 export function toYahooSymbol(symbol: string): string {
   const normalized = symbol.toUpperCase().trim();
@@ -28,17 +29,25 @@ export function toYahooSymbol(symbol: string): string {
 }
 
 export function convertYahooCommodityPrice(symbol: string, price: number): number {
-  return PER_KG_COMMODITY_SYMBOLS.has(symbol.toUpperCase().trim())
-    ? price * TROY_OUNCES_PER_KILOGRAM
+  return isPerGramCommoditySymbol(symbol)
+    ? price / GRAMS_PER_TROY_OUNCE
     : price;
 }
 
 export function convertYahooCommodityHistory(symbol: string, points: PricePoint[]): PricePoint[] {
-  if (!PER_KG_COMMODITY_SYMBOLS.has(symbol.toUpperCase().trim())) return points;
+  if (!isPerGramCommoditySymbol(symbol)) return points;
   return points.map((point) => ({
     ...point,
-    price: point.price * TROY_OUNCES_PER_KILOGRAM,
+    price: point.price / GRAMS_PER_TROY_OUNCE,
   }));
+}
+
+export function isPerGramCommoditySymbol(symbol: string): boolean {
+  return PER_GRAM_COMMODITY_SYMBOLS.has(symbol.toUpperCase().trim());
+}
+
+export function perGramCommodityCacheSuffix(symbol: string): string {
+  return isPerGramCommoditySymbol(symbol) ? PER_GRAM_COMMODITY_CACHE_SUFFIX : "";
 }
 
 export async function fetchYahooQuotes(

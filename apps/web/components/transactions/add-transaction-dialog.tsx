@@ -10,7 +10,7 @@ import { usePriceAtDate } from '@/lib/hooks/use-price-at-date'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { TransactionType, CurrencyCode, AssetType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
-import { getAssetTypeConfig } from '@/components/assets/asset-type-config'
+import { getAssetTypeConfig, isGramPricedMetal } from '@/components/assets/asset-type-config'
 
 const PRICE_TYPES: TransactionType[] = ['buy', 'sell']
 
@@ -89,6 +89,10 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
   const priceNum = parseFloat(price)
   const convertedPrice = needsFx && !isNaN(priceNum) ? priceNum * fxRate : null
   const txLabels = assetConfig.transactions.labels
+  const isGramMetal = assetType === 'commodity' && isGramPricedMetal(assetSymbol)
+  const quantityLabel = isGramMetal ? 'Quantity (g)' : assetConfig.transactions.quantityLabel
+  const priceLabel = isGramMetal ? 'Price / g' : assetConfig.transactions.priceLabel
+  const pricePlaceholder = isGramMetal ? 'e.g. 96.50' : assetConfig.transactions.pricePlaceholder
 
   return (
     <div className="rmodal-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -122,7 +126,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
             <div className="mfield-row">
               {assetConfig.transactions.showQuantity && (
                 <div className="mfield" style={{ margin: 0 }}>
-                  <label className="mfield-label">{assetConfig.transactions.quantityLabel}</label>
+                  <label className="mfield-label">{quantityLabel}</label>
                   <input
                     type="number"
                     className="minput mono"
@@ -137,13 +141,13 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
               )}
               <div className="mfield" style={{ margin: 0 }}>
                 <label className="mfield-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {assetConfig.transactions.priceLabel}
+                  {priceLabel}
                   {autoPriceLoading && <Loader2 size={11} style={{ color: 'var(--ink-faint)', animation: 'spin 1s linear infinite' }} />}
                 </label>
                 <input
                   type="number"
                   className="minput mono"
-                  placeholder={assetConfig.transactions.pricePlaceholder}
+                  placeholder={pricePlaceholder}
                   min="0"
                   step="any"
                   value={price}

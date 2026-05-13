@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { normalizePriceCurrency, parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
+import { perGramCommodityCacheSuffix } from "../_shared/price-providers/yahoo.ts";
 import { fetchCryptoPricesFlow, type CryptoPriceItem, type CryptoPriceProviders } from "./crypto_flow.ts";
 import { fetchPriceablePricesFlow, type PriceablePriceItem, type PriceablePriceProviders } from "./priceable_flow.ts";
 
@@ -12,6 +13,11 @@ const CORS_HEADERS = {
 
 const TTL_MS = 3 * 60 * 60 * 1000;
 const PRICEABLE_TYPES = ["stock", "etf", "bond", "mutual_fund", "commodity"];
+
+function cacheKeyFor(sym: string, assetType: string): string {
+  const suffix = assetType === "commodity" ? perGramCommodityCacheSuffix(sym) : "";
+  return `price:${sym}${suffix}`;
+}
 
 export interface RequestItem {
   symbol: string;
@@ -66,7 +72,7 @@ export async function handleFetchPrices(
   const currencies: Record<string, string> = {};
   const now = deps.now?.() ?? Date.now();
 
-  const cacheKeys = items.map((i) => `price:${i.symbol.toUpperCase()}`);
+  const cacheKeys = items.map((i) => cacheKeyFor(i.symbol.toUpperCase(), i.asset_type));
   const cached = await deps.cache.getMany(cacheKeys);
   const cacheMap = new Map<string, { price: number; currency?: string }>();
   for (const row of cached) {
@@ -80,7 +86,7 @@ export async function handleFetchPrices(
 
   for (const item of items) {
     const sym = item.symbol.toUpperCase();
-    const cacheKey = `price:${sym}`;
+    const cacheKey = cacheKeyFor(sym, item.asset_type);
     const cachedItem = cacheMap.get(cacheKey);
     if (cachedItem) {
       if (cachedItem.currency) {
@@ -101,6 +107,8 @@ export async function handleFetchPrices(
     }
   }
 
+  const assetTypeBySymbol = new Map(items.map((item) => [item.symbol.toUpperCase(), item.asset_type]));
+
   const priceableResult = await fetchPriceablePricesFlow(needPriceable, deps.finnhubToken, deps.priceableProviders);
   for (const [symbol, price] of Object.entries(priceableResult.prices)) {
     prices[symbol] = price;
@@ -109,7 +117,7 @@ export async function handleFetchPrices(
     const response: { price: number; currency?: string } = { price };
     if (currency) response.currency = currency;
     await deps.cache.upsert({
-      cache_key: `price:${symbol}`,
+      cache_key: cacheKeyFor(symbol, assetTypeBySymbol.get(symbol) ?? ""),
       response,
       updated_at: new Date(now).toISOString(),
       expires_at: new Date(now + TTL_MS).toISOString(),
@@ -120,7 +128,7 @@ export async function handleFetchPrices(
   for (const [symbol, price] of Object.entries(cryptoPrices)) {
     prices[symbol] = price;
     await deps.cache.upsert({
-      cache_key: `price:${symbol}`,
+      cache_key: cacheKeyFor(symbol, "crypto"),
       response: { price },
       updated_at: new Date(now).toISOString(),
       expires_at: new Date(now + TTL_MS).toISOString(),

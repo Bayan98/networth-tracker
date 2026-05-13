@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
 import { fetchStockAnalysisQuote, parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
-import { convertYahooCommodityPrice } from "../_shared/price-providers/yahoo.ts";
+import { convertYahooCommodityPrice, perGramCommodityCacheSuffix } from "../_shared/price-providers/yahoo.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +12,11 @@ const CORS_HEADERS = {
 
 const PRICEABLE = ["stock", "etf", "bond", "mutual_fund", "commodity", "crypto"];
 const TTL_MS = 60 * 60 * 1000;
+
+function cacheKeyFor(sym: string, assetType: string): string {
+  const suffix = assetType === "commodity" ? perGramCommodityCacheSuffix(sym) : "";
+  return `lookup:${sym}${suffix}`;
+}
 
 export interface LookupResult {
   name: string | null;
@@ -195,7 +200,7 @@ export async function handleLookupSymbol(
   }
 
   const now = deps.now?.() ?? Date.now();
-  const cacheKey = `lookup:${sym}`;
+  const cacheKey = cacheKeyFor(sym, assetType);
   const cached = await deps.cache.getMany([cacheKey]);
   const cachedRow = cached[0];
 

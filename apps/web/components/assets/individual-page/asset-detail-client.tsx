@@ -293,7 +293,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
       {showEdit && <EditAssetDialog asset={asset} portfolios={portfolios} onClose={() => setShowEdit(false)} />}
       {showAddTx && <AddTransactionDialog userId={userId} assetId={asset.id} assetCurrency={asset.currency} assetSymbol={asset.symbol} assetType={asset.asset_type} onClose={() => setShowAddTx(false)} />}
-      {editingTx && <EditTransactionDialog transaction={editingTx} assetCurrency={asset.currency} assetType={asset.asset_type} onClose={() => setEditingTx(null)} />}
+      {editingTx && <EditTransactionDialog transaction={editingTx} assetCurrency={asset.currency} assetSymbol={asset.symbol} assetType={asset.asset_type} onClose={() => setEditingTx(null)} />}
       {showAddEvent && <AddScheduledEventDialog userId={userId} assetId={asset.id} assetType={asset.asset_type} defaultCurrency={asset.currency} onClose={() => setShowAddEvent(false)} />}
       {editingEvent && <EditScheduledEventDialog event={editingEvent} assetType={asset.asset_type} onClose={() => setEditingEvent(null)} />}
     </div>
