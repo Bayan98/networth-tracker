@@ -11,6 +11,7 @@ import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { TransactionType, CurrencyCode, AssetType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { getAssetTypeConfig, isGramPricedMetal } from '@/components/assets/asset-type-config'
+import { syncCorporateActions } from '@/lib/corporate-actions/sync'
 
 const PRICE_TYPES: TransactionType[] = ['buy', 'sell']
 
@@ -82,6 +83,13 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
     })
 
     if (error) { setError(error.message); setLoading(false); return }
+    if (txType === 'buy' && assetId && assetSymbol && assetType && assetCurrency) {
+      void syncCorporateActions(
+        supabase,
+        { id: assetId, symbol: assetSymbol, currency: assetCurrency, asset_type: assetType },
+        userId,
+      )
+    }
     router.refresh()
     onClose()
   }

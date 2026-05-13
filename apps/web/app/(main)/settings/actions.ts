@@ -1,8 +1,17 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { syncCorporateActions } from '@/lib/corporate-actions/sync'
 import type { ImportRow } from '@networth/utils'
 import type { AssetType, TransactionType } from '@networth/types'
+
+const PRICEABLE_FOR_SYNC: ReadonlySet<AssetType> = new Set([
+  'stock',
+  'etf',
+  'bond',
+  'mutual_fund',
+  'commodity',
+])
 
 export interface ImportResult {
   assetsCreated: number
@@ -19,6 +28,7 @@ export async function importAssets(
   if (authError || !user) throw new Error('Not authenticated')
 
   const result: ImportResult = { assetsCreated: 0, transactionsCreated: 0, errors: [] }
+  const buysByAsset = new Map<string, { id: string; symbol: string; currency: string; asset_type: AssetType }>()
 
   // Group rows by asset: symbol takes priority over name for dedup within the batch
   const groups = new Map<string, ImportRow[]>()
@@ -101,8 +111,26 @@ export async function importAssets(
         )
       } else {
         result.transactionsCreated++
+        if (
+          row.transaction_type === 'buy' &&
+          firstRow.symbol &&
+          PRICEABLE_FOR_SYNC.has(firstRow.asset_type as AssetType)
+        ) {
+          buysByAsset.set(assetId!, {
+            id: assetId!,
+            symbol: firstRow.symbol.toUpperCase(),
+            currency: firstRow.currency || 'USD',
+            asset_type: firstRow.asset_type as AssetType,
+          })
+        }
       }
     }
+  }
+
+  if (buysByAsset.size > 0) {
+    await Promise.allSettled(
+      [...buysByAsset.values()].map((a) => syncCorporateActions(supabase, a, user.id)),
+    )
   }
 
   return result

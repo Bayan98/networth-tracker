@@ -47,25 +47,39 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
             const total = Number(transaction.quantity) * Number(transaction.price)
             const isCredit = transaction.transaction_type === 'sell' || transaction.transaction_type === 'withdrawal'
             const isCrossRate = transaction.currency.toUpperCase() !== asset.currency.toUpperCase()
+            const rawNotes = transaction.notes ?? ''
+            const isAuto = /\[auto:yahoo:(?:div|split):\d+\]/.test(rawNotes)
+            const displayNotes = isAuto ? rawNotes.replace(/\s*\[auto:yahoo:(?:div|split):\d+\]\s*/g, '').trim() : rawNotes
             return (
               <tr key={transaction.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={tdStyle}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    padding: '2px 8px', borderRadius: 999,
-                    fontSize: 11, fontFamily: 'var(--font-mono)',
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
-                    border: '1px solid var(--border)',
-                    background: TX_BG[transaction.transaction_type] ?? 'var(--surface-2)',
-                    color: TX_INK[transaction.transaction_type] ?? 'var(--ink-2)',
-                  }}>
-                    {assetConfig.transactions.labels[transaction.transaction_type] ?? TRANSACTION_TYPE_LABELS[transaction.transaction_type] ?? transaction.transaction_type}
-                  </span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '2px 8px', borderRadius: 999,
+                      fontSize: 11, fontFamily: 'var(--font-mono)',
+                      textTransform: 'uppercase', letterSpacing: '0.04em',
+                      border: '1px solid var(--border)',
+                      background: TX_BG[transaction.transaction_type] ?? 'var(--surface-2)',
+                      color: TX_INK[transaction.transaction_type] ?? 'var(--ink-2)',
+                    }}>
+                      {assetConfig.transactions.labels[transaction.transaction_type] ?? TRANSACTION_TYPE_LABELS[transaction.transaction_type] ?? transaction.transaction_type}
+                    </span>
+                    {isAuto && (
+                      <span style={{
+                        padding: '1px 6px', borderRadius: 999,
+                        fontSize: 10, fontFamily: 'var(--font-mono)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        border: '1px solid var(--border)',
+                        color: 'var(--ink-faint)',
+                      }}>auto</span>
+                    )}
+                  </div>
                 </td>
                 <td style={{ ...tdStyle, color: 'var(--ink-muted)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                   {fmtDate(transaction.executed_at)}
                 </td>
-                <td style={{ ...tdStyle, color: 'var(--ink-2)' }}>{transaction.notes ?? '—'}</td>
+                <td style={{ ...tdStyle, color: 'var(--ink-2)' }}>{displayNotes || '—'}</td>
                 {assetConfig.transactions.showQuantity && (
                   <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                     {displayQuantity(Number(transaction.quantity))}

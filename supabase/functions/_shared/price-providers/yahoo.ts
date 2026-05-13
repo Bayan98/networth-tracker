@@ -165,6 +165,75 @@ export async function fetchYahooCloseHistory(
   }
 }
 
+export interface CorporateActions {
+  dividends: Array<{ date: string; amount: number }>;
+  splits: Array<{ date: string; numerator: number; denominator: number }>;
+}
+
+export async function fetchYahooCorporateActions(
+  symbol: string,
+  fromTs: number,
+  toTs: number,
+): Promise<CorporateActions> {
+  const empty: CorporateActions = { dividends: [], splits: [] };
+  try {
+    const url =
+      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&period1=${fromTs}&period2=${toTs}&events=div%2Csplits`;
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) {
+      await res.body?.cancel();
+      return empty;
+    }
+
+    const data = await res.json() as {
+      chart?: {
+        result?: Array<{
+          events?: {
+            dividends?: Record<string, { amount?: number; date?: number }>;
+            splits?: Record<string, {
+              numerator?: number;
+              denominator?: number;
+              date?: number;
+            }>;
+          };
+        }> | null;
+      };
+    };
+
+    const events = data.chart?.result?.[0]?.events;
+    if (!events) return empty;
+
+    const dividends: CorporateActions["dividends"] = [];
+    for (const ev of Object.values(events.dividends ?? {})) {
+      const ts = ev?.date;
+      const amount = ev?.amount;
+      if (typeof ts !== "number" || typeof amount !== "number" || !(amount > 0)) continue;
+      dividends.push({ date: tsToIsoDate(ts), amount });
+    }
+
+    const splits: CorporateActions["splits"] = [];
+    for (const ev of Object.values(events.splits ?? {})) {
+      const ts = ev?.date;
+      const num = ev?.numerator;
+      const den = ev?.denominator;
+      if (typeof ts !== "number" || typeof num !== "number" || typeof den !== "number") continue;
+      if (!(num > 0) || !(den > 0)) continue;
+      splits.push({ date: tsToIsoDate(ts), numerator: num, denominator: den });
+    }
+
+    dividends.sort((a, b) => a.date.localeCompare(b.date));
+    splits.sort((a, b) => a.date.localeCompare(b.date));
+    return { dividends, splits };
+  } catch (e) {
+    console.error(`Yahoo Finance corporate-actions error for ${symbol}:`, e);
+    return empty;
+  }
+}
+
+function tsToIsoDate(ts: number): string {
+  return new Date(ts * 1000).toISOString().slice(0, 10);
+}
+
 export async function fetchYahooPriceNearDate(
   symbol: string,
   dateEpoch: number,
