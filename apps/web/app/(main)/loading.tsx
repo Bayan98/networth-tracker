@@ -1,61 +1,50 @@
-export default function DashboardLoading() {
+import { ChartLineLoading } from '@/components/charts/chart-line-loading'
+import {
+  PageHeadSkeleton,
+  Skeleton,
+  SkeletonRow,
+  SkeletonTableRows,
+  StatCardSkeleton,
+} from '@/components/ui/skeleton'
+
+export default function MainLoading() {
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-pulse">
-      {/* Header */}
-      <div className="space-y-2">
-        <div className="h-7 w-36 rounded-lg" style={{ background: 'var(--color-muted)' }} />
-        <div className="h-4 w-48 rounded" style={{ background: 'var(--color-muted)' }} />
-      </div>
+    <>
+      <PageHeadSkeleton />
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
+      <StatCardSkeleton count={4} />
+
+      <SkeletonRow delay={0.12} style={{ marginTop: 'var(--density-gap)' }}>
+        <div className="card" style={{ padding: 0 }}>
           <div
-            key={i}
-            className="p-5 rounded-xl h-24"
-            style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-          />
-        ))}
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div
-          className="lg:col-span-2 rounded-xl h-64"
-          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-        />
-        <div
-          className="rounded-xl h-64"
-          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-        />
-      </div>
-
-      {/* Table */}
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
-      >
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="h-4 w-24 rounded" style={{ background: 'var(--color-muted)' }} />
-        </div>
-        {[...Array(4)].map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-4 px-5 py-4 border-b"
-            style={{ borderColor: 'var(--color-border)' }}
+            style={{
+              padding: 'var(--density-pad-y) var(--density-pad-x) 20px',
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              gap: 16,
+            }}
           >
-            <div className="w-8 h-8 rounded-lg shrink-0" style={{ background: 'var(--color-muted)' }} />
-            <div className="flex-1 space-y-1.5">
-              <div className="h-3.5 w-20 rounded" style={{ background: 'var(--color-muted)' }} />
-              <div className="h-3 w-32 rounded" style={{ background: 'var(--color-muted)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Skeleton width={140} height={10} radius={3} />
+              <Skeleton width={220} height={36} radius={6} />
             </div>
-            <div className="space-y-1.5 text-right">
-              <div className="h-3.5 w-16 rounded" style={{ background: 'var(--color-muted)' }} />
-              <div className="h-3 w-12 rounded" style={{ background: 'var(--color-muted)' }} />
-            </div>
+            <Skeleton width={172} height={28} radius={8} inline />
           </div>
-        ))}
-      </div>
-    </div>
+          <div style={{ height: 320, paddingBottom: 20 }}>
+            <ChartLineLoading />
+          </div>
+        </div>
+      </SkeletonRow>
+
+      <SkeletonRow delay={0.2} style={{ marginTop: 'var(--density-gap)' }}>
+        <div className="table-wrap">
+          <div className="table-head">
+            <Skeleton width={96} height={14} radius={3} inline />
+          </div>
+          <SkeletonTableRows rows={6} />
+        </div>
+      </SkeletonRow>
+    </>
   )
 }

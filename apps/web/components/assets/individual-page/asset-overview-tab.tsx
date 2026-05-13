@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react'
 import { ExternalLink } from 'lucide-react'
-import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { ASSET_TYPE_LABELS, formatPercent } from '@networth/utils'
 import type { Asset, Portfolio, Transaction } from '@networth/types'
 import type { AssetInfo } from '@/lib/hooks/use-asset-info'
+import { LoadingText, MoneyText, QuantityText } from '@/components/ui/money-text'
 import { getAssetTypeConfig } from '../asset-type-config'
 import { fmtDate } from './asset-detail-utils'
 
@@ -27,7 +28,6 @@ export function AssetOverviewTab({
   asset, price, avgCostBasis, costBasis, marketValue, unrealized, unrealizedPct,
   quantity, source, portfolio, loading, firstTx, lastTx, assetInfo,
 }: Props) {
-  const { displayPrice, displayQuantity } = useAmountDisplay()
   const assetConfig = getAssetTypeConfig(asset.asset_type)
 
   const priceUrl = source === 'live' && asset.symbol ? (() => {
@@ -54,7 +54,7 @@ export function AssetOverviewTab({
         <div className="empty-label" style={{ marginBottom: 12 }}>Market</div>
         <div>
           <StatRow k="Symbol" v={asset.symbol ?? '—'} />
-          <StatRow k="Price" v={displayPrice(price, asset.currency, { loading })} />
+          <StatRow k="Price" v={<MoneyText value={price} currency={asset.currency} loading={loading} />} />
           {source === 'live' && priceUrl ? (
             <div className="stat-row">
               <span className="stat-key">Source</span>
@@ -71,7 +71,7 @@ export function AssetOverviewTab({
           {assetInfo?.sector && <StatRow k="Sector" v={assetInfo.sector} />}
           {assetInfo?.country && <StatRow k="Country" v={assetInfo.country} />}
           {assetInfo?.pe != null && <StatRow k="P/E" v={assetInfo.pe.toFixed(1) + 'x'} />}
-          {assetInfo?.eps != null && <StatRow k="EPS" v={displayPrice(assetInfo.eps, asset.currency)} />}
+          {assetInfo?.eps != null && <StatRow k="EPS" v={<MoneyText value={assetInfo.eps} currency={asset.currency} />} />}
           {assetInfo?.beta != null && <StatRow k="Beta" v={assetInfo.beta.toFixed(2)} />}
           {assetInfo?.dividend && <StatRow k="Dividend" v={assetInfo.dividend} />}
           {assetInfo?.analystRating && (
@@ -92,16 +92,22 @@ export function AssetOverviewTab({
       <div>
         <div className="empty-label" style={{ marginBottom: 12 }}>Position</div>
         <div>
-          {assetConfig.transactions.showQuantity && <StatRow k="Quantity" v={displayQuantity(quantity, { loading })} />}
-          <StatRow k="Avg cost" v={displayPrice(avgCostBasis > 0 ? avgCostBasis : null, asset.currency, { loading })} />
-          <StatRow k="Total cost" v={displayPrice(costBasis > 0 ? costBasis : null, asset.currency, { loading, maskLength: 6 })} />
-          <StatRow k="Market value" v={displayPrice(marketValue, asset.currency, { loading, maskLength: 6 })} />
+          {assetConfig.transactions.showQuantity && <StatRow k="Quantity" v={<QuantityText value={quantity} loading={loading} />} />}
+          <StatRow k="Avg cost" v={<MoneyText value={avgCostBasis > 0 ? avgCostBasis : null} currency={asset.currency} loading={loading} />} />
+          <StatRow k="Total cost" v={<MoneyText value={costBasis > 0 ? costBasis : null} currency={asset.currency} loading={loading} maskLength={6} />} />
+          <StatRow k="Market value" v={<MoneyText value={marketValue} currency={asset.currency} loading={loading} maskLength={6} />} />
           <StatRow
             k="Unrealized"
-            v={displayPrice(unrealized, asset.currency, { loading, withSign: true })}
+            v={<MoneyText value={unrealized} currency={asset.currency} loading={loading} withSign />}
             color={unrealized !== null ? (unrealized >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined}
           />
-          <StatRow k="Return %" v={loading ? '…' : unrealizedPct !== null ? formatPercent(unrealizedPct) : '—'}
+          <StatRow
+            k="Return %"
+            v={
+              <LoadingText loading={loading} skelWidth={48}>
+                {unrealizedPct !== null ? formatPercent(unrealizedPct) : '—'}
+              </LoadingText>
+            }
             color={unrealizedPct !== null ? (unrealizedPct >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined}
           />
           <StatRow k="First bought" v={firstTx ? fmtDate(firstTx.executed_at) : '—'} />
@@ -113,7 +119,7 @@ export function AssetOverviewTab({
   )
 }
 
-function StatRow({ k, v, color }: { k: string; v: string; color?: string }) {
+function StatRow({ k, v, color }: { k: string; v: ReactNode; color?: string }) {
   return (
     <div className="stat-row">
       <span className="stat-key">{k}</span>

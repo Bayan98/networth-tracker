@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { formatPercent } from '@networth/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Portfolio, Asset, CurrencyCode, AssetType } from '@networth/types'
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { getAssetsViewState, setAssetsViewState } from '@/lib/assets-view-state'
@@ -144,11 +146,13 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
     window.location.href = `/assets/${assetId}`
   }
 
-  const fmt = (value: number | null, withSign = false, loading = baseLoading) => {
-    return displayPrice(value, selectedCurrency, { loading, loadingText: '—', withSign })
+  const fmt = (value: number | null, withSign = false, loading = baseLoading): ReactNode => {
+    if (loading) return <Skeleton width={80} height="0.85em" radius={3} inline />
+    return displayPrice(value, selectedCurrency, { withSign })
   }
-  const fmtPct = (value: number | null, loading = baseLoading) => {
-    if (loading || value === null) return '—'
+  const fmtPct = (value: number | null, loading = baseLoading): ReactNode => {
+    if (loading) return <Skeleton width={44} height="0.75em" radius={3} inline />
+    if (value === null) return '—'
     return formatPercent(value)
   }
 

@@ -1,10 +1,12 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { formatPercent, resolveAssetPrice } from '@networth/utils'
 import type { Asset, Transaction } from '@networth/types'
+import { MoneyText } from '@/components/ui/money-text'
 
 interface Props {
   asset: Asset
@@ -39,23 +41,23 @@ export function AssetMarketStats({ asset, transactions }: Props) {
     ? undefined
     : changePct >= 0 ? '#22c55e' : '#ef4444'
 
-  const stats = [
+  const stats: { label: string; value: ReactNode; sub?: string; color?: string }[] = [
     {
       label: 'Quantity',
       value: displayQuantity(quantity),
     },
     {
       label: 'Avg Buy Price',
-      value: displayPrice(avgCostBasis, asset.currency, { loading }),
+      value: <MoneyText value={avgCostBasis} currency={asset.currency} loading={loading} />,
     },
     {
       label: 'Market Value / unit',
-      value: displayPrice(price, asset.currency, { loading }),
+      value: <MoneyText value={price} currency={asset.currency} loading={loading} />,
       sub: source === 'live' ? 'live' : source === 'manual' ? 'manual price' : 'avg cost basis',
     },
     {
       label: 'Market Value total',
-      value: displayPrice(marketValueTotal, asset.currency, { loading, maskLength: 6 }),
+      value: <MoneyText value={marketValueTotal} currency={asset.currency} loading={loading} maskLength={6} />,
     },
     {
       label: 'Change / unit',

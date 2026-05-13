@@ -12,6 +12,8 @@ import {
 import type { CurrencyCode } from '@networth/types'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { CHART_TOOLTIP_STYLE, formatChartDate, type Period } from '@/components/charts/chart-utils'
+import { ChartLineLoading } from '@/components/charts/chart-line-loading'
+import { MoneyText } from '@/components/ui/money-text'
 import type { SeriesPoint } from '@/lib/hooks/use-portfolio-history'
 
 interface Props {
@@ -121,7 +123,7 @@ export function PortfolioAreaChart({ series, currency, loading, period, onPeriod
                 lineHeight: 1,
                 color: 'var(--ink)',
               }}>
-                {displayPrice(totalValue, currency, { loading, loadingText: '—' })}
+                <MoneyText value={totalValue ?? null} currency={currency} loading={loading} skelWidth={220} skelHeight={40} />
               </div>
             </>
           ) : (
@@ -146,13 +148,7 @@ export function PortfolioAreaChart({ series, currency, loading, period, onPeriod
 
       <div style={{ height, paddingBottom: 20 }}>
         {loading ? (
-          <div style={{
-            height: '100%',
-            margin: '0 var(--density-pad-x)',
-            background: 'var(--surface-2)',
-            borderRadius: 'var(--radius)',
-            opacity: 0.6,
-          }} />
+          <ChartLineLoading />
         ) : isEmpty ? (
           <div style={{
             height: '100%',

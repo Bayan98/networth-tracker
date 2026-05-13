@@ -4,6 +4,8 @@ import { formatPercent, ASSET_TYPE_LABELS } from '@networth/utils'
 import type { CurrencyCode } from '@networth/types'
 import type { AssetValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { AssetAvatar } from '@/components/ui/asset-avatar'
+import { MoneyText, QuantityText } from '@/components/ui/money-text'
+import { SkeletonTableRows } from '@/components/ui/skeleton'
 import { HoldingsSortMenu, type SortKey } from './holdings-sort-menu'
 
 interface Props {
@@ -26,7 +28,7 @@ export function HoldingsList({
   onAssetClick,
 }: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('value-desc')
-  const { displayPrice, displayQuantity, hideAmounts } = useAmountDisplay()
+  const { hideAmounts } = useAmountDisplay()
   const sorted = useMemo(() => [...valuations].sort((a, b) => {
     switch (sortBy) {
       case 'alpha':      return a.asset.asset_name.localeCompare(b.asset.asset_name)
@@ -46,7 +48,9 @@ export function HoldingsList({
         {valuations.length > 1 && <HoldingsSortMenu sortBy={sortBy} onChange={setSortBy} />}
       </div>
 
-      {valuations.length === 0 ? (
+      {loading && valuations.length === 0 ? (
+        <SkeletonTableRows rows={6} />
+      ) : valuations.length === 0 ? (
         <div style={{ padding: '36px 20px', textAlign: 'center' }}>
           <p className="empty-label">
             {assetsCount === 0 ? 'No assets yet. Add your first position.' : 'No assets match the selected filters.'}
@@ -97,17 +101,13 @@ export function HoldingsList({
                     {portfolio ?? ''}
                   </td>
                   <td className="num" style={{ fontSize: 12 }}>
-                    {loading ? '…' : (
-                      <>
-                        {qty !== 1 && !hideAmounts && (
-                          <span style={{ color: 'var(--ink-faint)', marginRight: 4 }}>
-                            {displayQuantity(qty, { maximumFractionDigits: 4 })}
-                            <span style={{ margin: '0 3px', opacity: 0.45 }}>|</span>
-                          </span>
-                        )}
-                        {displayPrice(price, priceCcy)}
-                      </>
+                    {qty !== 1 && !hideAmounts && (
+                      <span style={{ color: 'var(--ink-faint)', marginRight: 4 }}>
+                        <QuantityText value={qty} loading={loading} maximumFractionDigits={4} />
+                        <span style={{ margin: '0 3px', opacity: 0.45 }}>|</span>
+                      </span>
                     )}
+                    <MoneyText value={price} currency={priceCcy} loading={loading} skelWidth={60} />
                   </td>
                   <td className="num">
                     {priceReturnAbs !== null && priceReturnPct !== null ? (
@@ -117,7 +117,7 @@ export function HoldingsList({
                     ) : ''}
                   </td>
                   <td className="num" style={{ fontWeight: 600 }}>
-                    {displayPrice(value, selectedCurrency, { loading, loadingText: '—' })}
+                    <MoneyText value={value} currency={selectedCurrency} loading={loading} skelWidth={70} />
                   </td>
                   <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {share !== null ? `${share.toFixed(1)}%` : '—'}

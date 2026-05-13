@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react'
+
 function MiniStat({ label, value, sub, trend }: {
   label: string
-  value: string
-  sub: string
+  value: ReactNode
+  sub: ReactNode
   trend?: 'pos' | 'neg'
 }) {
   return (
@@ -16,15 +18,15 @@ function MiniStat({ label, value, sub, trend }: {
 }
 
 interface Props {
-  totalValue: string
-  totalGainPct: string
+  totalValue: ReactNode
+  totalGainPct: ReactNode
   totalGainTrend?: 'pos' | 'neg'
-  totalCostBasis: string
-  periodChange: string
-  periodChangePct: string
+  totalCostBasis: ReactNode
+  periodChange: ReactNode
+  periodChangePct: ReactNode
   periodTrend?: 'pos' | 'neg'
-  todayChange: string
-  todayChangePct: string
+  todayChange: ReactNode
+  todayChangePct: ReactNode
   todayTrend?: 'pos' | 'neg'
 }
 

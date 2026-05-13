@@ -25,6 +25,7 @@ import { AssetNotesTab } from './asset-notes-tab'
 import { AssetOverviewTab } from './asset-overview-tab'
 import { AssetScheduledTab } from './asset-scheduled-tab'
 import { AssetTransactionsTab } from './asset-transactions-tab'
+import { MoneyText, QuantityText } from '@/components/ui/money-text'
 
 type Tab = 'Overview' | 'Transactions' | 'Holdings' | 'News' | 'Scheduled' | 'Notes'
 
@@ -38,7 +39,7 @@ interface Props {
 
 export function AssetDetailClient({ asset, transactions, scheduledEvents, portfolios, userId }: Props) {
   const router = useRouter()
-  const { displayPrice, displayQuantity } = useAmountDisplay()
+  const { displayPrice } = useAmountDisplay()
   const [tab, setTab] = useState<Tab>('Overview')
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
@@ -159,7 +160,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               Market price · {asset.currency}
             </div>
             <div className="hero-big">
-              {displayPrice(price, asset.currency, { loading, maskLength: 6 })}
+              <MoneyText value={price} currency={asset.currency} loading={loading} maskLength={6} skelWidth={180} skelHeight={32} />
             </div>
             <span className="hero-delta neutral">
               {source === 'live' ? 'Today' : source === 'manual' ? 'manual' : 'est. from cost basis'}
@@ -171,7 +172,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               Your position
             </div>
             <div className="hero-big">
-              {displayPrice(marketValue, asset.currency, { loading, maskLength: 6 })}
+              <MoneyText value={marketValue} currency={asset.currency} loading={loading} maskLength={6} skelWidth={180} skelHeight={32} />
             </div>
             {unrealized !== null && unrealizedPct !== null ? (
               <span className={`hero-delta ${unrealized < 0 ? 'neg' : ''}`}>
@@ -189,26 +190,26 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
             <div>
               <div className="hero-stat-k">Quantity</div>
               <div className="hero-stat-v">
-                {displayQuantity(quantity, { loading })}
+                <QuantityText value={quantity} loading={loading} />
               </div>
             </div>
           )}
           <div>
             <div className="hero-stat-k">Avg buy price</div>
             <div className="hero-stat-v">
-              {displayPrice(avgCostBasis > 0 ? avgCostBasis : null, asset.currency, { loading })}
+              <MoneyText value={avgCostBasis > 0 ? avgCostBasis : null} currency={asset.currency} loading={loading} />
             </div>
           </div>
           <div>
             <div className="hero-stat-k">Cost basis</div>
             <div className="hero-stat-v">
-              {displayPrice(costBasis > 0 ? costBasis : null, asset.currency, { loading, maskLength: 6 })}
+              <MoneyText value={costBasis > 0 ? costBasis : null} currency={asset.currency} loading={loading} maskLength={6} />
             </div>
           </div>
           <div>
             <div className="hero-stat-k">Unrealized</div>
             <div className="hero-stat-v" style={{ color: unrealized !== null ? (unrealized >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined }}>
-              {displayPrice(unrealized, asset.currency, { loading, withSign: true })}
+              <MoneyText value={unrealized} currency={asset.currency} loading={loading} withSign />
             </div>
           </div>
         </div>
