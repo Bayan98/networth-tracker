@@ -12,6 +12,8 @@ export function useAssetAvgCost(
 ): {
   avgCostBasis: number
   totalIncome: number
+  dividendIncome: number
+  sellIncome: number
   quantity: number
   fx: (from: string) => number | null
   loading: boolean
@@ -98,6 +100,8 @@ export function useAssetAvgCost(
     let totalBuyValue = 0
     let totalBuyQty = 0
     let totalIncome = 0
+    let dividendIncome = 0
+    let sellIncome = 0
     let quantity = 0
 
     const sorted = [...transactions].sort((a, b) => a.executed_at.localeCompare(b.executed_at))
@@ -115,7 +119,11 @@ export function useAssetAvgCost(
         quantity += qty
       } else if (tx.transaction_type === 'sell') {
         const avg = totalBuyQty > 0 ? totalBuyValue / totalBuyQty : 0
-        if (rate !== null) totalIncome += qty * (price * rate - avg)
+        if (rate !== null) {
+          const income = qty * (price * rate - avg)
+          sellIncome += income
+          totalIncome += income
+        }
         totalBuyValue -= qty * avg
         totalBuyQty -= qty
         quantity -= qty
@@ -128,13 +136,19 @@ export function useAssetAvgCost(
         quantity *= qty
         totalBuyQty *= qty
       } else if (tx.transaction_type === 'dividend') {
-        if (rate !== null) totalIncome += qty * price * rate
+        if (rate !== null) {
+          const income = qty * price * rate
+          dividendIncome += income
+          totalIncome += income
+        }
       }
     }
 
     return {
       avgCostBasis: totalBuyQty > 0 ? totalBuyValue / totalBuyQty : 0,
       totalIncome,
+      dividendIncome,
+      sellIncome,
       quantity,
       fx,
       loading,

@@ -1,15 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePrices } from '@/lib/hooks/use-prices'
 import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
 import { useAssetInfo } from '@/lib/hooks/use-asset-info'
 import { useAssetNews } from '@/lib/hooks/use-asset-news'
-import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { getAssetsViewState, normalizeAssetsPath } from '@/lib/assets-view-state'
-import { formatPercent, resolveAssetPrice } from '@networth/utils'
+import { resolveAssetPrice } from '@networth/utils'
 import type { Asset, Portfolio, Transaction, ScheduledEvent } from '@networth/types'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
@@ -19,7 +19,6 @@ import { getAssetTypeConfig } from '../asset-type-config'
 import { EditAssetDialog } from '../dialogs/edit-asset-dialog'
 import { AssetDetailHeader } from './asset-detail-header'
 import { ASSET_TYPE_COLOR } from './asset-detail-utils'
-import { AssetHoldingsTab } from './asset-holdings-tab'
 import { AssetNewsTab } from './asset-news-tab'
 import { AssetNotesTab } from './asset-notes-tab'
 import { AssetOverviewTab } from './asset-overview-tab'
@@ -27,7 +26,7 @@ import { AssetScheduledTab } from './asset-scheduled-tab'
 import { AssetTransactionsTab } from './asset-transactions-tab'
 import { MoneyText, QuantityText } from '@/components/ui/money-text'
 
-type Tab = 'Overview' | 'Transactions' | 'Holdings' | 'News' | 'Scheduled' | 'Notes'
+type Tab = 'Overview' | 'Transactions' | 'News' | 'Scheduled' | 'Notes'
 
 interface Props {
   asset: Asset
@@ -39,7 +38,6 @@ interface Props {
 
 export function AssetDetailClient({ asset, transactions, scheduledEvents, portfolios, userId }: Props) {
   const router = useRouter()
-  const { displayPrice } = useAmountDisplay()
   const [tab, setTab] = useState<Tab>('Overview')
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
@@ -55,9 +53,9 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const priceItems = asset.symbol ? [{ symbol: asset.symbol, asset_type: asset.asset_type }] : []
   const { prices, currencies } = usePrices(priceItems)
   const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
-  const { avgCostBasis, quantity, totalIncome, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
-  const { info: assetInfo } = useAssetInfo(asset.symbol, asset.asset_type)
-  const { news: assetNews, loading: newsLoading } = useAssetNews(asset.symbol, asset.asset_type, asset.asset_name)
+  const { avgCostBasis, quantity, totalIncome, dividendIncome, sellIncome, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
+  const { info: assetInfo, loading: assetInfoLoading } = useAssetInfo(asset.symbol, asset.asset_type)
+  const { news: assetNews, loading: newsLoading } = useAssetNews(asset.symbol, asset.asset_type, asset.asset_name, tab === 'News')
   const assetConfig = getAssetTypeConfig(asset.asset_type)
 
   const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
@@ -68,12 +66,13 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
   const marketValue = price !== null ? quantity * price : null
   const costBasis = quantity * avgCostBasis
-  const unrealized = marketValue !== null && costBasis > 0 ? marketValue - costBasis : null
-  const unrealizedPct = unrealized !== null && costBasis > 0 ? (unrealized / costBasis) * 100 : null
   const typeColor = ASSET_TYPE_COLOR[asset.asset_type] ?? 'var(--cat-other)'
   const portfolio = portfolios.find((candidate) => candidate.id === asset.portfolio_id)
-  const firstTx = transactions.length > 0 ? transactions[transactions.length - 1] : null
-  const lastTx = transactions.length > 0 ? transactions[0] : null
+  const showQuantity = assetConfig.transactions.showQuantity
+  const showMarketUnit = showQuantity && quantity > 1
+  const showCostBasisRow = source !== 'cost_basis'
+  const showIncomeRow = totalIncome !== 0
+  const incomeLabel = assetConfig.scheduledEvents.labels.dividend ?? assetConfig.transactions.labels.dividend ?? 'Dividend'
 
   useEffect(() => {
     const cached = getAssetsViewState()
@@ -123,7 +122,6 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
   const tabs = [
     'Overview',
-    ...(assetInfo?.holdings && assetInfo.holdings.length > 0 ? ['Holdings'] : []),
     'Transactions',
     'Scheduled',
     ...(asset.symbol ? ['News'] : []),
@@ -153,86 +151,52 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
       )}
 
       <div className="hero">
-        <div className="hero-3col">
-          <div>
-            <div className="hero-label">
-              <span className="hero-label-dot" />
-              Market price · {asset.currency}
-            </div>
-            <div className="hero-big">
-              <MoneyText value={price} currency={asset.currency} loading={loading} maskLength={6} skelWidth={180} skelHeight={32} />
-            </div>
-            <span className="hero-delta neutral">
-              {source === 'live' ? 'Today' : source === 'manual' ? 'manual' : 'est. from cost basis'}
-            </span>
-          </div>
-          <div>
-            <div className="hero-label">
-              <span className="hero-label-dot" style={{ background: 'var(--ink-faint)' }} />
-              Your position
-            </div>
-            <div className="hero-big">
+        <div className="asset-summary-rows">
+          <div className={`asset-summary-row ${showMarketUnit ? '' : 'single'}`}>
+            <SummaryMetric label={`Total market value · ${asset.currency}`} primary>
               <MoneyText value={marketValue} currency={asset.currency} loading={loading} maskLength={6} skelWidth={180} skelHeight={32} />
-            </div>
-            {unrealized !== null && unrealizedPct !== null ? (
-              <span className={`hero-delta ${unrealized < 0 ? 'neg' : ''}`}>
-                {unrealized >= 0 ? '↑' : '↓'}
-                {` ${displayPrice(Math.abs(unrealized), asset.currency)} · ${formatPercent(Math.abs(unrealizedPct))}`}
-              </span>
-            ) : (
-              <span className="hero-delta neutral">no cost basis yet</span>
+            </SummaryMetric>
+            {showMarketUnit && (
+              <>
+                <SummaryMetric label="Quantity">
+                  <QuantityText value={quantity} loading={loading} />
+                </SummaryMetric>
+                <SummaryMetric label="Market price">
+                  <MoneyText value={price} currency={asset.currency} loading={loading} />
+                </SummaryMetric>
+              </>
             )}
           </div>
-          <div>
-            <div className="hero-label">
-              <span className="hero-label-dot" style={{ background: 'var(--ink-faint)' }} />
-              Income · {asset.currency}
-            </div>
-            <div
-              className="hero-big"
-              style={{ color: totalIncome > 0 ? 'var(--pos)' : totalIncome < 0 ? 'var(--neg)' : undefined }}
-            >
-              <MoneyText
-                value={totalIncome}
-                currency={asset.currency}
-                loading={loading}
-                withSign
-                maskLength={6}
-                skelWidth={180}
-                skelHeight={32}
-              />
-            </div>
-            <span className="hero-delta neutral">approximated value</span>
-          </div>
-        </div>
 
-        <div className="hero-stats">
-          {assetConfig.transactions.showQuantity && (
-            <div>
-              <div className="hero-stat-k">Quantity</div>
-              <div className="hero-stat-v">
-                <QuantityText value={quantity} loading={loading} />
-              </div>
+          {showCostBasisRow && (
+            <div className={`asset-summary-row ${showQuantity ? '' : 'two-col'}`}>
+              <SummaryMetric label={`Total value · ${asset.currency}`} primary>
+                <MoneyText value={costBasis > 0 ? costBasis : null} currency={asset.currency} loading={loading} maskLength={6} skelWidth={180} skelHeight={32} />
+              </SummaryMetric>
+              {showQuantity && (
+                <SummaryMetric label="Quantity">
+                  <QuantityText value={quantity} loading={loading} />
+                </SummaryMetric>
+              )}
+              <SummaryMetric label="Avg buy price">
+                <MoneyText value={avgCostBasis > 0 ? avgCostBasis : null} currency={asset.currency} loading={loading} />
+              </SummaryMetric>
             </div>
           )}
-          <div>
-            <div className="hero-stat-k">Avg buy price</div>
-            <div className="hero-stat-v">
-              <MoneyText value={avgCostBasis > 0 ? avgCostBasis : null} currency={asset.currency} loading={loading} />
+
+          {showIncomeRow && (
+            <div className="asset-summary-row">
+              <SummaryMetric label={`Income · ${asset.currency}`} primary color={totalIncome > 0 ? 'var(--pos)' : 'var(--neg)'}>
+                <MoneyText value={totalIncome} currency={asset.currency} loading={loading} withSign maskLength={6} skelWidth={180} skelHeight={32} />
+              </SummaryMetric>
+              <SummaryMetric label={incomeLabel} color={dividendIncome > 0 ? 'var(--pos)' : dividendIncome < 0 ? 'var(--neg)' : undefined}>
+                <MoneyText value={dividendIncome} currency={asset.currency} loading={loading} withSign />
+              </SummaryMetric>
+              <SummaryMetric label="Sell" color={sellIncome > 0 ? 'var(--pos)' : sellIncome < 0 ? 'var(--neg)' : undefined}>
+                <MoneyText value={sellIncome} currency={asset.currency} loading={loading} withSign />
+              </SummaryMetric>
             </div>
-          </div>
-          <div>
-            <div className="hero-stat-k">Cost basis</div>
-            <div className="hero-stat-v">
-              <MoneyText value={costBasis > 0 ? costBasis : null} currency={asset.currency} loading={loading} maskLength={6} />
-            </div>
-          </div>
-          <div>
-            <div className="hero-stat-k">Unrealized</div>
-            <div className="hero-stat-v" style={{ color: unrealized !== null ? (unrealized >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined }}>
-              <MoneyText value={unrealized} currency={asset.currency} loading={loading} withSign />
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -255,23 +219,9 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
           {tab === 'Overview' && (
             <AssetOverviewTab
               asset={asset}
-              price={price}
-              avgCostBasis={avgCostBasis}
-              costBasis={costBasis}
-              marketValue={marketValue}
-              unrealized={unrealized}
-              unrealizedPct={unrealizedPct}
-              quantity={quantity}
-              source={source}
-              portfolio={portfolio}
-              loading={loading}
-              firstTx={firstTx}
-              lastTx={lastTx}
+              loading={assetInfoLoading}
               assetInfo={assetInfo}
             />
-          )}
-          {tab === 'Holdings' && assetInfo?.holdings && (
-            <AssetHoldingsTab holdings={assetInfo.holdings} />
           )}
           {tab === 'Transactions' && (
             <AssetTransactionsTab
@@ -317,6 +267,25 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
       {editingTx && <EditTransactionDialog transaction={editingTx} assetCurrency={asset.currency} assetSymbol={asset.symbol} assetType={asset.asset_type} onClose={() => setEditingTx(null)} />}
       {showAddEvent && <AddScheduledEventDialog userId={userId} assetId={asset.id} assetType={asset.asset_type} defaultCurrency={asset.currency} onClose={() => setShowAddEvent(false)} />}
       {editingEvent && <EditScheduledEventDialog event={editingEvent} assetType={asset.asset_type} onClose={() => setEditingEvent(null)} />}
+    </div>
+  )
+}
+
+function SummaryMetric({
+  label,
+  children,
+  color,
+  primary = false,
+}: {
+  label: string
+  children: ReactNode
+  color?: string
+  primary?: boolean
+}) {
+  return (
+    <div className={`asset-summary-metric ${primary ? 'primary' : ''}`}>
+      <div className="asset-summary-label">{label}</div>
+      <div className="asset-summary-value" style={color ? { color } : undefined}>{children}</div>
     </div>
   )
 }

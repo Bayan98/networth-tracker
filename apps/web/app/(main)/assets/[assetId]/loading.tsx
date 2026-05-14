@@ -38,20 +38,9 @@ export default function AssetDetailLoading() {
 
       <SkeletonRow delay={0.12}>
         <div className="hero">
-          <div className="hero-3col">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <HeroMetricSkeleton key={i} />
-            ))}
-          </div>
-
-          <div className="hero-stats">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i}>
-                <Skeleton width={92} height={10} radius={3} />
-                <div style={{ marginTop: 8 }}>
-                  <Skeleton width={i === 0 ? 72 : 118} height={20} radius={5} />
-                </div>
-              </div>
+          <div className="asset-summary-rows">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <HeroRowSkeleton key={i} primary={i === 0} />
             ))}
           </div>
         </div>
@@ -94,19 +83,23 @@ export default function AssetDetailLoading() {
   )
 }
 
-function HeroMetricSkeleton() {
+function HeroRowSkeleton({ primary = false }: { primary?: boolean }) {
   return (
-    <div>
-      <div className="hero-label">
-        <Skeleton width={6} height={6} radius={999} inline />
-        <Skeleton width={110} height={11} radius={3} inline />
+    <div className="asset-summary-row">
+      <div className={`asset-summary-metric ${primary ? 'primary' : ''}`}>
+        <Skeleton width={150} height={13} radius={3} />
+        <div style={{ marginTop: 8 }}>
+          <Skeleton width="62%" height={primary ? 34 : 28} radius={6} />
+        </div>
       </div>
-      <div className="hero-big">
-        <Skeleton width="72%" height={44} radius={7} />
-      </div>
-      <span className="hero-delta neutral">
-        <Skeleton width={72} height={13} radius={3} inline />
-      </span>
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="asset-summary-metric">
+          <Skeleton width={92} height={13} radius={3} />
+          <div style={{ marginTop: 8 }}>
+            <Skeleton width={i === 0 ? 72 : 118} height={24} radius={5} />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

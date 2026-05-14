@@ -143,6 +143,7 @@ export interface SAInfo {
   pe: number | null;
   eps: number | null;
   sector: string | null;
+  industry: string | null;
   country: string | null;
   description: string | null;
   analystRating: string | null;
@@ -156,7 +157,7 @@ export async function fetchStockAnalysisInfo(sym: string, assetType?: string): P
   const baseUrls = [saBaseUrl(sym, assetType)];
   const fallbackBase = saFallbackBaseUrl(sym, assetType);
   if (fallbackBase) baseUrls.push(fallbackBase);
-  const empty: SAInfo = { pe: null, eps: null, sector: null, country: null, description: null, analystRating: null, analystCount: null, dividend: null, beta: null, news: null };
+  const empty: SAInfo = { pe: null, eps: null, sector: null, industry: null, country: null, description: null, analystRating: null, analystCount: null, dividend: null, beta: null, news: null };
 
   try {
     for (const base of baseUrls) {
@@ -170,7 +171,7 @@ export async function fetchStockAnalysisInfo(sym: string, assetType?: string): P
 }
 
 async function fetchStockAnalysisInfoFromBase(base: string): Promise<SAInfo> {
-  const empty: SAInfo = { pe: null, eps: null, sector: null, country: null, description: null, analystRating: null, analystCount: null, dividend: null, beta: null, news: null };
+  const empty: SAInfo = { pe: null, eps: null, sector: null, industry: null, country: null, description: null, analystRating: null, analystCount: null, dividend: null, beta: null, news: null };
 
   try {
     const [quoteRes, statsRes] = await Promise.all([
@@ -220,6 +221,7 @@ async function fetchStockAnalysisInfoFromBase(base: string): Promise<SAInfo> {
 
     // Sector/industry from infoTable
     let sector: string | null = null;
+    let industry: string | null = null;
     const infoTableRaw = get("infoTable");
     if (Array.isArray(infoTableRaw)) {
       for (const rowRef of infoTableRaw) {
@@ -229,7 +231,7 @@ async function fetchStockAnalysisInfoFromBase(base: string): Promise<SAInfo> {
         const t = typeof rowObj.t === "number" ? data[rowObj.t] : rowObj.t;
         const v = typeof rowObj.v === "number" ? data[rowObj.v] : rowObj.v;
         if (t === "Sector" && typeof v === "string" && v) sector = v;
-        if (!sector && t === "Industry" && typeof v === "string" && v) sector = v;
+        if (t === "Industry" && typeof v === "string" && v) industry = v;
       }
     }
 
@@ -294,6 +296,7 @@ async function fetchStockAnalysisInfoFromBase(base: string): Promise<SAInfo> {
       pe: parseNumStr("peRatio"),
       eps: parseNumStr("eps"),
       sector,
+      industry,
       country,
       description,
       analystRating,
@@ -311,6 +314,7 @@ function hasStockAnalysisInfo(info: SAInfo): boolean {
   return info.pe != null ||
     info.eps != null ||
     info.sector != null ||
+    info.industry != null ||
     info.country != null ||
     info.description != null ||
     info.analystRating != null ||

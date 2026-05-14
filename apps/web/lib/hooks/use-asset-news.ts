@@ -23,11 +23,17 @@ export function useAssetNews(
   symbol: string | null,
   assetType: string,
   assetName?: string | null,
+  enabled = true,
 ): { news: NewsItem[] | null; loading: boolean } {
   const [news, setNews] = useState<NewsItem[] | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+
     if (!symbol || !PRICEABLE.includes(assetType)) {
       setNews(null)
       setLoading(false)
@@ -49,8 +55,9 @@ export function useAssetNews(
     const supabase = createClient()
     supabase.functions
       .invoke('fetch-asset-news', { body: { symbol, asset_type: assetType, name: assetName } })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return
+        if (error) throw error
         const nextNews = (data as { news?: NewsItem[] | null } | null)?.news ?? null
         setClientCache(cacheKey, { news: nextNews }, ASSET_NEWS_CACHE_TTL_MS)
         setNews(nextNews)
@@ -59,7 +66,7 @@ export function useAssetNews(
       .finally(() => { if (!cancelled) setLoading(false) })
 
     return () => { cancelled = true }
-  }, [symbol, assetType, assetName])
+  }, [symbol, assetType, assetName, enabled])
 
   return { news, loading }
 }

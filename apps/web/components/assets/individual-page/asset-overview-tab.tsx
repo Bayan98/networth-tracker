@@ -1,37 +1,25 @@
 import type { ReactNode } from 'react'
 import { ExternalLink } from 'lucide-react'
-import { ASSET_TYPE_LABELS, formatPercent } from '@networth/utils'
-import type { Asset, Portfolio, Transaction } from '@networth/types'
+import type { Asset } from '@networth/types'
 import type { AssetInfo } from '@/lib/hooks/use-asset-info'
-import { LoadingText, MoneyText, QuantityText } from '@/components/ui/money-text'
-import { getAssetTypeConfig } from '../asset-type-config'
-import { fmtDate } from './asset-detail-utils'
+import { LoadingText } from '@/components/ui/money-text'
+import { AssetHoldingsTab } from './asset-holdings-tab'
 
 interface Props {
   asset: Asset
-  price: number | null
-  avgCostBasis: number
-  costBasis: number
-  marketValue: number | null
-  unrealized: number | null
-  unrealizedPct: number | null
-  quantity: number
-  source: string
-  portfolio: Portfolio | undefined
   loading: boolean
-  firstTx: Transaction | null
-  lastTx: Transaction | null
   assetInfo: AssetInfo | null
 }
 
 export function AssetOverviewTab({
-  asset, price, avgCostBasis, costBasis, marketValue, unrealized, unrealizedPct,
-  quantity, source, portfolio, loading, firstTx, lastTx, assetInfo,
+  asset, loading, assetInfo,
 }: Props) {
-  const assetConfig = getAssetTypeConfig(asset.asset_type)
-
-  const priceUrl = source === 'live' && asset.symbol ? (() => {
+  const yahooUrl = asset.symbol ? (() => {
     if (asset.asset_type === 'crypto') return `https://finance.yahoo.com/quote/${asset.symbol}-USD/`
+    return assetInfo?.yahooUrl ?? null
+  })() : null
+
+  const stockAnalysisUrl = asset.symbol && asset.asset_type !== 'crypto' ? (() => {
     const colonIdx = asset.symbol.indexOf(':')
     if (colonIdx > 0) {
       const exchange = asset.symbol.slice(0, colonIdx).toLowerCase()
@@ -39,7 +27,7 @@ export function AssetOverviewTab({
       return `https://stockanalysis.com/quote/${exchange}/${ticker}/`
     }
     if (asset.asset_type === 'etf') return `https://stockanalysis.com/etf/${asset.symbol.toLowerCase()}/`
-    return `https://finance.yahoo.com/quote/${asset.symbol}/`
+    return `https://stockanalysis.com/stocks/${asset.symbol.toLowerCase()}/`
   })() : null
 
   const analystColor = assetInfo?.analystRating
@@ -48,82 +36,156 @@ export function AssetOverviewTab({
       : 'var(--ink-2)'
     : undefined
 
+  const providerLinks = (assetInfo?.sources ?? []).map((provider) => ({
+    provider,
+    href: provider === 'StockAnalysis' ? stockAnalysisUrl : provider === 'Yahoo' ? yahooUrl : null,
+  }))
+  const marketMetrics = [
+    metric('Exchange', assetInfo?.exchange ?? null),
+    metric('Currency', asset.currency),
+    metric('P/E', assetInfo?.pe != null ? assetInfo.pe.toFixed(2) : null),
+    metric('EPS', assetInfo?.eps != null ? assetInfo.eps.toFixed(2) : null),
+    metric('Beta', assetInfo?.beta != null ? assetInfo.beta.toFixed(2) : null),
+    metric('Dividend', assetInfo?.dividend ?? null),
+    metric(
+      'Analyst',
+      assetInfo?.analystRating ? assetInfo.analystRating + (assetInfo.analystCount ? ` (${assetInfo.analystCount})` : '') : null,
+      analystColor,
+    ),
+    metric('Price Target', assetInfo?.priceTarget != null ? formatCurrency(assetInfo.priceTarget, asset.currency) : null),
+    providerLinks.length > 0
+      ? metric('Source', <SourceLinks links={providerLinks} />)
+      : null,
+  ].filter((item): item is MetricItem => item !== null)
+  const companyMetrics = [
+    metric('Country', assetInfo?.country ?? null),
+    metric('Website', assetInfo?.website ? <WebsiteLink href={assetInfo.website} /> : null),
+    metric('Industry', assetInfo?.industry ?? null),
+    metric('Sector', assetInfo?.sector ?? null),
+    metric('Market Cap', assetInfo?.marketCap != null ? formatCurrency(assetInfo.marketCap, asset.currency, true) : null),
+    metric('Employees', assetInfo?.employees != null ? formatCompactNumber(assetInfo.employees) : null),
+    metric('About', <span className="overview-info-copy">{assetInfo?.description}</span>, undefined, 'wide', assetInfo?.description),
+  ].filter((item): item is MetricItem => item !== null)
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }} className="overview-cols">
-      <div>
-        <div className="empty-label" style={{ marginBottom: 12 }}>Market</div>
-        <div>
-          <StatRow k="Symbol" v={asset.symbol ?? '—'} />
-          <StatRow k="Price" v={<MoneyText value={price} currency={asset.currency} loading={loading} />} />
-          {source === 'live' && priceUrl ? (
-            <div className="stat-row">
-              <span className="stat-key">Source</span>
-              <a href={priceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>
-                Live price <ExternalLink size={11} />
-              </a>
-            </div>
-          ) : (
-            <StatRow k="Source" v={source === 'manual' ? 'Manual' : 'Est. from cost'} />
-          )}
-          <StatRow k="Currency" v={asset.currency} />
-          <StatRow k="Type" v={ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type} />
-          <StatRow k="Portfolio" v={portfolio?.name ?? 'Unassigned'} />
-          {assetInfo?.sector && <StatRow k="Sector" v={assetInfo.sector} />}
-          {assetInfo?.country && <StatRow k="Country" v={assetInfo.country} />}
-          {assetInfo?.pe != null && <StatRow k="P/E" v={assetInfo.pe.toFixed(1) + 'x'} />}
-          {assetInfo?.eps != null && <StatRow k="EPS" v={<MoneyText value={assetInfo.eps} currency={asset.currency} />} />}
-          {assetInfo?.beta != null && <StatRow k="Beta" v={assetInfo.beta.toFixed(2)} />}
-          {assetInfo?.dividend && <StatRow k="Dividend" v={assetInfo.dividend} />}
-          {assetInfo?.analystRating && (
-            <StatRow
-              k="Analyst"
-              v={assetInfo.analystRating + (assetInfo.analystCount ? ` (${assetInfo.analystCount})` : '')}
-              color={analystColor}
-            />
-          )}
-          {assetInfo?.description && (
-            <div className="stat-row" style={{ alignItems: 'flex-start' }}>
-              <span className="stat-key">About</span>
-              <span style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 320 }}>{assetInfo.description}</span>
-            </div>
-          )}
-        </div>
+    <div className="overview-section-stack">
+      <div className="overview-info-grid">
+        {(loading || marketMetrics.length > 0) && (
+          <OverviewGroup title="Market Data">
+            {loading ? <OverviewLoadingMetrics count={6} /> : marketMetrics.map((item) => <OverviewMetric key={item.label} {...item} />)}
+          </OverviewGroup>
+        )}
+
+        {(loading || companyMetrics.length > 0) && (
+          <OverviewGroup title="Company Info">
+            {loading ? <OverviewLoadingMetrics count={3} /> : companyMetrics.map((item) => <OverviewMetric key={item.label} {...item} />)}
+          </OverviewGroup>
+        )}
       </div>
-      <div>
-        <div className="empty-label" style={{ marginBottom: 12 }}>Position</div>
-        <div>
-          {assetConfig.transactions.showQuantity && <StatRow k="Quantity" v={<QuantityText value={quantity} loading={loading} />} />}
-          <StatRow k="Avg cost" v={<MoneyText value={avgCostBasis > 0 ? avgCostBasis : null} currency={asset.currency} loading={loading} />} />
-          <StatRow k="Total cost" v={<MoneyText value={costBasis > 0 ? costBasis : null} currency={asset.currency} loading={loading} maskLength={6} />} />
-          <StatRow k="Market value" v={<MoneyText value={marketValue} currency={asset.currency} loading={loading} maskLength={6} />} />
-          <StatRow
-            k="Unrealized"
-            v={<MoneyText value={unrealized} currency={asset.currency} loading={loading} withSign />}
-            color={unrealized !== null ? (unrealized >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined}
-          />
-          <StatRow
-            k="Return %"
-            v={
-              <LoadingText loading={loading} skelWidth={48}>
-                {unrealizedPct !== null ? formatPercent(unrealizedPct) : '—'}
-              </LoadingText>
-            }
-            color={unrealizedPct !== null ? (unrealizedPct >= 0 ? 'var(--pos)' : 'var(--neg)') : undefined}
-          />
-          <StatRow k="First bought" v={firstTx ? fmtDate(firstTx.executed_at) : '—'} />
-          <StatRow k="Last activity" v={lastTx ? fmtDate(lastTx.executed_at) : '—'} />
+
+      {assetInfo?.holdings && assetInfo.holdings.length > 0 && (
+        <div className="overview-holdings">
+          <AssetHoldingsTab holdings={assetInfo.holdings} title="Holdings" />
         </div>
-      </div>
-      <style>{`@media (max-width: 640px) { .overview-cols { grid-template-columns: 1fr !important; gap: 24px !important; } }`}</style>
+      )}
     </div>
   )
 }
 
-function StatRow({ k, v, color }: { k: string; v: ReactNode; color?: string }) {
+function OverviewGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="stat-row">
-      <span className="stat-key">{k}</span>
-      <span className="stat-val" style={color ? { color } : undefined}>{v}</span>
+    <div>
+      <div className="empty-label" style={{ marginBottom: 18 }}>{title}</div>
+      <div className="overview-info-list">{children}</div>
     </div>
+  )
+}
+
+function OverviewMetric({ label, value, color, className }: MetricItem) {
+  return (
+    <div className={`overview-info-item ${className ?? ''}`}>
+      {label && <div className="overview-info-label">{label}</div>}
+      <div className="overview-info-value" style={color ? { color } : undefined}>{value}</div>
+    </div>
+  )
+}
+
+interface MetricItem {
+  label: string
+  value: ReactNode
+  color?: string
+  className?: string
+}
+
+function metric(label: string, value: ReactNode | null | undefined, color?: string, className?: string, rawValue: unknown = value): MetricItem | null {
+  if (rawValue == null || rawValue === '') return null
+  return { label, value, color, className }
+}
+
+function SourceLinks({ links }: { links: Array<{ provider: string; href: string | null }> }) {
+  return (
+    <span className="overview-source-links">
+      {links.map((link, index) => (
+        <span key={link.provider} className="overview-source-part">
+          {index > 0 && <br />}
+          {link.href ? (
+            <a className="overview-info-link" href={link.href} target="_blank" rel="noopener noreferrer">
+              {link.provider} <ExternalLink size={13} />
+            </a>
+          ) : (
+            <span>{link.provider}</span>
+          )}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+function WebsiteLink({ href }: { href: string }) {
+  let label = href
+  try {
+    label = new URL(href).hostname.replace(/^www\./, '')
+  } catch {
+    label = href.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
+  }
+
+  return (
+    <a className="overview-info-link" href={href} target="_blank" rel="noopener noreferrer">
+      {label} <ExternalLink size={13} />
+    </a>
+  )
+}
+
+function formatCurrency(value: number, currency: string, compact = false): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    notation: compact ? 'compact' : 'standard',
+    maximumFractionDigits: compact ? 2 : 2,
+  }).format(value)
+}
+
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+function OverviewLoadingMetrics({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, index) => (
+        <OverviewMetric key={index} label="" value={<LoadingValue />} />
+      ))}
+    </>
+  )
+}
+
+function LoadingValue() {
+  return (
+    <LoadingText loading skelWidth={64}>
+      {null}
+    </LoadingText>
   )
 }

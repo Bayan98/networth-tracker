@@ -1,7 +1,7 @@
 import { fetchYahooAssetInfo, handleFetchAssetInfo, type AssetInfo } from "../../../fetch-asset-info/index.ts";
 import { fetchStockAnalysisInfo } from "../../../_shared/price-providers/stockanalysis.ts";
 import { toYahooSymbol } from "../../../_shared/price-providers/yahoo.ts";
-import { assert, assertEquals } from "../../_shared/assertions.ts";
+import { assert, assertDeepEquals, assertEquals } from "../../_shared/assertions.ts";
 import { InMemoryCache } from "../../_shared/cache.ts";
 import { FIXED_NOW } from "../../_shared/fixtures.ts";
 
@@ -20,6 +20,7 @@ Deno.test("fetch-asset-info integrates StockAnalysis and Yahoo for AAPL", async 
   );
 
   assertEquals(result.yahooUrl, "https://finance.yahoo.com/quote/AAPL/");
+  assertDeepEquals(result.sources, ["StockAnalysis", "Yahoo"]);
   assertEquals("news" in result, false);
   assertUsesStockAnalysisPriority(result, stockAnalysisInfo);
 });
@@ -42,6 +43,7 @@ Deno.test("fetch-asset-info integrates exchange-prefixed StockAnalysis and conve
   );
 
   assertEquals(result.yahooUrl, "https://finance.yahoo.com/quote/1810.HK/");
+  assertDeepEquals(result.sources, ["StockAnalysis", "Yahoo"]);
   assertEquals("news" in result, false);
   assertUsesStockAnalysisPriority(result, stockAnalysisInfo);
   assertUsesYahooFallback(result, stockAnalysisInfo, yahooInfo);
@@ -49,7 +51,19 @@ Deno.test("fetch-asset-info integrates exchange-prefixed StockAnalysis and conve
 
 type AssetInfoKey = keyof Pick<
   AssetInfo,
-  "country" | "sector" | "description" | "pe" | "eps" | "analystRating" | "analystCount"
+  | "country"
+  | "sector"
+  | "industry"
+  | "description"
+  | "website"
+  | "employees"
+  | "marketCap"
+  | "exchange"
+  | "priceTarget"
+  | "pe"
+  | "eps"
+  | "analystRating"
+  | "analystCount"
 >;
 
 function assertHasProviderValue(info: Partial<AssetInfo>, keys: AssetInfoKey[]) {

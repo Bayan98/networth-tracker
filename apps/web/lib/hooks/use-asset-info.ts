@@ -12,6 +12,7 @@ export interface Holding {
 
 export interface AssetInfo {
   sector: string | null
+  industry: string | null
   country: string | null
   pe: number | null
   eps: number | null
@@ -20,8 +21,14 @@ export interface AssetInfo {
   holdings: Holding[] | null
   yahooUrl: string | null
   description: string | null
+  website: string | null
+  employees: number | null
+  marketCap: number | null
+  exchange: string | null
+  priceTarget: number | null
   dividend: string | null
   beta: number | null
+  sources: string[] | null
 }
 
 const PRICEABLE = ['stock', 'etf', 'bond', 'mutual_fund', 'commodity', 'crypto']
@@ -42,7 +49,7 @@ export function useAssetInfo(
     }
 
     const normalizedSymbol = symbol.toUpperCase().trim()
-    const cacheKey = `asset-info:v1:${assetType}:${normalizedSymbol}`
+    const cacheKey = `asset-info:v3:${assetType}:${normalizedSymbol}`
     const cached = getClientCache<AssetInfo>(cacheKey)
     if (cached) {
       setInfo(cached)
@@ -55,8 +62,9 @@ export function useAssetInfo(
     const supabase = createClient()
     supabase.functions
       .invoke('fetch-asset-info', { body: { symbol, asset_type: assetType } })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return
+        if (error) throw error
         const nextInfo = (data as AssetInfo) ?? null
         if (nextInfo) setClientCache(cacheKey, nextInfo, ASSET_INFO_CACHE_TTL_MS)
         setInfo(nextInfo)

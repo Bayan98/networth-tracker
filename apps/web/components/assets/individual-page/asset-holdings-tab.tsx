@@ -1,11 +1,11 @@
 import type { Holding } from '@/lib/hooks/use-asset-info'
 import { tdStyle, thStyle } from './asset-detail-utils'
 
-export function AssetHoldingsTab({ holdings }: { holdings: Holding[] }) {
+export function AssetHoldingsTab({ holdings, title = 'Holdings' }: { holdings: Holding[]; title?: string }) {
   const total = holdings.reduce((sum, holding) => sum + holding.pct, 0)
   return (
     <div>
-      <div className="empty-label" style={{ marginBottom: 12 }}>ETF Holdings</div>
+      <div className="empty-label" style={{ marginBottom: 12 }}>{title}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
