@@ -204,14 +204,14 @@ export function PortfolioAreaChart({ series, currency, loading, period, onPeriod
                 domain={['dataMin', 'dataMax']}
                 scale="time"
                 tickFormatter={(v: number) => formatChartDate(new Date(v).toISOString().slice(0, 10), period)}
-                tick={{ fontSize: 10, fill: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono, monospace)' }}
+                tick={{ fontSize: 10, fill: 'var(--ink-faint)', fontFamily: 'var(--font-mono)' }}
                 axisLine={false}
                 tickLine={false}
                 minTickGap={52}
               />
               <YAxis
                 tickFormatter={(v: number) => displayPrice(v, currency, { compact: true })}
-                tick={{ fontSize: 10, fill: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono, monospace)' }}
+                tick={{ fontSize: 10, fill: 'var(--ink-faint)', fontFamily: 'var(--font-mono)' }}
                 axisLine={false}
                 tickLine={false}
                 width={60}

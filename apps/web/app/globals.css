@@ -112,6 +112,7 @@
    ════════════════════════════════════════════════ */
 @theme {
   --font-sans: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-dm-sans), 'DM Sans', 'Inter', system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   --radius: 10px;
 }
