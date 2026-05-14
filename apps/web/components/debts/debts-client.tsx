@@ -75,7 +75,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--density-gap)' }}>
+      <div className="stat-grid">
         <MiniStat
           label="Total owed"
           value={displayPrice(totalDebt, currency, { maskLength: 6 })}
@@ -156,19 +156,19 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                         </div>
                       </div>
                     </td>
-                    <td className="num" style={{ fontSize: 12 }}>
+                    <td data-label="APR" className="num" style={{ fontSize: 12 }}>
                       {fmtAPR(Number(d.interest_rate))}
                     </td>
-                    <td className="num" style={{ fontSize: 12 }}>
+                    <td data-label="Payment" className="num" style={{ fontSize: 12 }}>
                       {displayPrice(monthlyPayment, d.currency)}
                     </td>
-                    <td className="num" style={{ fontWeight: 600, color: 'var(--neg)' }}>
+                    <td data-label="Balance" className="num" style={{ fontWeight: 600, color: 'var(--neg)' }}>
                       {displayPrice(balance, d.currency)}
                     </td>
-                    <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+                    <td data-label="Payoff" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                       {typeof payoffYears === 'string' ? payoffYears : `${payoffYears}y`}
                     </td>
-                    <td style={{ width: 60 }}>
+                    <td className="cell-actions">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => setEditingDebt(d)}

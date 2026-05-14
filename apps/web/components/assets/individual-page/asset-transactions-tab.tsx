@@ -3,7 +3,7 @@ import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { Asset, Transaction } from '@networth/types'
 import { getAssetTypeConfig } from '../asset-type-config'
-import { fmtDate, tdStyle, thStyle, TX_BG, TX_INK } from './asset-detail-utils'
+import { fmtDate, TX_BG, TX_INK } from './asset-detail-utils'
 
 interface Props {
   transactions: Transaction[]
@@ -29,17 +29,17 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
   }
 
   return (
-    <div style={{ margin: '0 -4px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div className="tab-table">
+      <table>
         <thead>
           <tr>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Date</th>
-            <th style={thStyle}>Note</th>
-            {assetConfig.transactions.showQuantity && <th style={{ ...thStyle, textAlign: 'right' }}>Qty</th>}
-            <th style={{ ...thStyle, textAlign: 'right' }}>Price</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Total</th>
-            <th style={thStyle} />
+            <th>Type</th>
+            <th>Date</th>
+            <th>Note</th>
+            {assetConfig.transactions.showQuantity && <th className="num">Qty</th>}
+            <th className="num">Price</th>
+            <th className="num">Total</th>
+            <th />
           </tr>
         </thead>
         <tbody>
@@ -51,8 +51,8 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
             const isAuto = /\[auto:yahoo:(?:div|split):\d+\]/.test(rawNotes)
             const displayNotes = isAuto ? rawNotes.replace(/\s*\[auto:yahoo:(?:div|split):\d+\]\s*/g, '').trim() : rawNotes
             return (
-              <tr key={transaction.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={tdStyle}>
+              <tr key={transaction.id}>
+                <td>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <span style={{
                       display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -76,23 +76,23 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
                     )}
                   </div>
                 </td>
-                <td style={{ ...tdStyle, color: 'var(--ink-muted)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                <td data-label="Date" style={{ color: 'var(--ink-muted)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                   {fmtDate(transaction.executed_at)}
                 </td>
-                <td style={{ ...tdStyle, color: 'var(--ink-2)' }}>{displayNotes || '—'}</td>
+                <td data-label="Note" style={{ color: 'var(--ink-2)' }}>{displayNotes || '—'}</td>
                 {assetConfig.transactions.showQuantity && (
-                  <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                  <td data-label="Qty" className="num" style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                     {displayQuantity(Number(transaction.quantity))}
                   </td>
                 )}
-                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                <td data-label="Price" className="num" style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                   {displayPrice(Number(transaction.price), transaction.currency)}
                   {isCrossRate && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--ink-faint)' }}>{transaction.currency}</span>}
                 </td>
-                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: isCredit ? 'var(--neg)' : 'var(--ink)' }}>
+                <td data-label="Total" className="num" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: isCredit ? 'var(--neg)' : 'var(--ink)' }}>
                   {hideAmounts ? displayPrice(total, transaction.currency) : (isCredit ? '-' : '') + displayPrice(Math.abs(total), transaction.currency)}
                 </td>
-                <td style={{ ...tdStyle, width: 60, textAlign: 'right' }}>
+                <td className="cell-actions">
                   <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                     <button className="iconbtn" style={{ width: 28, height: 28 }} onClick={() => onEdit(transaction)} title="Edit">
                       <Pencil size={12} />

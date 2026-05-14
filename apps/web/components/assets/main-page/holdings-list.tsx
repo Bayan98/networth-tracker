@@ -97,10 +97,10 @@ export function HoldingsList({
                       </div>
                     </div>
                   </td>
-                  <td style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+                  <td data-label="Portfolio" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {portfolio ?? ''}
                   </td>
-                  <td className="num" style={{ fontSize: 12 }}>
+                  <td data-label="Price" className="num" style={{ fontSize: 12 }}>
                     {qty !== 1 && !hideAmounts && (
                       <span style={{ color: 'var(--ink-faint)', marginRight: 4 }}>
                         <QuantityText value={qty} loading={loading} maximumFractionDigits={4} />
@@ -109,17 +109,17 @@ export function HoldingsList({
                     )}
                     <MoneyText value={price} currency={priceCcy} loading={loading} skelWidth={60} />
                   </td>
-                  <td className="num">
+                  <td data-label="Change" className="num">
                     {priceReturnAbs !== null && priceReturnPct !== null ? (
                       <span className={`delta-pill ${isPositive ? 'pos' : 'neg'}`}>
                         {formatPercent(priceReturnPct)}
                       </span>
                     ) : ''}
                   </td>
-                  <td className="num" style={{ fontWeight: 600 }}>
+                  <td data-label="Value" className="num" style={{ fontWeight: 600 }}>
                     <MoneyText value={value} currency={selectedCurrency} loading={loading} skelWidth={70} />
                   </td>
-                  <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+                  <td data-label="Share" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {share !== null ? `${share.toFixed(1)}%` : '—'}
                   </td>
                 </tr>

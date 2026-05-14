@@ -615,6 +615,18 @@ h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
 @media (max-width: 860px) {
   .page-head h1 { font-size: 34px; }
 }
+@media (max-width: 640px) {
+  .page-head { gap: 14px; }
+  .page-head h1 { font-size: clamp(26px, 8vw, 32px); }
+  /* heading block takes the full row so the action wraps beneath it */
+  .page-head > :first-child { flex: 1 1 100%; }
+  /* primary action becomes a full-width button under the heading */
+  .page-head > .btn { flex: 1 1 100%; justify-content: center; min-height: 42px; }
+  /* action cluster on the asset detail header — full-width row, More stays compact */
+  .asset-head-actions { width: 100%; }
+  .asset-head-actions > .btn { flex: 1; }
+  .asset-head-actions .btn { min-height: 40px; }
+}
 
 /* ════════════════════════════════════════════════
    KPI cards
@@ -625,6 +637,25 @@ h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
   gap: var(--density-gap);
 }
 @media (max-width: 700px) { .asset-stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* Responsive KPI / stat row — wraps to 2-up then 1-up on small screens */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--density-gap);
+}
+@media (max-width: 720px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  /* a lone trailing card spans the full width instead of sitting half-empty */
+  .stat-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+@media (max-width: 359px) {
+  .stat-grid { grid-template-columns: minmax(0, 1fr); }
+  .stat-grid > :last-child:nth-child(odd) { grid-column: auto; }
+}
 
 .kpi {
   background: var(--surface);
@@ -698,27 +729,76 @@ h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
 .table-wrap tbody tr:hover { background: var(--surface-2); }
 .table-wrap td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 
+/* Tables nested inside a detail-card tab use tighter horizontal padding */
+.tab-table th { padding: 9px 6px; }
+.tab-table td { padding: 11px 6px; }
+
 @media (max-width: 720px) {
   .table-wrap { border-radius: var(--radius); }
+
+  /* Collapse each table row into a self-contained card */
   .table-wrap table,
   .table-wrap thead,
   .table-wrap tbody,
+  .table-wrap tr,
   .table-wrap th,
-  .table-wrap td,
-  .table-wrap tr { display: block; }
+  .table-wrap td { display: block; }
   .table-wrap thead { display: none; }
+
   .table-wrap tbody tr {
-    padding: 14px 16px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    gap: 6px 12px;
-    align-items: center;
+    padding: 15px var(--density-pad-x);
     border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
-  .table-wrap tbody td { padding: 0; border: none; font-size: 13px; }
   .table-wrap tbody tr:last-child { border-bottom: none; }
-  .table-wrap tbody tr:hover { background: var(--surface-2); }
+  .table-wrap tbody tr:hover { background: transparent; }
+  .table-wrap tbody tr:active { background: var(--surface-2); }
+
+  /* First cell acts as the card header (identity / icon + name) */
+  .table-wrap tbody td:first-child {
+    padding: 0;
+    border: none;
+    font-size: 14px;
+  }
+
+  /* Remaining cells become labelled key → value rows */
+  .table-wrap tbody td[data-label] {
+    padding: 0;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 19px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .table-wrap tbody td[data-label]::before {
+    content: attr(data-label);
+    margin-right: auto;
+    flex-shrink: 0;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  /* Skip cells that have no value (e.g. blank change column) */
+  .table-wrap tbody td[data-label]:empty { display: none; }
+  .table-wrap tbody td.num { text-align: left; }
+
+  /* Action buttons sit at the foot of the card */
+  .table-wrap tbody td.cell-actions {
+    padding: 8px 0 0;
+    margin-top: 2px;
+    border: none;
+    border-top: 1px solid var(--border);
+  }
+  .table-wrap tbody td.cell-actions > div { justify-content: flex-end; }
+
+  /* Tables nested inside a detail card bleed to the card edges */
+  .tab-table { margin: 0 calc(var(--density-pad-x) * -1); }
 }
 
 /* ════════════════════════════════════════════════
@@ -1153,6 +1233,10 @@ h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
   from { opacity: 0; transform: translateY(8px) scale(.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+@keyframes rmodal-sheet-in {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 .rmodal {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1221,6 +1305,29 @@ h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
   gap: 6px;
 }
 .rmodal-actions { display: flex; gap: 8px; }
+
+/* On phones the modal becomes a bottom sheet — easier reach, more room */
+@media (max-width: 600px) {
+  .rmodal-scrim {
+    padding: 0;
+    place-items: end stretch;
+  }
+  .rmodal,
+  .rmodal.wide {
+    max-width: 100%;
+    max-height: 92vh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    animation: rmodal-sheet-in .26s cubic-bezier(.2,.8,.3,1);
+  }
+  .rmodal-head { padding-top: 20px; }
+  .rmodal-foot { padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); }
+  .rmodal-head,
+  .rmodal-body { padding-left: 20px; padding-right: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rmodal, .rmodal.wide { animation: none; }
+}
 
 /* ════════════════════════════════════════════════
    Type card grid (modal asset/portfolio type picker)
