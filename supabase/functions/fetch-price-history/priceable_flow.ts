@@ -2,13 +2,13 @@ import {
   fetchStockAnalysisHistory,
   fetchStockAnalysisQuote,
   MINOR_CURRENCIES,
-} from "../_shared/price-providers/stockanalysis.ts";
+} from "../_shared/price-providers/stockanalysis/index.ts";
 import {
   convertYahooCommodityHistory,
   fetchYahooCloseHistory,
   toYahooSymbol,
   type PricePoint,
-} from "../_shared/price-providers/yahoo.ts";
+} from "../_shared/price-providers/yahoo/index.ts";
 
 export interface PriceableHistoryItem {
   symbol: string;

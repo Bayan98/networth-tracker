@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { coinGeckoIdForSymbol } from "../_shared/price-providers/coingecko.ts";
-import { parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
-import { perGramCommodityCacheSuffix, type PricePoint } from "../_shared/price-providers/yahoo.ts";
+import { coinGeckoIdForSymbol } from "../_shared/price-providers/coingecko/index.ts";
+import { parseSymbol } from "../_shared/price-providers/stockanalysis/index.ts";
+import { perGramCommodityCacheSuffix, type PricePoint } from "../_shared/price-providers/yahoo/index.ts";
 import { fetchCryptoHistoryFlow, type CryptoHistoryItem } from "./crypto_flow.ts";
 import { fetchPriceableHistoryFlow, type PriceableHistoryItem } from "./priceable_flow.ts";
 

@@ -1,6 +1,6 @@
-import { fetchFinnhubQuotes } from "../_shared/price-providers/finnhub.ts";
-import { fetchStockAnalysisQuote, type SAResult } from "../_shared/price-providers/stockanalysis.ts";
-import { convertYahooCommodityPrice, fetchYahooQuotes, toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
+import { fetchFinnhubQuotes } from "../_shared/price-providers/finnhub/index.ts";
+import { fetchStockAnalysisQuote, type SAResult } from "../_shared/price-providers/stockanalysis/index.ts";
+import { convertYahooCommodityPrice, fetchYahooQuotes, toYahooSymbol } from "../_shared/price-providers/yahoo/index.ts";
 
 export interface PriceablePriceItem {
   symbol: string;

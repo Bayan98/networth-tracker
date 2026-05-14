@@ -1,7 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { fetchStockAnalysisInfo, parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
-import { toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
+import { fetchStockAnalysisInfo, parseSymbol } from "../_shared/price-providers/stockanalysis/index.ts";
+import { fetchYahooAssetInfo, toYahooSymbol } from "../_shared/price-providers/yahoo/index.ts";
+
+export { fetchYahooAssetInfo };
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -98,60 +100,6 @@ const EMPTY_INFO: AssetInfo = {
   beta: null,
   sources: null,
 };
-
-// deno-lint-ignore no-explicit-any
-function parseNum(v: any): number | null {
-  if (v == null) return null;
-  if (typeof v === "number") return isFinite(v) ? v : null;
-  if (typeof v === "object" && typeof v.raw === "number") return isFinite(v.raw) ? v.raw : null;
-  return null;
-}
-
-function computeRating(t: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }): string {
-  const total = t.strongBuy + t.buy + t.hold + t.sell + t.strongSell;
-  if (total === 0) return "Hold";
-  const score = (t.strongBuy * 2 + t.buy - t.sell - t.strongSell * 2) / total;
-  if (score > 1.5) return "Strong Buy";
-  if (score > 0.5) return "Buy";
-  if (score > -0.5) return "Hold";
-  if (score > -1.5) return "Sell";
-  return "Strong Sell";
-}
-
-const YAHOO_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-  "Accept": "application/json, text/plain, */*",
-  "Accept-Language": "en-US,en;q=0.9",
-  "Accept-Encoding": "gzip, deflate, br",
-  "Referer": "https://finance.yahoo.com/",
-  "Origin": "https://finance.yahoo.com",
-};
-
-async function getYahooCrumb(): Promise<{ crumb: string; cookie: string } | null> {
-  try {
-    const fcRes = await fetch("https://fc.yahoo.com", {
-      headers: { ...YAHOO_HEADERS, "Accept": "text/html,application/xhtml+xml" },
-      redirect: "follow",
-    });
-    const rawCookies = fcRes.headers.getSetCookie
-      ? fcRes.headers.getSetCookie()
-      : (fcRes.headers.get("set-cookie") ?? "").split(/,(?=[^;]+=[^;]+;)/);
-    await fcRes.body?.cancel();
-    const cookieStr = rawCookies.map((c: string) => c.split(";")[0].trim()).filter(Boolean).join("; ");
-    if (!cookieStr) return null;
-
-    const crumbRes = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb", {
-      headers: { ...YAHOO_HEADERS, "Cookie": cookieStr },
-    });
-    if (!crumbRes.ok) return null;
-    const crumb = (await crumbRes.text()).trim();
-    if (!crumb || crumb.startsWith("<") || crumb.length > 20) return null;
-    return { crumb, cookie: cookieStr };
-  } catch (e) {
-    console.log("crumb error:", String(e));
-    return null;
-  }
-}
 
 export async function handleFetchAssetInfo(
   payload: FetchAssetInfoRequest,
@@ -273,139 +221,6 @@ async function safeAssetInfo(fn: () => Promise<Partial<AssetInfo>>): Promise<Par
   } catch {
     return {};
   }
-}
-
-export async function fetchYahooAssetInfo(yahooSym: string, assetType: string): Promise<Partial<AssetInfo>> {
-  const info: Partial<AssetInfo> = {};
-  const isHoldings = assetType === "etf" || assetType === "mutual_fund";
-
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(yahooSym)}&quotesCount=1&newsCount=0&enableFuzzyQuery=false`,
-      { headers: YAHOO_HEADERS },
-    );
-    if (res.ok) {
-      const data = await res.json() as {
-        quotes?: Array<{ symbol?: string; sector?: string; industry?: string; region?: string; exchange?: string; exchDisp?: string }>;
-      };
-      const q = data.quotes?.find((q) => q.symbol?.toUpperCase() === yahooSym.toUpperCase()) ?? data.quotes?.[0];
-      if (q) {
-        info.sector = q.sector ?? null;
-        info.industry = q.industry ?? null;
-        info.country = q.region ?? null;
-        info.exchange = q.exchDisp ?? q.exchange ?? null;
-      }
-    } else {
-      await res.body?.cancel();
-    }
-  } catch (e) {
-    console.log("yahoo search error:", String(e));
-  }
-
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(yahooSym)}&fields=trailingPE,epsTrailingTwelveMonths,sector,country,marketCap,fullExchangeName,exchange,targetMeanPrice`,
-      { headers: YAHOO_HEADERS },
-    );
-    if (res.ok) {
-      // deno-lint-ignore no-explicit-any
-      const data = await res.json() as { quoteResponse?: { result?: any[] } };
-      const q = data?.quoteResponse?.result?.[0];
-      if (q) {
-        const pe = parseNum(q.trailingPE);
-        const eps = parseNum(q.epsTrailingTwelveMonths);
-        if (pe != null && pe > 0) info.pe = pe;
-        if (eps != null) info.eps = eps;
-        info.sector ??= q.sector ?? null;
-        info.country ??= q.country ?? null;
-        info.marketCap ??= parseNum(q.marketCap);
-        info.exchange ??= q.fullExchangeName ?? q.exchange ?? null;
-        info.priceTarget ??= parseNum(q.targetMeanPrice);
-      }
-    } else {
-      await res.body?.cancel();
-    }
-  } catch (e) {
-    console.log("yahoo v7 error:", String(e));
-  }
-
-  const modules = isHoldings
-    ? "summaryProfile,defaultKeyStatistics,recommendationTrend,topHoldings,financialData,price"
-    : "summaryProfile,defaultKeyStatistics,recommendationTrend,financialData,price";
-  const auth = await getYahooCrumb();
-  const summaryUrls = auth
-    ? [
-      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSym)}?modules=${encodeURIComponent(modules)}&crumb=${encodeURIComponent(auth.crumb)}&formatted=false`,
-      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSym)}?modules=${encodeURIComponent(modules)}&crumb=${encodeURIComponent(auth.crumb)}&formatted=false`,
-    ]
-    : [
-      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSym)}?formatted=false&modules=${encodeURIComponent(modules)}&corsDomain=finance.yahoo.com`,
-      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahooSym)}?formatted=false&modules=${encodeURIComponent(modules)}&corsDomain=finance.yahoo.com`,
-    ];
-  const authHeaders = auth ? { ...YAHOO_HEADERS, "Cookie": auth.cookie } : YAHOO_HEADERS;
-
-  for (const url of summaryUrls) {
-    try {
-      const res = await fetch(url, { headers: authHeaders });
-      if (!res.ok) {
-        await res.body?.cancel();
-        continue;
-      }
-      // deno-lint-ignore no-explicit-any
-      const data = await res.json() as { quoteSummary?: { result?: any[] | null } };
-      const r = data?.quoteSummary?.result?.[0];
-      if (!r) continue;
-
-      info.sector ??= r.summaryProfile?.sector ?? null;
-      info.industry ??= r.summaryProfile?.industry ?? null;
-      info.country ??= r.summaryProfile?.country ?? null;
-      info.website ??= r.summaryProfile?.website ?? null;
-      info.employees ??= parseNum(r.summaryProfile?.fullTimeEmployees);
-      if (!info.description && r.summaryProfile?.longBusinessSummary) {
-        info.description = String(r.summaryProfile.longBusinessSummary).slice(0, 500);
-      }
-
-      const pe = parseNum(r.defaultKeyStatistics?.forwardPE ?? r.summaryDetail?.trailingPE);
-      const eps = parseNum(r.defaultKeyStatistics?.trailingEps);
-      if (info.pe == null && pe != null && pe > 0) info.pe = pe;
-      if (info.eps == null && eps != null) info.eps = eps;
-      info.marketCap ??= parseNum(r.price?.marketCap);
-      info.exchange ??= r.price?.exchangeName ?? r.price?.exchange ?? null;
-      info.priceTarget ??= parseNum(r.financialData?.targetMeanPrice);
-
-      const trend = r.recommendationTrend?.trend?.find((t: { period: string }) => t.period === "0m");
-      if (trend) {
-        const total = trend.strongBuy + trend.buy + trend.hold + trend.sell + trend.strongSell;
-        if (total > 0) {
-          info.analystRating ??= computeRating(trend);
-          info.analystCount ??= total;
-        }
-      }
-
-      if (isHoldings && r.topHoldings?.holdings?.length > 0) {
-        const top20 = r.topHoldings.holdings.slice(0, 20);
-        const rest = r.topHoldings.holdings.slice(20);
-        const mapped: Holding[] = top20.map((h: { symbol?: string; holdingName?: string; holdingPercent?: unknown }) => ({
-          symbol: h.symbol ?? "",
-          name: h.holdingName ?? h.symbol ?? "",
-          pct: parseNum(h.holdingPercent) ?? 0,
-        }));
-        if (rest.length > 0) {
-          mapped.push({
-            symbol: "",
-            name: "Other",
-            pct: rest.reduce((s: number, h: { holdingPercent?: unknown }) => s + (parseNum(h.holdingPercent) ?? 0), 0),
-          });
-        }
-        info.holdings = mapped;
-      }
-      break;
-    } catch (e) {
-      console.log("yahoo quoteSummary error:", String(e));
-    }
-  }
-
-  return info;
 }
 
 if (import.meta.main) {

@@ -4,7 +4,7 @@ import {
   type CorporateActions,
   fetchYahooCorporateActions as defaultFetchYahooCorporateActions,
   toYahooSymbol,
-} from "../_shared/price-providers/yahoo.ts";
+} from "../_shared/price-providers/yahoo/index.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",

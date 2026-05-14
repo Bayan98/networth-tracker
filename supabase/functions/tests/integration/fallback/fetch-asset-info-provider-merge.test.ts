@@ -1,6 +1,6 @@
 import { fetchYahooAssetInfo, handleFetchAssetInfo, type AssetInfo } from "../../../fetch-asset-info/index.ts";
-import { fetchStockAnalysisInfo } from "../../../_shared/price-providers/stockanalysis.ts";
-import { toYahooSymbol } from "../../../_shared/price-providers/yahoo.ts";
+import { fetchStockAnalysisInfo } from "../../../_shared/price-providers/stockanalysis/index.ts";
+import { toYahooSymbol } from "../../../_shared/price-providers/yahoo/index.ts";
 import { assert, assertDeepEquals, assertEquals } from "../../_shared/assertions.ts";
 import { InMemoryCache } from "../../_shared/cache.ts";
 import { FIXED_NOW } from "../../_shared/fixtures.ts";

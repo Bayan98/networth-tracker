@@ -1,4 +1,4 @@
-import { convertYahooCommodityHistory } from "../../../_shared/price-providers/yahoo.ts";
+import { convertYahooCommodityHistory } from "../../../_shared/price-providers/yahoo/index.ts";
 import { fetchPriceablePricesFlow } from "../../../fetch-prices/priceable_flow.ts";
 import { handleFetchPrices } from "../../../fetch-prices/index.ts";
 import { handleLookupSymbol, type LookupResult } from "../../../lookup-symbol/index.ts";

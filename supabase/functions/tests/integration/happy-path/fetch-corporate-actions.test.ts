@@ -3,7 +3,7 @@ import {
 } from "../../../fetch-corporate-actions/index.ts";
 import {
   fetchYahooCorporateActions,
-} from "../../../_shared/price-providers/yahoo.ts";
+} from "../../../_shared/price-providers/yahoo/index.ts";
 import {
   assert,
   assertEquals,

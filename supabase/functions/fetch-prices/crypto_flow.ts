@@ -1,5 +1,5 @@
-import { fetchCoinGeckoSimplePrices } from "../_shared/price-providers/coingecko.ts";
-import { fetchYahooQuotes } from "../_shared/price-providers/yahoo.ts";
+import { fetchCoinGeckoSimplePrices } from "../_shared/price-providers/coingecko/index.ts";
+import { fetchYahooQuotes } from "../_shared/price-providers/yahoo/index.ts";
 
 export interface CryptoPriceItem {
   symbol: string;

@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { perGramCommodityCacheSuffix } from "../_shared/price-providers/yahoo.ts";
+import { perGramCommodityCacheSuffix } from "../_shared/price-providers/yahoo/index.ts";
 import { fetchCryptoPriceAtDateFlow } from "./crypto_flow.ts";
 import { fetchPriceablePriceAtDateFlow } from "./priceable_flow.ts";
 

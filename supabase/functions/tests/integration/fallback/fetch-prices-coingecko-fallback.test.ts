@@ -1,5 +1,5 @@
 import { handleFetchPrices } from "../../../fetch-prices/index.ts";
-import { fetchCoinGeckoSimplePrices } from "../../../_shared/price-providers/coingecko.ts";
+import { fetchCoinGeckoSimplePrices } from "../../../_shared/price-providers/coingecko/index.ts";
 import { assert, assertEquals } from "../../_shared/assertions.ts";
 import { InMemoryCache } from "../../_shared/cache.ts";
 import { FIXED_NOW, TEST_ITEMS } from "../../_shared/fixtures.ts";

@@ -1,8 +1,8 @@
 import {
   fetchStockAnalysisHistory,
   fetchStockAnalysisQuote,
-} from "../_shared/price-providers/stockanalysis.ts";
-import { convertYahooCommodityPrice, fetchYahooPriceNearDate, toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
+} from "../_shared/price-providers/stockanalysis/index.ts";
+import { convertYahooCommodityPrice, fetchYahooPriceNearDate, toYahooSymbol } from "../_shared/price-providers/yahoo/index.ts";
 
 export async function fetchPriceablePriceAtDateFlow(
   symbol: string,

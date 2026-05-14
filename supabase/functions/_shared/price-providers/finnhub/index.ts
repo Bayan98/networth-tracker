@@ -16,3 +16,18 @@ export async function fetchFinnhubQuotes(symbols: string[], token: string | unde
   }));
   return prices;
 }
+
+export async function fetchFinnhubProfileName(symbol: string, token: string | undefined): Promise<string | null> {
+  if (!token) return null;
+  try {
+    const res = await fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${token}`);
+    if (!res.ok) {
+      await res.body?.cancel();
+      return null;
+    }
+    const data = await res.json() as { name?: string };
+    return data.name ?? null;
+  } catch {
+    return null;
+  }
+}

@@ -1,10 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { fetchStockAnalysisInfo, parseSymbol, type SAInfo } from "../_shared/price-providers/stockanalysis.ts";
-import { toYahooSymbol } from "../_shared/price-providers/yahoo.ts";
+import { fetchStockAnalysisNews, parseSymbol } from "../_shared/price-providers/stockanalysis/index.ts";
+import { fetchYahooNews, toYahooSymbol } from "../_shared/price-providers/yahoo/index.ts";
 import { filterReachableNews, type NewsItem } from "../_shared/news-utils.ts";
 
 export { filterReachableNews, type NewsItem };
+export { fetchYahooNews };
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -14,15 +15,6 @@ const CORS_HEADERS = {
 
 const NEWS_TTL_MS = 6 * 60 * 60 * 1000;
 const PRICEABLE = ["stock", "etf", "bond", "mutual_fund", "commodity", "crypto"];
-
-const YAHOO_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-  "Accept": "application/json, text/plain, */*",
-  "Accept-Language": "en-US,en;q=0.9",
-  "Accept-Encoding": "gzip, deflate, br",
-  "Referer": "https://finance.yahoo.com/",
-  "Origin": "https://finance.yahoo.com",
-};
 
 export interface FetchAssetNewsRequest {
   symbol: string;
@@ -133,51 +125,6 @@ async function safeNews(fn: () => Promise<NewsItem[] | null>): Promise<NewsItem[
   } catch {
     return null;
   }
-}
-
-async function fetchStockAnalysisNews(symbol: string, assetType?: string): Promise<NewsItem[] | null> {
-  const info = await fetchStockAnalysisInfo(symbol, assetType);
-  return normalizeNews(info.news);
-}
-
-export async function fetchYahooNews(yahooSym: string): Promise<NewsItem[] | null> {
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(yahooSym)}&quotesCount=0&newsCount=10&enableFuzzyQuery=false`,
-      { headers: YAHOO_HEADERS },
-    );
-    if (!res.ok) {
-      await res.body?.cancel();
-      return null;
-    }
-
-    const data = await res.json() as {
-      news?: Array<{
-        title?: string;
-        publisher?: string;
-        link?: string;
-        providerPublishTime?: number;
-        relatedTickers?: string[];
-      }>;
-    };
-    const news = data.news
-      ?.filter((item) => item.title && item.link)
-      .map((item) => ({
-        title: item.title!,
-        publisher: item.publisher ?? "",
-        link: item.link!,
-        publishedAt: (item.providerPublishTime ?? 0) * 1000,
-        relatedTickers: item.relatedTickers,
-      }));
-    return news?.length ? news : null;
-  } catch (e) {
-    console.log("yahoo news error:", String(e));
-    return null;
-  }
-}
-
-function normalizeNews(news: SAInfo["news"] | NewsItem[] | undefined): NewsItem[] | null {
-  return Array.isArray(news) && news.length > 0 ? news : null;
 }
 
 export function filterYahooNewsForAsset(

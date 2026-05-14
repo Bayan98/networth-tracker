@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { normalizePriceCurrency, parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
-import { perGramCommodityCacheSuffix } from "../_shared/price-providers/yahoo.ts";
+import { normalizePriceCurrency, parseSymbol } from "../_shared/price-providers/stockanalysis/index.ts";
+import { perGramCommodityCacheSuffix } from "../_shared/price-providers/yahoo/index.ts";
 import { fetchCryptoPricesFlow, type CryptoPriceItem, type CryptoPriceProviders } from "./crypto_flow.ts";
 import { fetchPriceablePricesFlow, type PriceablePriceItem, type PriceablePriceProviders } from "./priceable_flow.ts";
 

@@ -1,5 +1,5 @@
-import { fetchCoinGeckoHistoricalPrice } from "../_shared/price-providers/coingecko.ts";
-import { fetchYahooCloseHistory, fetchYahooQuotes } from "../_shared/price-providers/yahoo.ts";
+import { fetchCoinGeckoHistoricalPrice } from "../_shared/price-providers/coingecko/index.ts";
+import { fetchYahooCloseHistory, fetchYahooQuotes } from "../_shared/price-providers/yahoo/index.ts";
 
 export async function fetchCryptoPriceAtDateFlow(
   symbol: string,

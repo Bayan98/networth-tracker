@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
+import { coinGeckoIdForSymbol, fetchCoinGeckoLogoUrl } from "../_shared/price-providers/coingecko/index.ts";
+import { fetchYahooLogoUrl } from "../_shared/price-providers/yahoo/index.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -36,49 +37,9 @@ Deno.serve(async (req: Request) => {
     let logoUrl: string | null = null;
 
     if (asset_type === "crypto") {
-      const cgId = symbolToCoinGeckoId(sym);
-      try {
-        const res = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`,
-          { headers: { Accept: "application/json" } },
-        );
-        if (res.ok) {
-          const data = await res.json() as { image?: { small?: string } };
-          logoUrl = data.image?.small ?? null;
-        }
-      } catch (_) { /* ignore */ }
+      logoUrl = await fetchCoinGeckoLogoUrl(coinGeckoIdForSymbol(sym));
     } else {
-      // Yahoo Finance quoteSummary → website → Clearbit
-      try {
-        const url = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${sym}?modules=assetProfile`;
-        const res = await fetch(url, {
-          headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-        });
-        if (res.ok) {
-          const data = await res.json() as {
-            quoteSummary?: { result?: Array<{ assetProfile?: { website?: string } }> | null };
-          };
-          const website = data.quoteSummary?.result?.[0]?.assetProfile?.website;
-          if (website) {
-            const domain = new URL(website).hostname.replace(/^www\./, "");
-            logoUrl = `https://logo.clearbit.com/${domain}`;
-          }
-        }
-      } catch (_) { /* ignore */ }
-
-      // Yahoo Finance search for logoUrl
-      if (!logoUrl) {
-        try {
-          const res = await fetch(
-            `https://query1.finance.yahoo.com/v1/finance/search?q=${sym}&quotesCount=1&newsCount=0`,
-            { headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" } },
-          );
-          if (res.ok) {
-            const data = await res.json() as { quotes?: Array<{ logoUrl?: string }> };
-            logoUrl = data.quotes?.[0]?.logoUrl ?? null;
-          }
-        } catch (_) { /* ignore */ }
-      }
+      logoUrl = await fetchYahooLogoUrl(sym);
     }
 
     const result = { logoUrl };

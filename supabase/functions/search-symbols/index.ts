@@ -1,4 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { searchStockAnalysis } from "../_shared/price-providers/stockanalysis/index.ts";
+import { searchYahoo } from "../_shared/price-providers/yahoo/index.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -50,79 +52,6 @@ function dedupeBySymbol(results: SearchResult[]): SearchResult[] {
     deduped.push(result);
   }
   return deduped;
-}
-
-async function searchStockAnalysis(query: string): Promise<SearchResult[]> {
-  try {
-    const url = `https://stockanalysis.com/api/search/?q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://stockanalysis.com/",
-        "Origin": "https://stockanalysis.com",
-      },
-    });
-    if (!res.ok) {
-      console.log("StockAnalysis search status:", res.status);
-      return [];
-    }
-    const raw = await res.json();
-    // deno-lint-ignore no-explicit-any
-    const items: any[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.results ?? []);
-    return items
-      .slice(0, 15)
-      .map((item) => {
-        const rawSym = String(item.s ?? item.symbol ?? "");
-        // SA encodes international stocks as "exchange/TICKER"
-        const slashIdx = rawSym.indexOf("/");
-        const ticker = slashIdx >= 0 ? rawSym.slice(slashIdx + 1).toUpperCase() : rawSym.toUpperCase();
-        const exchange = slashIdx >= 0 ? rawSym.slice(0, slashIdx).toUpperCase() : (item.e ?? item.exchange ?? undefined);
-        return {
-          symbol: ticker,
-          name: String(item.n ?? item.name ?? ""),
-          exchange: exchange || undefined,
-          type: item.t ?? item.type ?? undefined,
-        };
-      })
-      .filter((r) => r.symbol && r.name);
-  } catch (e) {
-    console.log("StockAnalysis search error:", String(e));
-    return [];
-  }
-}
-
-async function searchYahoo(query: string): Promise<SearchResult[]> {
-  try {
-    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0&enableFuzzyQuery=false`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-    });
-    if (!res.ok) return [];
-    const data = await res.json() as {
-      quotes?: Array<{
-        symbol?: string;
-        shortname?: string;
-        longname?: string;
-        exchDisp?: string;
-        typeDisp?: string;
-        quoteType?: string;
-      }>;
-    };
-    return (data?.quotes ?? [])
-      .filter((q) => q.symbol && (q.shortname || q.longname))
-      .filter((q) => !["FUTURE", "CURRENCY", "OPTION"].includes(q.quoteType ?? ""))
-      .slice(0, 10)
-      .map((q) => ({
-        symbol: q.symbol!,
-        name: q.longname ?? q.shortname ?? q.symbol!,
-        exchange: q.exchDisp,
-        type: q.typeDisp,
-      }));
-  } catch (e) {
-    console.log("Yahoo search error:", String(e));
-    return [];
-  }
 }
 
 export async function handleSearchSymbols(

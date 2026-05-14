@@ -1,5 +1,5 @@
-import { fetchCoinGeckoMarketChart } from "../_shared/price-providers/coingecko.ts";
-import { fetchYahooCloseHistory, type PricePoint } from "../_shared/price-providers/yahoo.ts";
+import { fetchCoinGeckoMarketChart } from "../_shared/price-providers/coingecko/index.ts";
+import { fetchYahooCloseHistory, type PricePoint } from "../_shared/price-providers/yahoo/index.ts";
 
 export interface CryptoHistoryItem {
   symbol: string;

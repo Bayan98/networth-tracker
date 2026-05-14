@@ -1,8 +1,21 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { symbolToCoinGeckoId } from "../_shared/coingecko-symbol.ts";
-import { fetchStockAnalysisQuote, parseSymbol } from "../_shared/price-providers/stockanalysis.ts";
-import { convertYahooCommodityPrice, perGramCommodityCacheSuffix } from "../_shared/price-providers/yahoo.ts";
+import {
+  coinGeckoIdForSymbol,
+  fetchCoinGeckoCoin,
+  searchCoinGeckoName,
+  type CoinGeckoCoin,
+} from "../_shared/price-providers/coingecko/index.ts";
+import { fetchFinnhubProfileName, fetchFinnhubQuotes } from "../_shared/price-providers/finnhub/index.ts";
+import { fetchStockAnalysisQuote, parseSymbol } from "../_shared/price-providers/stockanalysis/index.ts";
+import {
+  convertYahooCommodityPrice,
+  fetchYahooSummary,
+  findYahooSymbol,
+  perGramCommodityCacheSuffix,
+} from "../_shared/price-providers/yahoo/index.ts";
+
+export { fetchCoinGeckoCoin };
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -49,19 +62,14 @@ export interface LookupCache {
   upsert: (row: LookupCacheUpsert) => Promise<void>;
 }
 
-export interface CoinGeckoCoin {
-  name?: string;
-  market_data?: { current_price?: { usd?: number } };
-  image?: { small?: string };
-  description?: { en?: string };
-}
-
 export interface LookupProviders {
   fetchYahooSummary?: (yahooSym: string) => Promise<Partial<LookupResult>>;
   fetchCoinGeckoCoin?: (coinGeckoId: string) => Promise<CoinGeckoCoin | null>;
   searchCoinGeckoName?: (ticker: string) => Promise<string | null>;
   fetchStockAnalysisQuote?: typeof fetchStockAnalysisQuote;
   findYahooSymbol?: (ticker: string) => Promise<string | null>;
+  fetchFinnhubQuotes?: typeof fetchFinnhubQuotes;
+  fetchFinnhubProfileName?: typeof fetchFinnhubProfileName;
   finnhubToken?: string;
 }
 
@@ -69,124 +77,6 @@ export interface LookupDeps {
   cache: LookupCache;
   providers?: LookupProviders;
   now?: () => number;
-}
-
-async function fetchYahooSummary(yahooSym: string): Promise<Partial<LookupResult>> {
-  const result: Partial<LookupResult> = {};
-
-  try {
-    const url = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${yahooSym}?modules=price%2CassetProfile`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-    });
-    if (res.ok) {
-      const data = await res.json() as {
-        quoteSummary?: {
-          result?: Array<{
-            price?: { shortName?: string; longName?: string; currency?: string; regularMarketPrice?: { raw?: number } };
-            assetProfile?: { longBusinessSummary?: string; website?: string };
-          }> | null;
-          error?: unknown;
-        };
-      };
-      if (data?.quoteSummary?.error) return result;
-      const r = data?.quoteSummary?.result?.[0];
-      if (r?.price) {
-        result.name = r.price.longName ?? r.price.shortName ?? null;
-        result.currency = r.price.currency ?? null;
-        const rawPrice = r.price.regularMarketPrice?.raw;
-        if (rawPrice != null && rawPrice > 0) result.price = rawPrice;
-      }
-      if (r?.assetProfile?.longBusinessSummary) {
-        result.description = r.assetProfile.longBusinessSummary.slice(0, 500);
-      }
-      if (r?.assetProfile?.website) {
-        try {
-          const domain = new URL(r.assetProfile.website).hostname.replace(/^www\./, "");
-          result.logoUrl = `https://logo.clearbit.com/${domain}`;
-        } catch (_) { /* ignore */ }
-      }
-    } else {
-      await res.body?.cancel();
-    }
-  } catch (_) { /* ignore */ }
-
-  // Search API for logoUrl fallback
-  if (!result.logoUrl) {
-    try {
-      const res = await fetch(
-        `https://query1.finance.yahoo.com/v1/finance/search?q=${yahooSym}&quotesCount=1&newsCount=0`,
-        { headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" } },
-      );
-      if (res.ok) {
-        const data = await res.json() as { quotes?: Array<{ logoUrl?: string }> };
-        const logoUrl = data?.quotes?.[0]?.logoUrl;
-        if (logoUrl) result.logoUrl = logoUrl;
-      } else {
-        await res.body?.cancel();
-      }
-    } catch (_) { /* ignore */ }
-  }
-
-  return result;
-}
-
-/** Try to find a Yahoo Finance symbol for an international stock */
-async function findYahooSymbol(ticker: string): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0`,
-      { headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" } },
-    );
-    if (!res.ok) {
-      await res.body?.cancel();
-      return null;
-    }
-    const data = await res.json() as {
-      quotes?: Array<{ symbol?: string; typeDisp?: string; quoteType?: string }>;
-    };
-    // Prefer equity/ETF types that contain the ticker
-    const candidates = (data?.quotes ?? [])
-      .filter((q) => q.symbol && !["FUTURE", "CURRENCY", "OPTION", "INDEX"].includes(q.quoteType ?? ""))
-      .filter((q) => q.symbol!.toUpperCase().startsWith(ticker.toUpperCase()));
-    return candidates[0]?.symbol ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export async function fetchCoinGeckoCoin(coinGeckoId: string): Promise<CoinGeckoCoin | null> {
-  try {
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/coins/${coinGeckoId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
-      { headers: { Accept: "application/json" } },
-    );
-    if (!res.ok) {
-      await res.body?.cancel();
-      return null;
-    }
-    return await res.json() as CoinGeckoCoin;
-  } catch (_) {
-    return null;
-  }
-}
-
-async function searchCoinGeckoName(ticker: string): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/search?query=${ticker}`,
-      { headers: { Accept: "application/json" } },
-    );
-    if (!res.ok) {
-      await res.body?.cancel();
-      return null;
-    }
-    const data = await res.json() as { coins?: Array<{ name: string; symbol: string }> };
-    const match = data.coins?.find((c) => c.symbol.toUpperCase() === ticker);
-    return match?.name ?? null;
-  } catch (_) {
-    return null;
-  }
 }
 
 export async function handleLookupSymbol(
@@ -214,6 +104,8 @@ export async function handleLookupSymbol(
   const coinGeckoName = providers.searchCoinGeckoName ?? searchCoinGeckoName;
   const stockAnalysisQuote = providers.fetchStockAnalysisQuote ?? fetchStockAnalysisQuote;
   const yahooSymbolFinder = providers.findYahooSymbol ?? findYahooSymbol;
+  const finnhubQuotes = providers.fetchFinnhubQuotes ?? fetchFinnhubQuotes;
+  const finnhubProfileName = providers.fetchFinnhubProfileName ?? fetchFinnhubProfileName;
 
   let result: LookupResult = { name: null, price: null, currency: null, description: null, logoUrl: null };
   const { exchange, ticker } = parseSymbol(sym);
@@ -226,7 +118,7 @@ export async function handleLookupSymbol(
     }
 
     if (!result.name || result.price == null) {
-      const data = await coinGeckoCoin(symbolToCoinGeckoId(ticker));
+      const data = await coinGeckoCoin(coinGeckoIdForSymbol(ticker));
       if (data) {
         if (!result.name && data.name) result.name = data.name;
         if (result.price == null) result.price = data.market_data?.current_price?.usd ?? null;
@@ -279,22 +171,12 @@ export async function handleLookupSymbol(
     if (result.price == null && !exchange) {
       const token = providers.finnhubToken ?? Deno.env.get("FINNHUB_API_KEY");
       if (token) {
-        await Promise.all([
-          fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${sym}&token=${token}`)
-            .then(async (r) => {
-              if (r.ok) {
-                const d = await r.json() as { name?: string };
-                if (!result.name && d.name) result.name = d.name;
-              }
-            }).catch(() => {}),
-          fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${token}`)
-            .then(async (r) => {
-              if (r.ok) {
-                const d = await r.json() as { c?: number };
-                if (result.price == null && d.c && d.c > 0) result.price = d.c;
-              }
-            }).catch(() => {}),
+        const [name, prices] = await Promise.all([
+          finnhubProfileName(sym, token),
+          finnhubQuotes([sym], token),
         ]);
+        if (!result.name && name) result.name = name;
+        if (result.price == null && prices[sym] != null) result.price = prices[sym];
       }
     }
   }
