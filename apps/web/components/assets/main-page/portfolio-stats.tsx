@@ -43,7 +43,7 @@ export function PortfolioStats({
   todayTrend,
 }: Props) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--density-gap)' }}>
+    <div className="stat-grid">
       <MiniStat label="Total value" value={totalValue} sub={totalGainPct} trend={totalGainTrend} />
       <MiniStat label="Cost basis" value={totalCostBasis} sub="Invested" />
       <MiniStat label="Period change" value={periodChange} sub={periodChangePct} trend={periodTrend} />

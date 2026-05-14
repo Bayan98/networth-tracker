@@ -105,7 +105,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--density-gap)' }}>
+      <div className="stat-grid">
         <MiniStat
           label="Monthly (recurring)"
           value={displayPrice(totalMonthly, currency, { maskLength: 6 })}
@@ -169,16 +169,16 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
                       </div>
                     </div>
                   </td>
-                  <td style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+                  <td data-label="Cadence" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {INCOME_FREQUENCY_LABELS[ev.frequency]}
                   </td>
-                  <td className="num" style={{ fontWeight: 600 }}>
+                  <td data-label="Amount" className="num" style={{ fontWeight: 600 }}>
                     {formatEventAmount(ev)}
                   </td>
-                  <td className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+                  <td data-label="Next" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {formatNextDate(ev)}
                   </td>
-                  <td style={{ width: 60 }}>
+                  <td className="cell-actions">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
                       <button
                         onClick={() => setEditingEvent(ev)}

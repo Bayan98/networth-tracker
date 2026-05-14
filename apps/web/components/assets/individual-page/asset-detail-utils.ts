@@ -34,22 +34,3 @@ export const TX_INK: Record<string, string> = {
 export function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
-
-export const thStyle: React.CSSProperties = {
-  padding: '8px 6px',
-  textAlign: 'left',
-  fontSize: 11,
-  fontWeight: 500,
-  color: 'var(--ink-faint)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  background: 'var(--bg-sunken)',
-  borderBottom: '1px solid var(--border)',
-  whiteSpace: 'nowrap',
-}
-
-export const tdStyle: React.CSSProperties = {
-  padding: '11px 6px',
-  fontSize: 13,
-  verticalAlign: 'middle',
-}

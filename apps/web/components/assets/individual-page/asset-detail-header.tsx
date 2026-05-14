@@ -65,7 +65,7 @@ export function AssetDetailHeader({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div className="asset-head-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           <button className="btn btn-secondary" onClick={onAddTransaction}>
             <Plus size={13} /> Transaction
           </button>
