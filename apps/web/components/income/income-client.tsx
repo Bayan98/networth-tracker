@@ -1,18 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, DollarSign } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
-import { INCOME_FREQUENCY_LABELS } from '@networth/utils'
-import type { ScheduledEvent, CurrencyCode, IncomeFrequency } from '@networth/types'
+import { useAppStore } from '@/lib/store'
+import { currencySymbol, INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
+import type { Asset, Portfolio, ScheduledEvent, CurrencyCode, IncomeFrequency } from '@networth/types'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
+import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
+import { useTodayFx } from '@/lib/hooks/use-today-fx'
+import { getAssetTypeConfig } from '@/components/assets/asset-type-config'
+import { MoneyText, LoadingText } from '@/components/ui/money-text'
+
+type IncomeEventAsset = Asset & {
+  portfolio?: Pick<Portfolio, 'id' | 'name'> | null
+}
+
+type IncomeEvent = ScheduledEvent & {
+  asset?: IncomeEventAsset | null
+}
 
 interface Props {
-  events: ScheduledEvent[]
+  events: IncomeEvent[]
   userId: string
   currency: CurrencyCode
 }
@@ -44,8 +57,12 @@ function formatNextDate(event: ScheduledEvent): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+function formatPercent(value: number): string {
+  return `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+}
+
 function MiniStat({ label, value, sub, trend }: {
-  label: string; value: string; sub: string; trend?: 'pos' | 'neg'
+  label: string; value: ReactNode; sub: ReactNode; trend?: 'pos' | 'neg'
 }) {
   return (
     <div className="kpi">
@@ -59,14 +76,100 @@ function MiniStat({ label, value, sub, trend }: {
 }
 
 export function ScheduledEventsClient({ events, userId, currency }: Props) {
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => setIsMounted(true), [])
   const router = useRouter()
-  const { displayPrice } = useAmountDisplay()
   const [showAdd, setShowAdd] = useState(false)
   const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null)
 
-  function formatEventAmount(event: ScheduledEvent): string {
-    if (event.amount_type === 'percent') return `${Number(event.amount).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
-    return displayPrice(Number(event.amount), event.currency)
+  const _selectedCurrency = useAppStore((s) => s.selectedCurrency)
+  const selectedCurrency = isMounted ? _selectedCurrency : currency
+
+  const linkedAssets = useMemo(() => {
+    const byId = new Map<string, Asset>()
+    for (const event of events) {
+      if (event.asset) byId.set(event.asset.id, event.asset)
+    }
+    return [...byId.values()]
+  }, [events])
+
+  const {
+    valuations,
+    loading: valuationLoading,
+    chartLoading: valuationChartLoading,
+    pricesLoading,
+  } = usePortfolioValuation(linkedAssets, '1m', selectedCurrency)
+  const { fx, loading: fixedFxLoading } = useTodayFx(
+    events.map((event) => ({ currency: event.currency })),
+    selectedCurrency,
+  )
+
+  const valueByAssetId = useMemo(() => {
+    const result: Record<string, number | null> = {}
+    for (const valuation of valuations) {
+      result[valuation.asset.id] = valuation.value
+    }
+    return result
+  }, [valuations])
+
+  const hasPercentEvents = events.some((event) => event.amount_type === 'percent' && event.asset_id)
+  const amountLoading = fixedFxLoading || (hasPercentEvents && (valuationLoading || valuationChartLoading || pricesLoading))
+
+  function convertedFixedAmount(event: IncomeEvent): number | null {
+    const rate = fx(event.currency)
+    if (rate === null) return null
+    return Number(event.amount) * rate
+  }
+
+  function percentAmount(event: IncomeEvent): number | null {
+    if (!event.asset_id) return null
+    const baseValue = valueByAssetId[event.asset_id]
+    if (baseValue == null) return null
+    return baseValue * (Number(event.amount) / 100)
+  }
+
+  function percentAmountInEventCurrency(event: IncomeEvent): number | null {
+    const selectedAmount = percentAmount(event)
+    if (selectedAmount === null) return null
+    const rate = fx(event.currency)
+    if (rate === null || rate === 0) return null
+    return selectedAmount / rate
+  }
+
+  function eventAmountValue(event: IncomeEvent): number | null {
+    return event.amount_type === 'percent' ? percentAmount(event) : convertedFixedAmount(event)
+  }
+
+  function eventAmountLoading(event: IncomeEvent): boolean {
+    if (!isMounted) return true
+    return event.amount_type === 'percent' && (fixedFxLoading || (hasPercentEvents && (valuationLoading || valuationChartLoading || pricesLoading)))
+  }
+
+  function formatEventAmount(event: IncomeEvent): ReactNode {
+    const loading = eventAmountLoading(event)
+    if (event.amount_type === 'percent') {
+      if (loading) return <LoadingText loading skelWidth={96}>{null}</LoadingText>
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+          <span className="delta-pill pos">{formatPercent(Number(event.amount))}</span>
+          <span style={{ color: 'var(--ink-faint)', fontWeight: 500 }}>·</span>
+          <MoneyText value={percentAmountInEventCurrency(event)} currency={event.currency} skelWidth={64} />
+        </span>
+      )
+    }
+    return <MoneyText value={Number(event.amount)} currency={event.currency} loading={loading} maskLength={5} skelWidth={72} />
+  }
+
+  function formatEventTitle(event: IncomeEvent): string {
+    return event.asset ? `${event.asset.asset_name} · ${event.name}` : event.name
+  }
+
+  function formatEventMeta(event: IncomeEvent): string {
+    const txType = event.asset
+      ? getAssetTypeConfig(event.asset.asset_type).scheduledEvents.labels[event.transaction_type] ?? TRANSACTION_TYPE_LABELS[event.transaction_type] ?? event.transaction_type
+      : TRANSACTION_TYPE_LABELS[event.transaction_type] ?? event.transaction_type
+    const portfolio = event.asset?.portfolio?.name
+    return portfolio ? `${txType} · ${portfolio}` : txType
   }
 
   async function handleDelete(id: string) {
@@ -76,8 +179,11 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
   }
 
   const activeIncome = events.filter((e) => e.is_active && e.transaction_type !== 'withdrawal')
-  const totalMonthly = activeIncome.reduce((sum, e) => sum + annualize(Number(e.amount), e.frequency) / 12, 0)
-  const totalAnnual = totalMonthly * 12
+  const totalAnnual = activeIncome.reduce((sum, e) => {
+    const value = eventAmountValue(e)
+    return value === null ? sum : sum + annualize(value, e.frequency)
+  }, 0)
+  const totalMonthly = totalAnnual / 12
 
   const nextEvent = activeIncome
     .map((e) => ({ event: e, next: nextOccurrenceDate(e) }))
@@ -88,7 +194,11 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
     ? nextEvent.next!.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : '—'
   const nextSub = nextEvent
-    ? `${nextEvent.event.name} · ${formatEventAmount(nextEvent.event)}`
+    ? (
+      <span>
+        {formatEventTitle(nextEvent.event)} · {formatEventAmount(nextEvent.event)}
+      </span>
+    )
     : 'No upcoming events'
 
   return (
@@ -108,12 +218,12 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
       <div className="stat-grid">
         <MiniStat
           label="Monthly (recurring)"
-          value={displayPrice(totalMonthly, currency, { maskLength: 6 })}
+          value={<MoneyText value={totalMonthly} currency={selectedCurrency} loading={!isMounted || amountLoading} maskLength={6} skelWidth={110} skelHeight={22} />}
           sub={`${activeIncome.length} source${activeIncome.length !== 1 ? 's' : ''}`}
         />
         <MiniStat
           label="Annualized"
-          value={displayPrice(totalAnnual, currency, { maskLength: 6 })}
+          value={<MoneyText value={totalAnnual} currency={selectedCurrency} loading={!isMounted || amountLoading} maskLength={6} skelWidth={120} skelHeight={22} />}
           sub="Gross"
           trend="pos"
         />
@@ -152,19 +262,20 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
                         background: 'var(--surface-2)', border: '1px solid var(--border)',
                         display: 'grid', placeItems: 'center',
                         color: 'var(--pos)', flexShrink: 0,
+                        fontSize: 20, fontWeight: 500,
                       }}>
-                        <DollarSign size={14} />
+                        {currencySymbol(ev.asset?.currency ?? ev.currency)}
                       </div>
                       <div>
                         <div style={{ fontWeight: 500, fontSize: 13 }}>
                           {ev.asset_id ? (
                             <Link href={`/assets/${ev.asset_id}`} style={{ color: 'var(--accent)' }}>
-                              {ev.name}
+                              {formatEventTitle(ev)}
                             </Link>
-                          ) : ev.name}
+                          ) : formatEventTitle(ev)}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 1 }}>
-                          {ev.is_active ? 'Recurring' : 'Inactive'}
+                          {formatEventMeta(ev)}
                         </div>
                       </div>
                     </div>

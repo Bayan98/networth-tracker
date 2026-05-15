@@ -239,6 +239,9 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
             <AssetScheduledTab
               events={scheduledEvents}
               assetType={asset.asset_type}
+              assetValue={marketValue}
+              currency={asset.currency}
+              loading={loading}
               onEdit={setEditingEvent}
               onDelete={handleDeleteEvent}
               onAdd={() => setShowAddEvent(true)}

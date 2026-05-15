@@ -1,24 +1,41 @@
+import type { ReactNode } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { AssetType, ScheduledEvent } from '@networth/types'
+import { LoadingText, MoneyText } from '@/components/ui/money-text'
 import { getAssetTypeConfig } from '../asset-type-config'
 
 interface Props {
   events: ScheduledEvent[]
   assetType?: AssetType
+  assetValue: number | null
+  currency: string
+  loading?: boolean
   onEdit: (event: ScheduledEvent) => void
   onDelete: (id: string) => void
   onAdd: () => void
 }
 
-export function AssetScheduledTab({ events, assetType, onEdit, onDelete, onAdd }: Props) {
-  const { displayPrice } = useAmountDisplay()
+function formatPercent(value: number): string {
+  return `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+}
+
+export function AssetScheduledTab({ events, assetType, assetValue, currency, loading = false, onEdit, onDelete, onAdd }: Props) {
   const assetConfig = getAssetTypeConfig(assetType)
 
-  function formatEventAmount(event: ScheduledEvent): string {
-    if (event.amount_type === 'percent') return `${Number(event.amount).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
-    return displayPrice(Number(event.amount), event.currency)
+  function formatEventAmount(event: ScheduledEvent): ReactNode {
+    if (event.amount_type === 'percent') {
+      const percentValue = assetValue === null ? null : assetValue * (Number(event.amount) / 100)
+      if (loading) return <LoadingText loading skelWidth={96}>{null}</LoadingText>
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span className="delta-pill pos">{formatPercent(Number(event.amount))}</span>
+          <span style={{ color: 'var(--ink-faint)', fontWeight: 500 }}>|</span>
+          <MoneyText value={percentValue} currency={currency} maskLength={5} skelWidth={64} />
+        </span>
+      )
+    }
+    return <MoneyText value={Number(event.amount)} currency={event.currency} maskLength={5} skelWidth={72} />
   }
 
   return (
