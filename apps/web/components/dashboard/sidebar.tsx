@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
@@ -47,7 +48,9 @@ export function Sidebar({ user, portfolios, counts, portfolioAssetCounts }: Side
     <>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">N</div>
+          <div className="brand-mark">
+            <Image className="brand-mark-image" src="/icons/icon-source.svg" alt="" width={26} height={26} aria-hidden="true" />
+          </div>
           <div className="brand-name">Net<em>worth</em></div>
         </div>
 

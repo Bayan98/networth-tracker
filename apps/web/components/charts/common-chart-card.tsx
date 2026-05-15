@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -71,7 +71,10 @@ export function CommonChartCard({
         </div>
       </div>
 
-      <div style={{ height, paddingBottom: 20 }}>
+      <div
+        className="chart-body"
+        style={{ "--chart-h": `${height}px` } as CSSProperties}
+      >
         {loading ? (
           <ChartLineLoading />
         ) : isEmpty ? (

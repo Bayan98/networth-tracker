@@ -1,6 +1,7 @@
 'use client'
 
 import { Eye, EyeOff, Search } from 'lucide-react'
+import Image from 'next/image'
 import { useAppStore } from '@/lib/store'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { usePathname } from 'next/navigation'
@@ -27,7 +28,9 @@ export function Header({}: HeaderProps) {
   return (
     <header className="topbar">
       <div className="topbar-mobile-brand">
-        <div className="brand-mark" style={{ width: 24, height: 24, fontSize: 13 }}>N</div>
+        <div className="brand-mark" style={{ width: 24, height: 24 }}>
+          <Image className="brand-mark-image" src="/icons/icon-source.svg" alt="" width={24} height={24} aria-hidden="true" />
+        </div>
         <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.015em' }}>
           Net<em style={{ fontFamily: 'var(--font-display)', fontStyle: 'normal', fontWeight: 500, color: 'var(--ink-2)' }}>worth</em>
         </span>
