@@ -8,9 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { AssetType, ScheduledEvent, CurrencyCode, IncomeFrequency, TransactionType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
-import { getAssetTypeConfig, withCurrentType } from '@/components/assets/asset-type-config'
-
-const FREQUENCIES: IncomeFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'annually']
+import { getAssetTypeConfig, withCurrentFrequency, withCurrentType } from '@/components/assets/asset-type-config'
 
 interface Props {
   event: ScheduledEvent
@@ -26,6 +24,7 @@ export function EditScheduledEventDialog({ event, assetType, onClose }: Props) {
   const [amountType, setAmountType] = useState<'fixed' | 'percent'>(event.amount_type)
   const [amount, setAmount] = useState(String(event.amount))
   const [freq, setFreq] = useState<IncomeFrequency>(event.frequency)
+  const [startDate, setStartDate] = useState(event.start_date)
   const [currency, setCurrency] = useState<CurrencyCode>(event.currency)
   const [notes, setNotes] = useState(event.notes ?? '')
   const [loading, setLoading] = useState(false)
@@ -38,14 +37,16 @@ export function EditScheduledEventDialog({ event, assetType, onClose }: Props) {
     setLoading(true)
     setError(null)
 
+    const eventName = name.trim() || assetConfig.scheduledEvents.labels[txType] || TRANSACTION_TYPE_LABELS[txType] || 'Scheduled event'
     const supabase = createClient()
     const { error } = await supabase.from('scheduled_events').update({
-      name,
+      name: eventName,
       transaction_type: txType,
       amount: parseFloat(amount),
       amount_type: amountType,
       currency,
       frequency: freq,
+      start_date: startDate,
       notes: notes || null,
     }).eq('id', event.id)
 
@@ -55,6 +56,7 @@ export function EditScheduledEventDialog({ event, assetType, onClose }: Props) {
   }
 
   const availableTypes = withCurrentType(assetConfig.scheduledEvents.allowedTypes, txType)
+  const availableFrequencies = withCurrentFrequency(assetConfig.scheduledEvents.allowedFrequencies, freq)
 
   return (
     <div className="rmodal-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -70,13 +72,12 @@ export function EditScheduledEventDialog({ event, assetType, onClose }: Props) {
         <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
           <div className="rmodal-body">
             <div className="mfield">
-              <label className="mfield-label">Event name</label>
+              <label className="mfield-label">Event name <span className="mfield-opt">Optional</span></label>
               <input
                 className="minput"
                 placeholder={assetConfig.scheduledEvents.eventNamePlaceholder}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
               />
             </div>
 
@@ -108,7 +109,7 @@ export function EditScheduledEventDialog({ event, assetType, onClose }: Props) {
             <div className="mfield">
               <label className="mfield-label">Frequency</label>
               <div className="toggle-row" style={{ flexWrap: 'wrap' }}>
-                {FREQUENCIES.map((f) => (
+                {availableFrequencies.map((f) => (
                   <button
                     key={f}
                     type="button"
@@ -119,6 +120,17 @@ export function EditScheduledEventDialog({ event, assetType, onClose }: Props) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="mfield">
+              <label className="mfield-label">First event date</label>
+              <input
+                type="date"
+                className="minput"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+              />
             </div>
 
             <div className="mfield-row">

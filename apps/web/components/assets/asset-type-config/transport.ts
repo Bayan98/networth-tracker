@@ -9,4 +9,7 @@ export const transportConfig = defineAssetTypeConfig(physicalPrivateConfig, {
   scheduledEvents: {
     eventNamePlaceholder: 'e.g. Lease income',
   },
+  detail: {
+    tabs: ['Transactions', 'Scheduled', 'Notes'],
+  },
 })

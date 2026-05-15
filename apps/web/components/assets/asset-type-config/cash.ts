@@ -5,4 +5,7 @@ export const cashConfig = defineAssetTypeConfig(bankLikeConfig, {
   assetDialog: {
     displayNamePlaceholder: 'e.g. Marcus High-Yield Savings',
   },
+  detail: {
+    tabs: ['Transactions', 'Scheduled', 'Notes'],
+  },
 })

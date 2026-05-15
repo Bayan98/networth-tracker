@@ -1,4 +1,4 @@
-import type { AssetType, TransactionType } from '@networth/types'
+import type { AssetType, IncomeFrequency, TransactionType } from '@networth/types'
 
 export const ASSET_TYPES = [
   'stock',
@@ -22,6 +22,17 @@ export const VALID_TRANSACTION_TYPES = [
   'withdrawal',
   'split',
 ] as const satisfies readonly TransactionType[]
+
+export const ASSET_DETAIL_TABS = [
+  'Overview',
+  'Charts',
+  'Transactions',
+  'Scheduled',
+  'News',
+  'Notes',
+] as const
+
+export type AssetDetailTab = typeof ASSET_DETAIL_TABS[number]
 
 export type TransactionLabels = Partial<Record<TransactionType, string>>
 
@@ -49,10 +60,7 @@ export interface AssetDialogConfig {
   notesPlaceholder: string
 }
 
-export interface TransactionFormConfig {
-  allowedTypes: readonly TransactionType[]
-  defaultType: TransactionType
-  labels: TransactionLabels
+export interface TransactionFieldConfig {
   showQuantity: boolean
   quantityLabel: string
   quantityPlaceholder: string
@@ -61,9 +69,18 @@ export interface TransactionFormConfig {
   notePlaceholder: string
 }
 
+export interface TransactionFormConfig extends TransactionFieldConfig {
+  allowedTypes: readonly TransactionType[]
+  defaultType: TransactionType
+  labels: TransactionLabels
+  typeOverrides: Partial<Record<TransactionType, Partial<TransactionFieldConfig>>>
+}
+
 export interface ScheduledEventsConfig {
   allowedTypes: readonly TransactionType[]
   defaultType: TransactionType
+  allowedFrequencies: readonly IncomeFrequency[]
+  defaultFrequency: IncomeFrequency
   labels: TransactionLabels
   eventNamePlaceholder: string
   amountLabel: string
@@ -71,10 +88,15 @@ export interface ScheduledEventsConfig {
   notePlaceholder: string
 }
 
+export interface DetailConfig {
+  tabs: readonly AssetDetailTab[]
+}
+
 export interface AssetTypeConfig {
   assetDialog: AssetDialogConfig
   transactions: TransactionFormConfig
   scheduledEvents: ScheduledEventsConfig
+  detail: DetailConfig
 }
 
 type DeepPartial<T> = {
@@ -118,15 +140,21 @@ export const genericAssetTypeConfig: AssetTypeConfig = {
     priceLabel: 'Price / unit',
     pricePlaceholder: '150.00',
     notePlaceholder: 'e.g. Quarterly rebalance',
+    typeOverrides: {},
   },
   scheduledEvents: {
     allowedTypes: ['dividend', 'deposit', 'withdrawal'],
     defaultType: 'dividend',
+    allowedFrequencies: ['daily', 'weekly', 'monthly', 'quarterly', 'annually'],
+    defaultFrequency: 'monthly',
     labels: transactionLabels,
     eventNamePlaceholder: 'e.g. Quarterly dividend',
     amountLabel: 'Amount',
     amountPlaceholder: '500',
     notePlaceholder: 'Optional note',
+  },
+  detail: {
+    tabs: ASSET_DETAIL_TABS,
   },
 }
 
@@ -150,6 +178,10 @@ export function defineAssetTypeConfig(
         ...base.transactions.labels,
         ...override.transactions?.labels,
       },
+      typeOverrides: {
+        ...base.transactions.typeOverrides,
+        ...override.transactions?.typeOverrides,
+      },
     },
     scheduledEvents: {
       ...base.scheduledEvents,
@@ -159,6 +191,26 @@ export function defineAssetTypeConfig(
         ...override.scheduledEvents?.labels,
       },
     },
+    detail: {
+      ...base.detail,
+      ...override.detail,
+    },
+  }
+}
+
+export function getTransactionFieldConfig(
+  config: AssetTypeConfig,
+  transactionType: TransactionType,
+): TransactionFieldConfig {
+  const override = config.transactions.typeOverrides[transactionType]
+
+  return {
+    showQuantity: override?.showQuantity ?? config.transactions.showQuantity,
+    quantityLabel: override?.quantityLabel ?? config.transactions.quantityLabel,
+    quantityPlaceholder: override?.quantityPlaceholder ?? config.transactions.quantityPlaceholder,
+    priceLabel: override?.priceLabel ?? config.transactions.priceLabel,
+    pricePlaceholder: override?.pricePlaceholder ?? config.transactions.pricePlaceholder,
+    notePlaceholder: override?.notePlaceholder ?? config.transactions.notePlaceholder,
   }
 }
 
@@ -167,4 +219,13 @@ export function withCurrentType(
   currentType: TransactionType,
 ): readonly TransactionType[] {
   return allowedTypes.includes(currentType) ? allowedTypes : [currentType, ...allowedTypes]
+}
+
+export function withCurrentFrequency(
+  allowedFrequencies: readonly IncomeFrequency[],
+  currentFrequency: IncomeFrequency,
+): readonly IncomeFrequency[] {
+  return allowedFrequencies.includes(currentFrequency)
+    ? allowedFrequencies
+    : [currentFrequency, ...allowedFrequencies]
 }

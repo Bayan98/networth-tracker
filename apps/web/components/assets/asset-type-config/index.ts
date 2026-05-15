@@ -18,11 +18,16 @@ export {
 
 export {
   ASSET_TYPES,
+  ASSET_DETAIL_TABS,
   VALID_TRANSACTION_TYPES,
   genericAssetTypeConfig,
+  getTransactionFieldConfig,
+  withCurrentFrequency,
   withCurrentType,
+  type AssetDetailTab,
   type AssetTypeConfig,
   type ScheduledEventsConfig,
+  type TransactionFieldConfig,
   type TransactionFormConfig,
 } from './common'
 

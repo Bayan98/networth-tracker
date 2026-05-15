@@ -9,7 +9,7 @@ import { useTxFxRate } from '@/lib/hooks/use-tx-fx-rate'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { Transaction, TransactionType, CurrencyCode, AssetType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
-import { getAssetTypeConfig, isGramPricedMetal, withCurrentType } from '@/components/assets/asset-type-config'
+import { getAssetTypeConfig, getTransactionFieldConfig, isGramPricedMetal, withCurrentType } from '@/components/assets/asset-type-config'
 
 interface Props {
   transaction: Transaction
@@ -44,7 +44,7 @@ export function EditTransactionDialog({ transaction, assetCurrency, assetSymbol,
     const supabase = createClient()
     const { error } = await supabase.from('transactions').update({
       transaction_type: txType,
-      quantity: assetConfig.transactions.showQuantity ? parseFloat(quantity) : 1,
+      quantity: txFieldConfig.showQuantity ? parseFloat(quantity) : 1,
       price: parseFloat(price),
       currency,
       executed_at: new Date(executedAt + 'T12:00:00.000Z').toISOString(),
@@ -60,9 +60,10 @@ export function EditTransactionDialog({ transaction, assetCurrency, assetSymbol,
   const convertedPrice = needsFx && !isNaN(priceNum) ? priceNum * fxRate : null
   const availableTypes = withCurrentType(assetConfig.transactions.allowedTypes, txType)
   const txLabels = assetConfig.transactions.labels
+  const txFieldConfig = getTransactionFieldConfig(assetConfig, txType)
   const isGramMetal = assetType === 'commodity' && isGramPricedMetal(assetSymbol)
-  const quantityLabel = isGramMetal ? 'Quantity (g)' : assetConfig.transactions.quantityLabel
-  const priceLabel = isGramMetal ? 'Price / g' : assetConfig.transactions.priceLabel
+  const quantityLabel = isGramMetal ? 'Quantity (g)' : txFieldConfig.quantityLabel
+  const priceLabel = isGramMetal ? 'Price / g' : txFieldConfig.priceLabel
 
   return (
     <div className="rmodal-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -94,7 +95,7 @@ export function EditTransactionDialog({ transaction, assetCurrency, assetSymbol,
             </div>
 
             <div className="mfield-row">
-              {assetConfig.transactions.showQuantity && (
+              {txFieldConfig.showQuantity && (
                 <div className="mfield" style={{ margin: 0 }}>
                   <label className="mfield-label">{quantityLabel}</label>
                   <input
@@ -153,7 +154,7 @@ export function EditTransactionDialog({ transaction, assetCurrency, assetSymbol,
               <label className="mfield-label">Notes <span className="mfield-opt">Optional</span></label>
               <input
                 className="minput"
-                placeholder={assetConfig.transactions.notePlaceholder}
+                placeholder={txFieldConfig.notePlaceholder}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />

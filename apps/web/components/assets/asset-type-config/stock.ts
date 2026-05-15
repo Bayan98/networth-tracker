@@ -7,4 +7,8 @@ export const stockConfig = defineAssetTypeConfig(priceTradedConfig, {
     symbolExamples: ['AAPL', 'MSFT', 'NVDA'],
     displayNamePlaceholder: 'e.g. Apple Inc.',
   },
+  scheduledEvents: {
+    allowedTypes: ['buy', 'sell'],
+    defaultType: 'buy',
+  },
 })

@@ -10,8 +10,6 @@ import type { AssetType, CurrencyCode, IncomeFrequency, TransactionType } from '
 import { CurrencyPicker } from '@/components/ui/currency-picker'
 import { getAssetTypeConfig } from '@/components/assets/asset-type-config'
 
-const FREQUENCIES: IncomeFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'annually']
-
 interface Props {
   userId: string
   assetId?: string
@@ -23,11 +21,13 @@ interface Props {
 export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCurrency, onClose }: Props) {
   const router = useRouter()
   const assetConfig = getAssetTypeConfig(assetType)
+  const today = new Date().toISOString().slice(0, 10)
   const [name, setName] = useState('')
   const [txType, setTxType] = useState<TransactionType>(assetConfig.scheduledEvents.defaultType)
   const [amountType, setAmountType] = useState<'fixed' | 'percent'>('fixed')
   const [amount, setAmount] = useState('')
-  const [freq, setFreq] = useState<IncomeFrequency>('monthly')
+  const [freq, setFreq] = useState<IncomeFrequency>(assetConfig.scheduledEvents.defaultFrequency)
+  const [startDate, setStartDate] = useState(today)
   const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
@@ -39,23 +39,28 @@ export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCur
     if (!assetConfig.scheduledEvents.allowedTypes.includes(txType)) {
       setTxType(assetConfig.scheduledEvents.defaultType)
     }
-  }, [assetConfig, txType])
+    if (!assetConfig.scheduledEvents.allowedFrequencies.includes(freq)) {
+      setFreq(assetConfig.scheduledEvents.defaultFrequency)
+    }
+  }, [assetConfig, freq, txType])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
+    const eventName = name.trim() || assetConfig.scheduledEvents.labels[txType] || TRANSACTION_TYPE_LABELS[txType] || 'Scheduled event'
     const supabase = createClient()
     const { error } = await supabase.from('scheduled_events').insert({
       user_id: userId,
       asset_id: assetId ?? null,
-      name,
+      name: eventName,
       transaction_type: txType,
       amount: parseFloat(amount),
       amount_type: amountType,
       currency,
       frequency: freq,
+      start_date: startDate,
       notes: notes || null,
     })
 
@@ -78,13 +83,12 @@ export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCur
         <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
           <div className="rmodal-body">
             <div className="mfield">
-              <label className="mfield-label">Event name</label>
+              <label className="mfield-label">Event name <span className="mfield-opt">Optional</span></label>
               <input
                 className="minput"
                 placeholder={assetConfig.scheduledEvents.eventNamePlaceholder}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
               />
             </div>
 
@@ -116,7 +120,7 @@ export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCur
             <div className="mfield">
               <label className="mfield-label">Frequency</label>
               <div className="toggle-row" style={{ flexWrap: 'wrap' }}>
-                {FREQUENCIES.map((f) => (
+                {assetConfig.scheduledEvents.allowedFrequencies.map((f) => (
                   <button
                     key={f}
                     type="button"
@@ -127,6 +131,17 @@ export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCur
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="mfield">
+              <label className="mfield-label">First event date</label>
+              <input
+                type="date"
+                className="minput"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+              />
             </div>
 
             <div className="mfield-row">

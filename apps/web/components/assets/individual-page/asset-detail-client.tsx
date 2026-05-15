@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -15,7 +15,7 @@ import { AddScheduledEventDialog } from '@/components/scheduled-events/add-sched
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
 import { AddTransactionDialog } from '@/components/transactions/add-transaction-dialog'
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
-import { getAssetTypeConfig } from '../asset-type-config'
+import { getAssetTypeConfig, type AssetDetailTab } from '../asset-type-config'
 import { EditAssetDialog } from '../dialogs/edit-asset-dialog'
 import { AssetChartsTab } from './asset-charts-tab'
 import { AssetDetailHeader } from './asset-detail-header'
@@ -27,8 +27,6 @@ import { AssetScheduledTab } from './asset-scheduled-tab'
 import { AssetTransactionsTab } from './asset-transactions-tab'
 import { MoneyText, QuantityText } from '@/components/ui/money-text'
 
-type Tab = 'Overview' | 'Charts' | 'Transactions' | 'News' | 'Scheduled' | 'Notes'
-
 interface Props {
   asset: Asset
   transactions: Transaction[]
@@ -38,8 +36,13 @@ interface Props {
 }
 
 export function AssetDetailClient({ asset, transactions, scheduledEvents, portfolios, userId }: Props) {
+  const assetConfig = getAssetTypeConfig(asset.asset_type)
+  const tabs = useMemo(
+    () => assetConfig.detail.tabs.filter((tabName) => tabName !== 'News' || asset.symbol),
+    [asset.symbol, assetConfig],
+  )
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('Overview')
+  const [tab, setTab] = useState<AssetDetailTab>(tabs[0] ?? 'Notes')
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [notes, setNotes] = useState(asset.notes ?? '')
@@ -56,8 +59,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const { price: rawPrice, source } = resolveAssetPrice(asset, prices)
   const { avgCostBasis, quantity, totalIncome, dividendIncome, sellIncome, fx, loading, fxError } = useAssetAvgCost(transactions, asset.currency)
   const { info: assetInfo, loading: assetInfoLoading } = useAssetInfo(asset.symbol, asset.asset_type)
-  const { news: assetNews, loading: newsLoading } = useAssetNews(asset.symbol, asset.asset_type, asset.asset_name, tab === 'News')
-  const assetConfig = getAssetTypeConfig(asset.asset_type)
+  const { news: assetNews, loading: newsLoading } = useAssetNews(asset.symbol, asset.asset_type, asset.asset_name, tab === 'News' && tabs.includes('News'))
 
   const priceCcy = source === 'live' ? (currencies[asset.symbol?.toUpperCase() ?? ''] ?? 'USD') : asset.currency
   const fxRate = source === 'live' ? fx(priceCcy) : null
@@ -70,10 +72,15 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   const typeColor = ASSET_TYPE_COLOR[asset.asset_type] ?? 'var(--cat-other)'
   const portfolio = portfolios.find((candidate) => candidate.id === asset.portfolio_id)
   const showQuantity = assetConfig.transactions.showQuantity
-  const showMarketUnit = showQuantity && quantity > 1
   const showCostBasisRow = source !== 'cost_basis'
   const showIncomeRow = totalIncome !== 0
   const incomeLabel = assetConfig.scheduledEvents.labels.dividend ?? assetConfig.transactions.labels.dividend ?? 'Dividend'
+
+  useEffect(() => {
+    if (!tabs.includes(tab)) {
+      setTab(tabs[0] ?? 'Notes')
+    }
+  }, [tab, tabs])
 
   useEffect(() => {
     const cached = getAssetsViewState()
@@ -121,15 +128,6 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
     setNotesSaving(false)
   }
 
-  const tabs = [
-    'Overview',
-    'Charts',
-    'Transactions',
-    'Scheduled',
-    ...(asset.symbol ? ['News'] : []),
-    'Notes',
-  ] as Tab[]
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
       <AssetDetailHeader
@@ -154,11 +152,11 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
       <div className="hero">
         <div className="asset-summary-rows">
-          <div className={`asset-summary-row ${showMarketUnit ? '' : 'single'}`}>
+          <div className={`asset-summary-row ${showQuantity ? '' : 'single'}`}>
             <SummaryMetric label={`Total market value · ${asset.currency}`} primary>
               <MoneyText value={marketValue} currency={asset.currency} loading={loading} maskLength={6} skelWidth={180} skelHeight={32} />
             </SummaryMetric>
-            {showMarketUnit && (
+            {showQuantity && (
               <>
                 <SummaryMetric label="Quantity">
                   <QuantityText value={quantity} loading={loading} />

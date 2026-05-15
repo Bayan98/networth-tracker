@@ -22,4 +22,7 @@ export const realEstateConfig = defineAssetTypeConfig(physicalPrivateConfig, {
     eventNamePlaceholder: 'e.g. Monthly rent',
     amountPlaceholder: '2500',
   },
+  detail: {
+    tabs: ['Transactions', 'Scheduled', 'Notes'],
+  },
 })

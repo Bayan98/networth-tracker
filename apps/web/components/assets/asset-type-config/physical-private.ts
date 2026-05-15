@@ -31,4 +31,7 @@ export const physicalPrivateConfig = defineAssetTypeConfig(genericAssetTypeConfi
     eventNamePlaceholder: 'e.g. Monthly income',
     amountPlaceholder: '1000',
   },
+  detail: {
+    tabs: ['Overview', 'Transactions', 'Scheduled', 'Notes'],
+  },
 })

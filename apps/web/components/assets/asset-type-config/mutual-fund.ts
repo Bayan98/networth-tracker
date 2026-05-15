@@ -7,4 +7,8 @@ export const mutualFundConfig = defineAssetTypeConfig(priceTradedConfig, {
     symbolExamples: ['VTSAX', 'FXAIX', 'SWPPX'],
     displayNamePlaceholder: 'e.g. Vanguard Total Stock Market Index',
   },
+  scheduledEvents: {
+    allowedTypes: ['buy', 'sell'],
+    defaultType: 'buy',
+  },
 })

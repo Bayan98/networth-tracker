@@ -7,4 +7,8 @@ export const etfConfig = defineAssetTypeConfig(priceTradedConfig, {
     symbolExamples: ['SPY', 'VOO', 'QQQ'],
     displayNamePlaceholder: 'e.g. Vanguard S&P 500 ETF',
   },
+  scheduledEvents: {
+    allowedTypes: ['buy', 'sell'],
+    defaultType: 'buy',
+  },
 })

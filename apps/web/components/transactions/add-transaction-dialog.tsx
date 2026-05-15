@@ -10,7 +10,7 @@ import { usePriceAtDate } from '@/lib/hooks/use-price-at-date'
 import { TRANSACTION_TYPE_LABELS, formatCurrency } from '@networth/utils'
 import type { TransactionType, CurrencyCode, AssetType } from '@networth/types'
 import { CurrencyPicker } from '@/components/ui/currency-picker'
-import { getAssetTypeConfig, isGramPricedMetal } from '@/components/assets/asset-type-config'
+import { getAssetTypeConfig, getTransactionFieldConfig, isGramPricedMetal } from '@/components/assets/asset-type-config'
 import { syncCorporateActions } from '@/lib/corporate-actions/sync'
 
 const PRICE_TYPES: TransactionType[] = ['buy', 'sell']
@@ -28,9 +28,11 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const assetConfig = getAssetTypeConfig(assetType)
+  const defaultTxType = assetConfig.transactions.defaultType
+  const initialTxFields = getTransactionFieldConfig(assetConfig, defaultTxType)
 
-  const [txType, setTxType] = useState<TransactionType>(assetConfig.transactions.defaultType)
-  const [quantity, setQuantity] = useState(assetConfig.transactions.showQuantity ? '' : '1')
+  const [txType, setTxType] = useState<TransactionType>(defaultTxType)
+  const [quantity, setQuantity] = useState(initialTxFields.showQuantity ? '' : '1')
   const [price, setPrice] = useState('')
   const [priceManual, setPriceManual] = useState(false)
   const [currency, setCurrency] = useState<CurrencyCode>(assetCurrency ?? 'USD')
@@ -75,7 +77,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
       user_id: userId,
       asset_id: assetId ?? null,
       transaction_type: txType,
-      quantity: assetConfig.transactions.showQuantity ? parseFloat(quantity) : 1,
+      quantity: txFieldConfig.showQuantity ? parseFloat(quantity) : 1,
       price: parseFloat(price),
       currency,
       executed_at: new Date(executedAt + 'T12:00:00.000Z').toISOString(),
@@ -97,10 +99,11 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
   const priceNum = parseFloat(price)
   const convertedPrice = needsFx && !isNaN(priceNum) ? priceNum * fxRate : null
   const txLabels = assetConfig.transactions.labels
+  const txFieldConfig = getTransactionFieldConfig(assetConfig, txType)
   const isGramMetal = assetType === 'commodity' && isGramPricedMetal(assetSymbol)
-  const quantityLabel = isGramMetal ? 'Quantity (g)' : assetConfig.transactions.quantityLabel
-  const priceLabel = isGramMetal ? 'Price / g' : assetConfig.transactions.priceLabel
-  const pricePlaceholder = isGramMetal ? 'e.g. 96.50' : assetConfig.transactions.pricePlaceholder
+  const quantityLabel = isGramMetal ? 'Quantity (g)' : txFieldConfig.quantityLabel
+  const priceLabel = isGramMetal ? 'Price / g' : txFieldConfig.priceLabel
+  const pricePlaceholder = isGramMetal ? 'e.g. 96.50' : txFieldConfig.pricePlaceholder
 
   return (
     <div className="rmodal-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -132,13 +135,13 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
             </div>
 
             <div className="mfield-row">
-              {assetConfig.transactions.showQuantity && (
+              {txFieldConfig.showQuantity && (
                 <div className="mfield" style={{ margin: 0 }}>
                   <label className="mfield-label">{quantityLabel}</label>
                   <input
                     type="number"
                     className="minput mono"
-                    placeholder={assetConfig.transactions.quantityPlaceholder}
+                    placeholder={txFieldConfig.quantityPlaceholder}
                     min="0"
                     step="any"
                     value={quantity}
@@ -196,7 +199,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
               <label className="mfield-label">Notes <span className="mfield-opt">Optional</span></label>
               <input
                 className="minput"
-                placeholder={assetConfig.transactions.notePlaceholder}
+                placeholder={txFieldConfig.notePlaceholder}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />

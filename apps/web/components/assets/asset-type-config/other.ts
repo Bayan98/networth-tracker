@@ -6,4 +6,7 @@ export const otherConfig = defineAssetTypeConfig(physicalPrivateConfig, {
     displayNamePlaceholder: 'e.g. Watch collection',
     notesPlaceholder: 'Condition, provenance, appraisal notes...',
   },
+  detail: {
+    tabs: ['Transactions', 'Scheduled', 'Notes'],
+  },
 })
