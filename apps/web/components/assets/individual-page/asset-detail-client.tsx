@@ -17,6 +17,7 @@ import { AddTransactionDialog } from '@/components/transactions/add-transaction-
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog'
 import { getAssetTypeConfig } from '../asset-type-config'
 import { EditAssetDialog } from '../dialogs/edit-asset-dialog'
+import { AssetChartsTab } from './asset-charts-tab'
 import { AssetDetailHeader } from './asset-detail-header'
 import { ASSET_TYPE_COLOR } from './asset-detail-utils'
 import { AssetNewsTab } from './asset-news-tab'
@@ -26,7 +27,7 @@ import { AssetScheduledTab } from './asset-scheduled-tab'
 import { AssetTransactionsTab } from './asset-transactions-tab'
 import { MoneyText, QuantityText } from '@/components/ui/money-text'
 
-type Tab = 'Overview' | 'Transactions' | 'News' | 'Scheduled' | 'Notes'
+type Tab = 'Overview' | 'Charts' | 'Transactions' | 'News' | 'Scheduled' | 'Notes'
 
 interface Props {
   asset: Asset
@@ -122,6 +123,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
   const tabs = [
     'Overview',
+    'Charts',
     'Transactions',
     'Scheduled',
     ...(asset.symbol ? ['News'] : []),
@@ -222,6 +224,9 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
               loading={assetInfoLoading}
               assetInfo={assetInfo}
             />
+          )}
+          {tab === 'Charts' && (
+            <AssetChartsTab asset={asset} />
           )}
           {tab === 'Transactions' && (
             <AssetTransactionsTab

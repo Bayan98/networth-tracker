@@ -6,7 +6,7 @@ import { useAppStore } from '@/lib/store'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
-import { PortfolioAreaChart } from '@/components/charts/portfolio-area-chart'
+import { DashboardChart } from '@/components/charts/dashboard-chart'
 import { AllocationCard } from '@/components/ui/allocation-card'
 import type { Enriched } from '@/components/ui/allocation-card'
 import type { Asset, Portfolio, Debt, CurrencyCode } from '@networth/types'
@@ -43,7 +43,7 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
-      <PortfolioAreaChart
+      <DashboardChart
         series={liveSeries}
         currency={selectedCurrency}
         loading={chartLoading}
