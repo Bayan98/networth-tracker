@@ -25,7 +25,8 @@ CREATE TABLE public.profiles (
   full_name    text,
   default_currency text NOT NULL DEFAULT 'USD' CHECK (char_length(default_currency) = 3),
   metadata     jsonb NOT NULL DEFAULT '{}'::jsonb,
-  created_at   timestamptz NOT NULL DEFAULT now()
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE public.portfolios (

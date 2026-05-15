@@ -40,6 +40,7 @@ export interface Profile {
   default_currency: CurrencyCode
   metadata: Json
   created_at: string
+  updated_at: string
 }
 
 export interface Portfolio {
@@ -152,7 +153,7 @@ type InsertRow<T extends { metadata: Json }, K extends keyof T> = Omit<T, K | 'm
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: InsertRow<Profile, 'created_at'>; Update: Partial<Profile> }
+      profiles: { Row: Profile; Insert: InsertRow<Profile, 'created_at' | 'updated_at'>; Update: Partial<Profile> }
       portfolios: { Row: Portfolio; Insert: InsertRow<Portfolio, 'id' | 'created_at'>; Update: Partial<Portfolio> }
       assets: { Row: Asset; Insert: InsertRow<Asset, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Asset> }
       transactions: { Row: Transaction; Insert: InsertRow<Transaction, 'id' | 'created_at'>; Update: Partial<Transaction> }
