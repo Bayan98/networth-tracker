@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { formatPercent, ASSET_TYPE_LABELS } from '@networth/utils'
 import type { CurrencyCode } from '@networth/types'
@@ -80,7 +81,11 @@ export function HoldingsList({
                   style={{ cursor: 'pointer' }}
                 >
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Link
+                      href={`/assets/${asset.id}`}
+                      onClick={(event) => event.stopPropagation()}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'inherit', textDecoration: 'none' }}
+                    >
                       <AssetAvatar symbol={asset.symbol} assetType={asset.asset_type} name={asset.asset_name} size={32} borderRadius={8} />
                       <div>
                         <div style={{ fontWeight: 500, fontSize: 13 }}>
@@ -95,7 +100,7 @@ export function HoldingsList({
                           {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td data-label="Portfolio" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {portfolio ?? ''}

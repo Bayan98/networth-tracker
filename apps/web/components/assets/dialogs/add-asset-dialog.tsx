@@ -22,7 +22,6 @@ const ASSET_TYPE_CARDS: Array<{ id: AssetType; label: string; desc: string; Icon
   { id: 'bond',         label: 'Bond',         desc: 'Fixed income',         Icon: TrendingUp },
   { id: 'mutual_fund',  label: 'Mutual fund',  desc: 'Managed funds',        Icon: TrendingUp },
   { id: 'commodity',    label: 'Commodity',    desc: 'Gold, silver, etc.',   Icon: Package },
-  { id: 'deposit',      label: 'Deposit',      desc: 'CDs, term deposits',   Icon: Wallet },
   { id: 'business',     label: 'Business',     desc: 'Equity, LLC',          Icon: Package },
   { id: 'transport',    label: 'Transport',    desc: 'Vehicles, boats',      Icon: Package },
   { id: 'other',        label: 'Other',        desc: 'Collectibles, misc.',  Icon: Package },

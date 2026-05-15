@@ -4,7 +4,7 @@ Required columns (in this order):
 asset_name,symbol,asset_type,currency,transaction_type,quantity,price,date,notes
 
 Rules:
-- asset_type must be one of: stock, bond, etf, crypto, mutual_fund, real_estate, cash, commodity, deposit, transport, business, other
+- asset_type must be one of: stock, bond, etf, crypto, mutual_fund, real_estate, cash, commodity, transport, business, other
 - asset_symbol for stocks should be in the format of stockanalysis website (AAPL, KASE:HSBK)
 - asset_name and asset_symbol must be similar for same assets, don't modify names to match transaction type
 - transaction_type must be one of: buy, sell, dividend, deposit, withdrawal, split — or leave blank for assets with a manual price only

@@ -41,6 +41,8 @@ apps/web/next-env.d.ts
 # Supabase
 supabase/.temp/
 supabase/.storage/
+supabase/migrations/
+supabase/supabase
 
 # Docs
 docs/

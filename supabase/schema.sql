@@ -2,7 +2,7 @@
 CREATE TYPE public.asset_type AS ENUM (
   'stock', 'bond', 'etf', 'crypto', 'mutual_fund',
   'real_estate', 'cash', 'commodity', 'other',
-  'deposit', 'transport', 'business'
+  'transport', 'business'
 );
 
 CREATE TYPE public.transaction_type AS ENUM (
@@ -24,6 +24,7 @@ CREATE TABLE public.profiles (
   email        text,
   full_name    text,
   default_currency text NOT NULL DEFAULT 'USD' CHECK (char_length(default_currency) = 3),
+  metadata     jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at   timestamptz NOT NULL DEFAULT now()
 );
 
@@ -32,6 +33,7 @@ CREATE TABLE public.portfolios (
   user_id     uuid NOT NULL REFERENCES public.profiles(id),
   name        text NOT NULL,
   description text,
+  metadata    jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
@@ -47,6 +49,7 @@ CREATE TABLE public.assets (
   notes             text,
   manual_price      numeric,
   manual_price_date date,
+  metadata          jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   UNIQUE (portfolio_id, symbol)
@@ -62,6 +65,7 @@ CREATE TABLE public.transactions (
   currency         text NOT NULL DEFAULT 'USD' CHECK (char_length(currency) = 3),
   executed_at      timestamptz NOT NULL DEFAULT now(),
   notes            text,
+  metadata         jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at       timestamptz NOT NULL DEFAULT now()
 );
 
@@ -77,6 +81,7 @@ CREATE TABLE public.debts (
   due_date         date,
   is_active        boolean NOT NULL DEFAULT true,
   notes            text,
+  metadata         jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now()
 );
@@ -97,6 +102,7 @@ CREATE TABLE public.scheduled_events (
   end_date         date,
   last_executed_at timestamptz,
   notes            text,
+  metadata         jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at       timestamptz NOT NULL DEFAULT now()
 );
 

@@ -9,7 +9,6 @@ export type AssetType =
   | 'real_estate'
   | 'cash'
   | 'commodity'
-  | 'deposit'
   | 'transport'
   | 'business'
   | 'other'
@@ -23,6 +22,7 @@ export type TransactionType =
   | 'split'
 
 export type CurrencyCode = string // ISO 4217 three-letter code
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type IncomeFrequency =
   | 'daily'
@@ -38,6 +38,7 @@ export interface Profile {
   email: string | null
   full_name: string | null
   default_currency: CurrencyCode
+  metadata: Json
   created_at: string
 }
 
@@ -46,6 +47,7 @@ export interface Portfolio {
   user_id: string
   name: string
   description: string | null
+  metadata: Json
   created_at: string
 }
 
@@ -60,6 +62,7 @@ export interface Asset {
   notes: string | null
   manual_price: number | null
   manual_price_date: string | null
+  metadata: Json
   created_at: string
   updated_at: string
 }
@@ -74,6 +77,7 @@ export interface Transaction {
   currency: CurrencyCode
   executed_at: string
   notes: string | null
+  metadata: Json
   created_at: string
 }
 
@@ -93,6 +97,7 @@ export interface ScheduledEvent {
   end_date: string | null
   last_executed_at: string | null
   notes: string | null
+  metadata: Json
   created_at: string
 }
 
@@ -108,6 +113,7 @@ export interface Debt {
   due_date: string | null
   is_active: boolean
   notes: string | null
+  metadata: Json
   created_at: string
   updated_at: string
 }
@@ -139,15 +145,19 @@ export interface NetWorthSummary {
 
 // ─── Supabase DB type helper ──────────────────────────────────────────────────
 
+type InsertRow<T extends { metadata: Json }, K extends keyof T> = Omit<T, K | 'metadata'> & {
+  metadata?: Json
+}
+
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Omit<Profile, 'created_at'>; Update: Partial<Profile> }
-      portfolios: { Row: Portfolio; Insert: Omit<Portfolio, 'id' | 'created_at'>; Update: Partial<Portfolio> }
-      assets: { Row: Asset; Insert: Omit<Asset, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Asset> }
-      transactions: { Row: Transaction; Insert: Omit<Transaction, 'id' | 'created_at'>; Update: Partial<Transaction> }
-      scheduled_events: { Row: ScheduledEvent; Insert: Omit<ScheduledEvent, 'id' | 'created_at'>; Update: Partial<ScheduledEvent> }
-      debts: { Row: Debt; Insert: Omit<Debt, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Debt> }
+      profiles: { Row: Profile; Insert: InsertRow<Profile, 'created_at'>; Update: Partial<Profile> }
+      portfolios: { Row: Portfolio; Insert: InsertRow<Portfolio, 'id' | 'created_at'>; Update: Partial<Portfolio> }
+      assets: { Row: Asset; Insert: InsertRow<Asset, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Asset> }
+      transactions: { Row: Transaction; Insert: InsertRow<Transaction, 'id' | 'created_at'>; Update: Partial<Transaction> }
+      scheduled_events: { Row: ScheduledEvent; Insert: InsertRow<ScheduledEvent, 'id' | 'created_at'>; Update: Partial<ScheduledEvent> }
+      debts: { Row: Debt; Insert: InsertRow<Debt, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Debt> }
     }
     Enums: {
       asset_type: AssetType

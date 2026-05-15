@@ -35,18 +35,15 @@ describe('asset type config resolver', () => {
     expect(getAssetTypeConfig('stock').transactions.allowedTypes).not.toContain('withdrawal')
   })
 
-  it('excludes buys and sells for cash and deposits', () => {
-    for (const assetType of ['cash', 'deposit'] as const) {
-      const allowedTypes = getAssetTypeConfig(assetType).transactions.allowedTypes
+  it('excludes buys and sells for cash', () => {
+    const allowedTypes = getAssetTypeConfig('cash').transactions.allowedTypes
 
-      expect(allowedTypes).not.toContain('buy')
-      expect(allowedTypes).not.toContain('sell')
-    }
+    expect(allowedTypes).not.toContain('buy')
+    expect(allowedTypes).not.toContain('sell')
   })
 
-  it('hides transaction quantity for cash and deposits', () => {
+  it('hides transaction quantity for cash', () => {
     expect(getAssetTypeConfig('cash').transactions.showQuantity).toBe(false)
-    expect(getAssetTypeConfig('deposit').transactions.showQuantity).toBe(false)
     expect(getAssetTypeConfig('stock').transactions.showQuantity).toBe(true)
   })
 

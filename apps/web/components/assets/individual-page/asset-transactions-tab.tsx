@@ -2,6 +2,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { Asset, Transaction } from '@networth/types'
+import { isAutoCorporateAction, stripLegacyCorporateActionMarkers } from '@/lib/corporate-actions/metadata'
 import { getAssetTypeConfig } from '../asset-type-config'
 import { fmtDate, TX_BG, TX_INK } from './asset-detail-utils'
 
@@ -48,8 +49,8 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
             const isCredit = transaction.transaction_type === 'sell' || transaction.transaction_type === 'withdrawal'
             const isCrossRate = transaction.currency.toUpperCase() !== asset.currency.toUpperCase()
             const rawNotes = transaction.notes ?? ''
-            const isAuto = /\[auto:yahoo:(?:div|split):\d+\]/.test(rawNotes)
-            const displayNotes = isAuto ? rawNotes.replace(/\s*\[auto:yahoo:(?:div|split):\d+\]\s*/g, '').trim() : rawNotes
+            const isAuto = isAutoCorporateAction(transaction.metadata, rawNotes)
+            const displayNotes = stripLegacyCorporateActionMarkers(rawNotes)
             return (
               <tr key={transaction.id}>
                 <td>

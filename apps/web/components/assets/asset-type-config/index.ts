@@ -4,7 +4,6 @@ import { businessConfig } from './business'
 import { cashConfig } from './cash'
 import { commodityConfig } from './commodity'
 import { cryptoConfig } from './crypto'
-import { depositConfig } from './deposit'
 import { etfConfig } from './etf'
 import { mutualFundConfig } from './mutual-fund'
 import { otherConfig } from './other'
@@ -36,7 +35,6 @@ export const assetTypeConfigs: Record<AssetType, AssetTypeConfig> = {
   real_estate: realEstateConfig,
   cash: cashConfig,
   commodity: commodityConfig,
-  deposit: depositConfig,
   transport: transportConfig,
   business: businessConfig,
   other: otherConfig,

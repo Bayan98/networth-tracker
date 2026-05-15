@@ -169,7 +169,7 @@ describe('ASSET_TYPE_LABELS', () => {
   it('has a label for every asset type', () => {
     const expectedTypes = [
       'stock', 'bond', 'etf', 'crypto', 'mutual_fund',
-      'real_estate', 'cash', 'commodity', 'deposit',
+      'real_estate', 'cash', 'commodity',
       'transport', 'business', 'other',
     ]
     for (const type of expectedTypes) {

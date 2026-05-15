@@ -1,6 +1,6 @@
 export const VALID_ASSET_TYPES = new Set([
   'stock', 'bond', 'etf', 'crypto', 'mutual_fund',
-  'real_estate', 'cash', 'commodity', 'deposit', 'transport', 'business', 'other',
+  'real_estate', 'cash', 'commodity', 'transport', 'business', 'other',
 ])
 
 export const VALID_TX_TYPES = new Set([
@@ -60,7 +60,7 @@ export function parseAndVerify(text: string): ParsedRow[] {
       rowNum,
       asset_name: parts[0] ?? '',
       symbol: parts[1] ?? '',
-      asset_type: (parts[2] ?? '').toLowerCase(),
+      asset_type: normalizeAssetType(parts[2] ?? ''),
       currency: (parts[3] ?? '').toUpperCase(),
       transaction_type: (parts[4] ?? '').toLowerCase(),
       quantity: parts[5] ?? '',
@@ -103,4 +103,9 @@ export function parseAndVerify(text: string): ParsedRow[] {
 
     return row
   })
+}
+
+function normalizeAssetType(value: string): string {
+  const assetType = value.toLowerCase()
+  return assetType === 'deposit' ? 'cash' : assetType
 }

@@ -5,7 +5,6 @@ export const ASSET_TYPE_COLOR: Record<string, string> = {
   mutual_fund: 'var(--cat-stocks)',
   crypto: 'var(--cat-crypto)',
   cash: 'var(--cat-cash)',
-  deposit: 'var(--cat-cash)',
   real_estate: 'var(--cat-real)',
   commodity: 'var(--cat-other)',
   business: 'var(--cat-other)',

@@ -129,7 +129,6 @@ export const ASSET_TYPE_LABELS: Record<string, string> = {
   real_estate: 'Real Estate',
   cash: 'Cash',
   commodity: 'Commodity',
-  deposit: 'Bank Deposit',
   transport: 'Transport',
   business: 'Business',
   other: 'Other',

@@ -216,11 +216,17 @@ describe('parseAndVerify', () => {
   })
 
   it('accepts all valid asset types', () => {
-    const types = ['stock', 'bond', 'etf', 'crypto', 'mutual_fund', 'real_estate', 'cash', 'commodity', 'deposit', 'transport', 'business', 'other']
+    const types = ['stock', 'bond', 'etf', 'crypto', 'mutual_fund', 'real_estate', 'cash', 'commodity', 'transport', 'business', 'other']
     for (const type of types) {
       const [row] = parseAndVerify(`Asset,,${type},,,,,,`)
       expect(row.errors.filter(e => e.includes('asset_type'))).toHaveLength(0)
     }
+  })
+
+  it('normalises legacy deposit asset_type to cash', () => {
+    const [row] = parseAndVerify('CD,,deposit,USD,,,,,')
+    expect(row.asset_type).toBe('cash')
+    expect(row.errors.filter(e => e.includes('asset_type'))).toHaveLength(0)
   })
 
   it('accepts all valid transaction types', () => {

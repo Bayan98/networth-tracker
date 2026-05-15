@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
@@ -23,7 +22,6 @@ interface Props {
 }
 
 export function DashboardClient({ assets, portfolios, quantityPerAsset, currency }: Props) {
-  const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => setIsMounted(true), [])
 
@@ -63,17 +61,16 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
       </div>
 
       <div className="bottom-row">
-        <TopPositions enriched={enriched} selectedCurrency={selectedCurrency} onAssetClick={(id) => router.push(`/assets/${id}`)} />
+        <TopPositions enriched={enriched} selectedCurrency={selectedCurrency} />
         <AllocationCard defaultType="assets" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
       </div>
     </div>
   )
 }
 
-function TopPositions({ enriched, selectedCurrency, onAssetClick }: {
+function TopPositions({ enriched, selectedCurrency }: {
   enriched: Enriched[]
   selectedCurrency: CurrencyCode
-  onAssetClick: (id: string) => void
 }) {
   const { displayPrice } = useAmountDisplay()
   const sorted = [...enriched]
@@ -95,14 +92,15 @@ function TopPositions({ enriched, selectedCurrency, onAssetClick }: {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {sorted.map(({ asset, value }) => (
-          <div
+          <Link
             key={asset.id}
-            onClick={() => onAssetClick(asset.id)}
+            href={`/assets/${asset.id}`}
             style={{
               display: 'grid', gridTemplateColumns: '32px 1fr auto',
               alignItems: 'center', gap: 12,
               padding: '10px 0', borderBottom: '1px solid var(--border)',
               cursor: 'pointer', transition: 'opacity .1s',
+              color: 'inherit', textDecoration: 'none',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
@@ -119,7 +117,7 @@ function TopPositions({ enriched, selectedCurrency, onAssetClick }: {
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
               {displayPrice(value, selectedCurrency)}
             </div>
-          </div>
+          </Link>
         ))}
         {sorted.length === 0 && (
           <p style={{ fontSize: 13, color: 'var(--ink-muted)', padding: '16px 0' }}>No assets yet.</p>

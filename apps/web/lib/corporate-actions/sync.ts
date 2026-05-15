@@ -1,9 +1,11 @@
-// Auto-imported dividend/split rows are marked in `notes` with `[auto:yahoo:div:<ts>]` or `[auto:yahoo:split:<ts>]`.
-// If a user fully removes the marker while editing notes, the next sync will re-insert that event.
-
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AssetType } from '@networth/types'
 import { replayQuantityAt } from '@networth/utils'
+import {
+  buildCorporateActionMetadata,
+  getCorporateActionId,
+  getLegacyCorporateActionIds,
+} from './metadata'
 
 const SUPPORTED: ReadonlySet<AssetType> = new Set([
   'stock',
@@ -12,8 +14,6 @@ const SUPPORTED: ReadonlySet<AssetType> = new Set([
   'mutual_fund',
   'commodity',
 ])
-
-const MARKER_RE = /\[auto:yahoo:(div|split):(\d+)\]/g
 
 interface SyncAsset {
   id: string
@@ -33,6 +33,7 @@ interface AssetTx {
   quantity: number | string
   executed_at: string
   notes: string | null
+  metadata: unknown
 }
 
 export async function syncCorporateActions(
@@ -45,7 +46,7 @@ export async function syncCorporateActions(
 
     const { data: txs, error } = await supabase
       .from('transactions')
-      .select('id, transaction_type, quantity, executed_at, notes')
+      .select('id, transaction_type, quantity, executed_at, notes, metadata')
       .eq('asset_id', asset.id)
 
     if (error || !txs) return
@@ -62,13 +63,9 @@ export async function syncCorporateActions(
     const existingIds = new Set<string>()
     for (const tx of rows) {
       if (tx.transaction_type !== 'dividend' && tx.transaction_type !== 'split') continue
-      const notes = tx.notes
-      if (!notes) continue
-      MARKER_RE.lastIndex = 0
-      let m: RegExpExecArray | null
-      while ((m = MARKER_RE.exec(notes)) !== null) {
-        existingIds.add(`${m[1]}:${m[2]}`)
-      }
+      const metadataId = getCorporateActionId(tx.metadata)
+      if (metadataId) existingIds.add(metadataId)
+      for (const legacyId of getLegacyCorporateActionIds(tx.notes)) existingIds.add(legacyId)
     }
 
     const { data: caResp, error: caErr } = await supabase.functions.invoke(
@@ -101,7 +98,8 @@ export async function syncCorporateActions(
         price: 0,
         currency: asset.currency,
         executed_at: new Date(ev.date + 'T12:00:00.000Z').toISOString(),
-        notes: `[auto:yahoo:split:${ts}]`,
+        notes: null,
+        metadata: buildCorporateActionMetadata('split', ts),
       })
     }
 
@@ -113,6 +111,7 @@ export async function syncCorporateActions(
         quantity: r.quantity as number,
         executed_at: r.executed_at as string,
         notes: r.notes as string | null,
+        metadata: r.metadata,
       })),
     ]
 
@@ -131,7 +130,8 @@ export async function syncCorporateActions(
         price: ev.amount,
         currency: asset.currency,
         executed_at: new Date(ev.date + 'T12:00:00.000Z').toISOString(),
-        notes: `[auto:yahoo:div:${ts}]`,
+        notes: null,
+        metadata: buildCorporateActionMetadata('dividend', ts),
       })
     }
 

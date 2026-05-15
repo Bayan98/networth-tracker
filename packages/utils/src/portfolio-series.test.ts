@@ -18,6 +18,7 @@ function makeAsset(overrides: Partial<Asset> & { id: string; currency: string })
     manual_price: overrides.manual_price ?? null,
     manual_price_date: overrides.manual_price_date ?? null,
     notes: overrides.notes ?? null,
+    metadata: overrides.metadata ?? {},
     user_id: 'user-1',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',

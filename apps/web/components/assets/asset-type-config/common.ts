@@ -8,7 +8,6 @@ export const ASSET_TYPES = [
   'commodity',
   'crypto',
   'cash',
-  'deposit',
   'business',
   'real_estate',
   'transport',
