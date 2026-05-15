@@ -1,11 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, CreditCard, Home } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { useAppStore } from '@/lib/store'
+import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import type { Debt, CurrencyCode } from '@networth/types'
+import { LoadingText, MoneyText } from '@/components/ui/money-text'
 import { AddDebtDialog } from './add-debt-dialog'
 import { EditDebtDialog } from './edit-debt-dialog'
 
@@ -16,7 +19,7 @@ interface Props {
 }
 
 function MiniStat({ label, value, sub, trend }: {
-  label: string; value: string; sub: string; trend?: 'pos' | 'neg'
+  label: string; value: ReactNode; sub: ReactNode; trend?: 'pos' | 'neg'
 }) {
   return (
     <div className="kpi">
@@ -38,10 +41,18 @@ function DebtIcon({ name }: { name: string }) {
 }
 
 export function DebtsClient({ debts, userId, currency }: Props) {
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => setIsMounted(true), [])
   const router = useRouter()
-  const { displayPrice } = useAmountDisplay()
   const [showAdd, setShowAdd] = useState(false)
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null)
+
+  const _selectedCurrency = useAppStore((s) => s.selectedCurrency)
+  const selectedCurrency = isMounted ? _selectedCurrency : currency
+  const { fx, loading: fxLoading } = useTodayFx(
+    debts.map((debt) => ({ currency: debt.currency })),
+    selectedCurrency,
+  )
 
   async function handleDelete(id: string) {
     const supabase = createClient()
@@ -50,16 +61,37 @@ export function DebtsClient({ debts, userId, currency }: Props) {
   }
 
   const activeDebts = debts.filter((d) => d.is_active)
-  const totalDebt = activeDebts.reduce((sum, d) => sum + Number(d.current_balance), 0)
-  const totalMinPayment = activeDebts.reduce((sum, d) => sum + Number(d.minimum_payment), 0)
+  const debtTotals = useMemo(() => {
+    let totalDebt = 0
+    let totalMinPayment = 0
+    let weightedInterest = 0
+    let hasMissingFx = false
 
-  const weightedAPR = totalDebt > 0
-    ? activeDebts.reduce((sum, d) => sum + Number(d.interest_rate) * Number(d.current_balance), 0) / totalDebt
-    : 0
+    for (const debt of activeDebts) {
+      const rate = fx(debt.currency)
+      if (rate === null) {
+        hasMissingFx = true
+        continue
+      }
+
+      const convertedBalance = Number(debt.current_balance) * rate
+      totalDebt += convertedBalance
+      totalMinPayment += Number(debt.minimum_payment) * rate
+      weightedInterest += Number(debt.interest_rate) * convertedBalance
+    }
+
+    return {
+      totalDebt: hasMissingFx ? null : totalDebt,
+      totalMinPayment: hasMissingFx ? null : totalMinPayment,
+      weightedAPR: hasMissingFx ? null : totalDebt > 0 ? weightedInterest / totalDebt : 0,
+    }
+  }, [activeDebts, fx])
 
   function fmtAPR(rate: number) {
     return `${(rate * 100).toFixed(2)}%`
   }
+
+  const statsLoading = !isMounted || fxLoading
 
   return (
     <>
@@ -78,18 +110,18 @@ export function DebtsClient({ debts, userId, currency }: Props) {
       <div className="stat-grid">
         <MiniStat
           label="Total owed"
-          value={displayPrice(totalDebt, currency, { maskLength: 6 })}
+          value={<MoneyText value={debtTotals.totalDebt} currency={selectedCurrency} loading={statsLoading} maskLength={6} skelWidth={110} skelHeight={22} />}
           sub={`${activeDebts.length} active loan${activeDebts.length !== 1 ? 's' : ''}`}
           trend="neg"
         />
         <MiniStat
           label="Monthly payment"
-          value={displayPrice(totalMinPayment, currency)}
+          value={<MoneyText value={debtTotals.totalMinPayment} currency={selectedCurrency} loading={statsLoading} maskLength={6} skelWidth={100} skelHeight={22} />}
           sub={`${activeDebts.length} active loan${activeDebts.length !== 1 ? 's' : ''}`}
         />
         <MiniStat
           label="Weighted APR"
-          value={fmtAPR(weightedAPR)}
+          value={<LoadingText loading={statsLoading} skelWidth={72} skelHeight={22}>{debtTotals.weightedAPR === null ? '—' : fmtAPR(debtTotals.weightedAPR)}</LoadingText>}
           sub="Fixed + variable"
         />
       </div>
@@ -160,10 +192,10 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                       {fmtAPR(Number(d.interest_rate))}
                     </td>
                     <td data-label="Payment" className="num" style={{ fontSize: 12 }}>
-                      {displayPrice(monthlyPayment, d.currency)}
+                      <MoneyText value={monthlyPayment} currency={d.currency} maskLength={5} skelWidth={72} />
                     </td>
                     <td data-label="Balance" className="num" style={{ fontWeight: 600, color: 'var(--neg)' }}>
-                      {displayPrice(balance, d.currency)}
+                      <MoneyText value={balance} currency={d.currency} maskLength={5} skelWidth={80} />
                     </td>
                     <td data-label="Payoff" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                       {typeof payoffYears === 'string' ? payoffYears : `${payoffYears}y`}

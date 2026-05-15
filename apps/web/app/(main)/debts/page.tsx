@@ -10,7 +10,7 @@ export default async function DebtsPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: debts }, { data: profile }] = await Promise.all([
+  const [{ data: debts, error: debtsError }, { data: profile, error: profileError }] = await Promise.all([
     supabase
       .from('debts')
       .select('*')
@@ -18,6 +18,9 @@ export default async function DebtsPage() {
       .order('created_at', { ascending: false }),
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
   ])
+
+  if (debtsError) throw new Error(debtsError.message)
+  if (profileError) throw new Error(profileError.message)
 
   return (
     <DebtsClient
