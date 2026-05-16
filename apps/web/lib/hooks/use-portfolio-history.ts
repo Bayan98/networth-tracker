@@ -191,6 +191,16 @@ export function usePortfolioHistory(
       return
     }
 
+    // Don't fetch FX until price history has loaded for priceable assets.
+    // On initial mount priceCurrencies is empty, so the FX pairs for foreign-
+    // currency stocks (e.g. GBP-quoted LSE stocks) would be omitted. That
+    // incomplete result would be written to the sessionStorage cache under a
+    // key with an empty priceCcyKey and served on subsequent visits, causing
+    // charts to display wrong converted values until the cache is cleared.
+    if (priceableKey !== '' && priceLoading) {
+      return
+    }
+
     const fxCacheKey = `${period}:${displayCurrency}:${assetCcyKey}:${priceCurrenciesKey}`
     const browserFxCacheKey = `portfolio-fx:${assetIdsKey}:${fxCacheKey}`
     const cachedFx = getClientCache<FxRates>(browserFxCacheKey)
@@ -288,7 +298,7 @@ export function usePortfolioHistory(
       })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawTransactions, assetIdsKey, assetCcyKey, period, displayCurrency, priceableKey, priceCurrenciesKey])
+  }, [rawTransactions, assetIdsKey, assetCcyKey, period, displayCurrency, priceableKey, priceCurrenciesKey, priceLoading])
 
   const fxReady = !fxLoading && fxContext?.period === period && fxContext?.currency === displayCurrency && fxContext?.priceCcyKey === priceCurrenciesKey
 
