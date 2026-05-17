@@ -46,7 +46,7 @@ export function HoldingsSortMenu({ sortBy, onChange }: Props) {
             position: 'absolute', right: 0, top: '100%', marginTop: 4,
             zIndex: 50, borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)',
             padding: '4px 0', minWidth: 160,
-            background: 'var(--surface)', border: '1px solid var(--border)',
+            background: 'var(--surface)', border: '1px solid var(--ink-3)',
           }}
           onMouseLeave={() => setOpen(false)}
         >

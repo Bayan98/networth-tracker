@@ -6,7 +6,7 @@ export default function AssetsLoading() {
     <>
       <div className="page-head">
         <div>
-          <div className="empty-label">Assets</div>
+          <div className="page-kicker">Holdings · Allocation ledger</div>
           <h1>
             Your <em>holdings.</em>
           </h1>

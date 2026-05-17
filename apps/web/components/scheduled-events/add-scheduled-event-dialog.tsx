@@ -163,7 +163,6 @@ export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCur
                 <CurrencyPicker
                   value={currency}
                   onChange={(c) => setCurrency(c as CurrencyCode)}
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 12px', fontSize: 13, color: 'var(--ink)', outline: 'none', width: '100%' }}
                 />
               </div>
             </div>
@@ -178,7 +177,7 @@ export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCur
               />
             </div>
 
-            {error && <p style={{ fontSize: 13, color: 'var(--neg)', marginTop: 8 }}>{error}</p>}
+            {error && <p className="merror">{error}</p>}
           </div>
 
           <div className="rmodal-foot">

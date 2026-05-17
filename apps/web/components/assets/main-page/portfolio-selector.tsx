@@ -42,7 +42,7 @@ export function PortfolioClient({ portfolios, selectedId, onSelect, userId }: Pr
           style={{
             background: selectedId ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)' : 'var(--color-card)',
             color: selectedId ? 'var(--color-accent)' : 'var(--color-foreground)',
-            border: `1px solid ${selectedId ? 'var(--color-accent)' : 'var(--color-border)'}`,
+            border: `1px solid ${selectedId ? 'var(--color-accent)' : 'var(--ink-3)'}`,
           }}
         >
           <span>{selected?.name ?? 'All portfolios'}</span>
@@ -56,7 +56,7 @@ export function PortfolioClient({ portfolios, selectedId, onSelect, userId }: Pr
         {open && (
           <div
             className="absolute left-0 top-full mt-1 z-50 rounded-lg shadow-xl py-1 min-w-45"
-            style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
+            style={{ background: 'var(--color-card)', border: '1px solid var(--ink-3)' }}
             onMouseLeave={() => setOpen(false)}
           >
             <DropdownOption
@@ -74,7 +74,7 @@ export function PortfolioClient({ portfolios, selectedId, onSelect, userId }: Pr
                 onDelete={() => handleDelete(p.id)}
               />
             ))}
-            <div className="border-t my-1" style={{ borderColor: 'var(--color-border)' }} />
+            <div className="border-t my-1" style={{ borderColor: 'var(--ink-3)' }} />
             <button
               onClick={() => { setShowAdd(true); setOpen(false) }}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-sm"

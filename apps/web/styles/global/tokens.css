@@ -1,0 +1,206 @@
+/* ════════════════════════════════════════════════
+   DESIGN SYSTEM v2 — "Almanac"
+   Warm ivory paper + ink, single moss accent, oxblood deficit.
+   Token names preserved from v1 — every downstream component
+   style inherits the new aesthetic without code changes.
+   ════════════════════════════════════════════════ */
+:root {
+  /* Surfaces — warm ivory, paper-toned (was neutral grayscale) */
+  --bg:            #F5F1E8;
+  --bg-sunken:     #ECE6D7;
+  --surface:       #FFFCF5;
+  --surface-2:     #F1EBDD;
+  --paper:         var(--bg);
+  --paper-deep:    var(--bg-sunken);
+
+  /* Borders — hairlines tinted with warm ink, not pure black */
+  --border-subtle: rgba(26, 24, 19, 0.06);
+  --border:        rgba(26, 24, 19, 0.12);
+  --border-strong: rgba(26, 24, 19, 0.22);
+  --rule-faint:    var(--border-subtle);
+  --rule:          var(--border);
+  --rule-strong:   var(--border-strong);
+
+  /* Foreground — warm near-black (true black reads cold on ivory) */
+  --ink:        #1A1813;
+  --ink-2:      #2E2A24;
+  --ink-3:      #4B463D;
+  --ink-muted:  #6B6457;
+  --ink-faint:  #948C7D;
+  --ink-trace:  #B8B0A0;
+
+  /* Brand accent — moss (was indigo); primary-action only */
+  --accent:       #2F4A2B;
+  --accent-hover: #233A21;
+  --accent-ink:   #F5F1E8;
+  --accent-soft:  #DDE3D2;
+  --moss:         var(--accent);
+  --moss-deep:    var(--accent-hover);
+  --moss-soft:    var(--accent-soft);
+
+  /* Semantic status — earth-toned (was saturated red/green/blue) */
+  --pos:       #2F4A2B;
+  --pos-soft:  #DDE3D2;
+  --neg:       #7A2E2A;          /* oxblood, not panic-red */
+  --neg-soft:  #ECD8D5;
+  --warn:      #8A6A14;          /* mustard */
+  --warn-soft: #F0E5C5;
+  --info:      #2B3A4A;          /* slate */
+  --info-soft: #D7DDE5;
+  --oxblood:      var(--neg);
+  --oxblood-soft: var(--neg-soft);
+  --mustard:      var(--warn);
+  --mustard-soft: var(--warn-soft);
+  --slate:        var(--info);
+  --slate-soft:   var(--info-soft);
+
+  /* Category colors — harmonised earth palette */
+  --cat-stocks: #2F4A2B;         /* moss */
+  --cat-crypto: #B9651E;         /* burnt sienna */
+  --cat-cash:   #6B7F4B;         /* sage */
+  --cat-real:   #7A2E2A;         /* oxblood */
+  --cat-other:  #8A6A14;         /* mustard */
+  --cat-bonds:  #4A5A6F;         /* slate (new in v2) */
+
+  /* Radii — rounder than v1 (was 3 / 6 / 9 / 12, now 6 / 12 / 18 / 24) */
+  --radius-sm: 6px;
+  --radius:    12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --r-0: 0px;
+  --r-1: var(--radius-sm);
+  --r-2: var(--radius);
+  --r-3: var(--radius-lg);
+  --r-4: var(--radius-xl);
+  --r-pill: var(--radius-full);
+
+  /* Shadows — minimal; Almanac leans on hairline rules, not elevation */
+  --shadow-sm: 0 1px 0 rgba(26, 24, 19, 0.04);
+  --shadow:    0 1px 2px rgba(26, 24, 19, 0.05), 0 4px 12px rgba(26, 24, 19, 0.04);
+  --shadow-lg: 0 4px 12px rgba(26, 24, 19, 0.08), 0 12px 32px rgba(26, 24, 19, 0.06);
+  --shadow-focus: 0 0 0 3px var(--accent-soft);
+
+  /* Type — Manrope sans, Instrument Serif display, JetBrains mono.
+     Loaded via <link rel="stylesheet"> Google Fonts in layout.tsx (matches Networth Design System.html). */
+  --font-sans:    "Manrope", system-ui, -apple-system, sans-serif;
+  --font-display: "Instrument Serif", "Source Serif Pro", Georgia, serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Motion — unchanged */
+  --ease-out:    cubic-bezier(.2, .7, .2, 1);
+  --dur-fast:    120ms;
+  --dur-base:    200ms;
+  --dur-slow:    320ms;
+
+  /* Density — unchanged */
+  --density-pad-y: 20px;
+  --density-pad-x: 22px;
+  --density-row:   56px;
+  --density-gap:   20px;
+
+  --nav-w: 248px;
+
+  /* Backward-compat aliases — kept so older shadcn-style components resolve */
+  --color-background:       var(--bg);
+  --color-foreground:       var(--ink);
+  --color-card:             var(--surface);
+  --color-card-foreground:  var(--ink);
+  --color-border:           var(--border);
+  --color-muted:            var(--surface-2);
+  --color-muted-foreground: var(--ink-muted);
+  --color-accent:           var(--accent);
+  --color-accent-foreground:var(--accent-ink);
+  --color-success:          var(--pos);
+  --color-danger:           var(--neg);
+  --color-warning:          var(--warn);
+}
+
+/* ════════════════════════════════════════════════
+   Dark theme — Option B "Deep library"
+   Near-black warm paper, lifted brown surfaces, crisp rules.
+   ════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  --bg:            #0E0C07;
+  --bg-sunken:     #050402;
+  --surface:       #1C1810;
+  --surface-2:     #2B2519;
+  --paper:         var(--bg);
+  --paper-deep:    var(--bg-sunken);
+
+  --border-subtle: rgba(255, 252, 240, 0.06);
+  --border:        rgba(255, 252, 240, 0.13);
+  --border-strong: rgba(255, 252, 240, 0.26);
+  --rule-faint:    var(--border-subtle);
+  --rule:          var(--border);
+  --rule-strong:   var(--border-strong);
+
+  --ink:        #F6F0E1;
+  --ink-2:      #DCD3BC;
+  --ink-3:      #B0A892;
+  --ink-muted:  #9C9377;
+  --ink-faint:  #6F695A;
+  --ink-trace:  #4A453B;
+
+  /* Accent lifts to read like a library desk lamp on deep paper */
+  --accent:       #95B97B;
+  --accent-hover: #B8D69B;
+  --accent-ink:   #050402;
+  --accent-soft:  rgba(149, 185, 123, 0.20);
+  --moss:         var(--accent);
+  --moss-deep:    var(--accent-hover);
+  --moss-soft:    var(--accent-soft);
+
+  --pos:       #95B97B;
+  --pos-soft:  rgba(149, 185, 123, 0.18);
+  --neg:       #D26D5C;
+  --neg-soft:  rgba(210, 109, 92, 0.18);
+  --warn:      #D8B252;
+  --warn-soft: rgba(216, 178, 82, 0.15);
+  --info:      #8AA6C2;
+  --info-soft: rgba(138, 166, 194, 0.14);
+  --oxblood:      var(--neg);
+  --oxblood-soft: var(--neg-soft);
+  --mustard:      var(--warn);
+  --mustard-soft: var(--warn-soft);
+  --slate:        var(--info);
+  --slate-soft:   var(--info-soft);
+
+  /* Category swatches — lifted for dark surfaces */
+  --cat-stocks: #95B97B;
+  --cat-crypto: #DCA160;
+  --cat-cash:   #B5C49A;
+  --cat-real:   #D26D5C;
+  --cat-other:  #D8B252;
+  --cat-bonds:  #8AA6C2;
+
+  --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.40);
+  --shadow:    0 1px 2px rgba(0, 0, 0, 0.48), 0 4px 14px rgba(0, 0, 0, 0.42);
+  --shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.58), 0 16px 44px rgba(0, 0, 0, 0.62);
+}
+
+/* ════════════════════════════════════════════════
+   Density
+   ════════════════════════════════════════════════ */
+[data-density="compact"] {
+  --density-pad-y: 14px;
+  --density-pad-x: 16px;
+  --density-row:   44px;
+  --density-gap:   14px;
+}
+[data-density="spacious"] {
+  --density-pad-y: 28px;
+  --density-pad-x: 28px;
+  --density-row:   68px;
+  --density-gap:   28px;
+}
+
+/* ════════════════════════════════════════════════
+   Tailwind theme overrides
+   ════════════════════════════════════════════════ */
+@theme {
+  --font-sans:    "Manrope", system-ui, -apple-system, sans-serif;
+  --font-display: "Instrument Serif", "Source Serif Pro", Georgia, serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --radius: 12px;
+}

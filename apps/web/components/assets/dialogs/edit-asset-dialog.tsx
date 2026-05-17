@@ -159,7 +159,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
                 <label className="mfield-label">
                   {needsSymbol ? 'Display name' : 'Asset name'}
                   {needsSymbol && autoFilled && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 400, color: 'var(--accent)' }}>
+                    <span className="mautofill">
                       <Sparkles size={10} /> auto-filled
                     </span>
                   )}
@@ -178,7 +178,6 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
                 <CurrencyPicker
                   value={currency}
                   onChange={(c) => setCurrency(c as CurrencyCode)}
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 12px', fontSize: 13, color: 'var(--ink)', outline: 'none', width: '100%' }}
                 />
               </div>
             </div>
@@ -205,7 +204,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
                   {manualPriceLabel}
                   <span className="mfield-opt">{manualPriceHelper}</span>
                 </label>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="mdate-row">
                   <input
                     type="number"
                     min="0"
@@ -214,14 +213,12 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
                     placeholder={manualPricePlaceholder}
                     value={manualPrice}
                     onChange={(e) => setManualPrice(e.target.value)}
-                    style={{ flex: 1 }}
                   />
                   <input
                     type="date"
                     className="minput"
                     value={manualPriceDate}
                     onChange={(e) => setManualPriceDate(e.target.value)}
-                    style={{ width: 148 }}
                   />
                 </div>
               </div>
@@ -237,7 +234,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
               />
             </div>
 
-            {error && <p style={{ fontSize: 13, color: 'var(--neg)', marginTop: 8 }}>{error}</p>}
+            {error && <p className="merror">{error}</p>}
           </div>
 
           <div className="rmodal-foot">

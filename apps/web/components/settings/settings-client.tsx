@@ -16,16 +16,37 @@ interface Props {
 }
 
 const ACCENT_SWATCHES: { key: Accent; light: string }[] = [
-  { key: 'evergreen', light: 'oklch(46% 0.12 155)' },
-  { key: 'indigo',    light: 'oklch(48% 0.15 265)' },
-  { key: 'amber',     light: 'oklch(58% 0.14 65)' },
-  { key: 'rose',      light: 'oklch(56% 0.17 15)' },
-  { key: 'graphite',  light: 'oklch(30% 0.01 270)' },
+  { key: 'moss', light: '#2F4A2B' },
+  { key: 'indigo', light: '#3F4D63' },
+  { key: 'amber', light: '#8A6A14' },
+  { key: 'rose', light: '#7A2E2A' },
+  { key: 'graphite', light: '#2E2A24' },
 ]
+
+function Segmented<T extends string>({
+  options, value, onChange,
+}: { options: T[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div className="ds-segmented">
+      {options.map((o) => (
+        <button
+          key={o}
+          type="button"
+          onClick={() => onChange(o)}
+          className={value === o ? 'active' : ''}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 export function SettingsClient({ profile, userEmail }: Props) {
   const router = useRouter()
   const { theme, setTheme, density, setDensity, accent, setAccent, hideAmounts, toggleHideAmounts } = useAppStore()
+  const accentValue = accent as Accent | 'evergreen'
+  const selectedAccent = accentValue === 'evergreen' ? 'moss' : accentValue
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [defaultCurrency, setDefaultCurrency] = useState<CurrencyCode>(
     profile?.default_currency ?? 'USD',
@@ -75,76 +96,49 @@ export function SettingsClient({ profile, userEmail }: Props) {
     router.refresh()
   }
 
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--bg-sunken)',
-    border: '1px solid var(--border)',
-    color: 'var(--ink)',
-    borderRadius: 'var(--radius)',
-    padding: '8px 12px',
-    fontSize: 13,
-    outline: 'none',
-    width: '100%',
-    fontFamily: 'var(--font-sans)',
-  }
-
-  function PillGroup<T extends string>({
-    options, value, onChange,
-  }: { options: T[]; value: T; onChange: (v: T) => void }) {
-    return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        {options.map((o) => (
-          <button
-            key={o}
-            onClick={() => onChange(o)}
-            style={{
-              padding: '5px 10px',
-              fontSize: 11,
-              border: `1px solid ${value === o ? 'var(--ink)' : 'var(--border)'}`,
-              borderRadius: 999,
-              background: value === o ? 'var(--ink)' : 'var(--bg)',
-              color: value === o ? 'var(--bg)' : 'var(--ink-2)',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              transition: 'background .12s, color .12s',
-            }}
-          >
-            {o}
-          </button>
-        ))}
-      </div>
-    )
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
-      <div className="card settings-profile-card">
-        <div className="card-head">
-          <div>
-            <h3>Profile</h3>
-            <div className="sub">Account identity and preferred display currency.</div>
-          </div>
-        </div>
+      <section className="card settings-profile-card">
+        <header className="ds-section-head">
+          <h2 className="ds-section-title">Profile &amp; <em>identity</em></h2>
+          <span className="ds-section-meta">Account · currency</span>
+        </header>
+
         <form onSubmit={handleSave} className="settings-profile-form">
           <div className="settings-profile-grid">
             <div className="settings-profile-field">
-              <div className="empty-label" style={{ marginBottom: 6 }}>Full name</div>
+              <div className="ds-field-label">Full name</div>
               <input
+                className="ds-field"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Jordan Smith"
-                style={inputStyle}
               />
             </div>
             <div className="settings-profile-field">
-              <div className="empty-label" style={{ marginBottom: 6 }}>Email</div>
-              <input value={userEmail} disabled style={{ ...inputStyle, opacity: 0.6 }} />
+              <div className="ds-field-label">Email</div>
+              <input className="ds-field" value={userEmail} disabled />
             </div>
             <div className="settings-profile-field">
-              <div className="empty-label" style={{ marginBottom: 6 }}>Default currency</div>
+              <div className="ds-field-label">Default currency</div>
               <CurrencyPicker
                 value={defaultCurrency}
                 onChange={(c) => setDefaultCurrency(c as CurrencyCode)}
-                style={inputStyle}
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border-strong)',
+                  color: 'var(--ink)',
+                  borderRadius: 'var(--radius)',
+                  padding: '9px 12px',
+                  fontSize: 13,
+                  width: '100%',
+                  fontFamily: 'var(--font-sans)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  outline: 'none',
+                }}
               />
             </div>
           </div>
@@ -170,65 +164,60 @@ export function SettingsClient({ profile, userEmail }: Props) {
             </button>
           </div>
         </form>
-      </div>
+      </section>
 
-      {/* Appearance */}
-      <div className="card">
-        <div className="card-head">
-          <div>
-            <h3>Appearance</h3>
-            <div className="sub">Theme, density, and accent. Changes apply instantly.</div>
-          </div>
-        </div>
+      <section className="card">
+        <header className="ds-section-head">
+          <h2 className="ds-section-title">Appearance &amp; <em>tone</em></h2>
+          <span className="ds-section-meta">Theme · density · accent</span>
+        </header>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }} className="appearance-grid">
           <div>
-            <div className="empty-label" style={{ marginBottom: 8 }}>Theme</div>
-            <PillGroup<'light' | 'dark'>
-              options={['light', 'dark']}
-              value={theme === 'system' ? 'light' : theme}
+            <div className="ds-field-label">Theme</div>
+            <Segmented<'light' | 'dark' | 'system'>
+              options={['light', 'dark', 'system']}
+              value={theme}
               onChange={setTheme}
             />
           </div>
           <div>
-            <div className="empty-label" style={{ marginBottom: 8 }}>Density</div>
-            <PillGroup<Density>
+            <div className="ds-field-label">Density</div>
+            <Segmented<Density>
               options={['compact', 'cozy', 'spacious']}
               value={density}
               onChange={setDensity}
             />
           </div>
           <div>
-            <div className="empty-label" style={{ marginBottom: 8 }}>Accent</div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="ds-field-label">Accent</div>
+            <div className="ds-swatch-row">
               {ACCENT_SWATCHES.map(({ key, light }) => (
-                <div
+                <button
                   key={key}
+                  type="button"
                   title={key}
                   onClick={() => setAccent(key)}
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 6,
-                    background: light,
-                    cursor: 'pointer',
-                    border: accent === key ? '2px solid var(--ink)' : '2px solid transparent',
-                    boxShadow: accent === key ? '0 0 0 2px var(--bg) inset' : 'none',
-                    transition: 'border-color .12s',
-                  }}
+                  aria-pressed={selectedAccent === key}
+                  className={`ds-swatch ${selectedAccent === key ? 'active' : ''}`}
+                  style={{ background: light }}
                 />
               ))}
             </div>
           </div>
         </div>
 
-        <div style={{
-          marginTop: 20,
-          paddingTop: 16,
-          borderTop: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
+        <div
+          style={{
+            marginTop: 20,
+            paddingTop: 16,
+            borderTop: '1px solid var(--ink-3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+          }}
+        >
           <div>
             <div style={{ fontSize: 13, fontWeight: 500 }}>Hide amounts</div>
             <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2 }}>
@@ -239,24 +228,10 @@ export function SettingsClient({ profile, userEmail }: Props) {
             role="switch"
             aria-checked={hideAmounts}
             onClick={toggleHideAmounts}
-            style={{
-              position: 'relative', width: 44, height: 24, borderRadius: 999,
-              background: hideAmounts ? 'var(--accent)' : 'var(--border-strong)',
-              border: 'none', padding: 0, cursor: 'pointer', transition: 'background .15s', flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                position: 'absolute', top: 2, left: 0, width: 20, height: 20,
-                borderRadius: '50%', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,.2)',
-                transition: 'transform .15s',
-                transform: hideAmounts ? 'translateX(22px)' : 'translateX(2px)',
-              }}
-            />
-          </button>
+            className={`ds-switch ${hideAmounts ? 'on' : ''}`}
+          />
         </div>
-      </div>
-
+      </section>
     </div>
   )
 }
@@ -291,15 +266,15 @@ export function DangerZone() {
         background: 'linear-gradient(180deg, color-mix(in oklch, var(--color-danger) 6%, var(--surface)) 0%, var(--surface) 42%)',
       }}
     >
-      <div className="card-head">
-        <div>
-          <div className="empty-label" style={{ color: 'var(--color-danger)', marginBottom: 4 }}>
-            Destructive action
-          </div>
-          <h3 style={{ color: 'var(--color-danger)' }}>Danger Zone</h3>
-          <div className="sub">Delete portfolio data while keeping your account and profile settings.</div>
-        </div>
-      </div>
+      <header
+        className="ds-section-head"
+        style={{ borderBottom: '1px solid color-mix(in oklch, var(--color-danger) 60%, var(--border))' }}
+      >
+        <h2 className="ds-section-title" style={{ color: 'var(--color-danger)' }}>
+          Danger <em style={{ color: 'var(--color-danger)' }}>zone</em>
+        </h2>
+        <span className="ds-section-meta" style={{ color: 'var(--color-danger)' }}>Destructive</span>
+      </header>
 
       <div
         style={{

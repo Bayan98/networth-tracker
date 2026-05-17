@@ -21,7 +21,7 @@ interface Props {
   currency: CurrencyCode
 }
 
-export function DashboardClient({ assets, portfolios, quantityPerAsset, currency }: Props) {
+export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, currency }: Props) {
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => setIsMounted(true), [])
 
@@ -41,6 +41,11 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
     },
   )
 
+  const pricedPositions = enriched.filter((item) => item.value !== null && item.value > 0).length
+  const activePortfolios = new Set(assets.map((asset) => asset.portfolio_id).filter(Boolean)).size
+  const activeCurrencies = new Set(assets.map((asset) => asset.currency)).size
+  const activeDebts = debts.filter((debt) => debt.is_active).length
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
       <DashboardChart
@@ -53,6 +58,29 @@ export function DashboardClient({ assets, portfolios, quantityPerAsset, currency
         periodIncome={periodIncome}
         height={420}
       />
+
+      <div className="ledger-strip" aria-label="Overview summary">
+        <div className="ledger-item">
+          <span className="ledger-label">Positions</span>
+          <strong className="ledger-value">{pricedPositions}</strong>
+          <div className="ledger-note">{assets.length} tracked holding{assets.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div className="ledger-item">
+          <span className="ledger-label">Portfolios</span>
+          <strong className="ledger-value">{activePortfolios}</strong>
+          <div className="ledger-note">{portfolios.length} account group{portfolios.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div className="ledger-item">
+          <span className="ledger-label">Currencies</span>
+          <strong className="ledger-value">{activeCurrencies}</strong>
+          <div className="ledger-note">Viewed in {selectedCurrency}</div>
+        </div>
+        <div className="ledger-item">
+          <span className="ledger-label">Liabilities</span>
+          <strong className="ledger-value">{activeDebts}</strong>
+          <div className="ledger-note">Active debt record{activeDebts !== 1 ? 's' : ''}</div>
+        </div>
+      </div>
 
       <div className="three-col">
         <AllocationCard defaultType="category" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
@@ -79,18 +107,18 @@ function TopPositions({ enriched, selectedCurrency }: {
     .slice(0, 8)
 
   return (
-    <div className="card">
-      <div className="card-head">
+    <div className="table-wrap">
+      <div className="ds-positions-head">
         <div>
-          <h3>Top positions</h3>
-          <div className="sub">Sorted by value</div>
+          <h3>Top <em>positions</em></h3>
+          <span className="ds-positions-meta">Sorted by value</span>
         </div>
         <Link href="/assets" style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
-          View all →
+          View all
         </Link>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', padding: '8px var(--density-pad-x)' }}>
         {sorted.map(({ asset, value }) => (
           <Link
             key={asset.id}
@@ -98,7 +126,7 @@ function TopPositions({ enriched, selectedCurrency }: {
             style={{
               display: 'grid', gridTemplateColumns: '32px 1fr auto',
               alignItems: 'center', gap: 12,
-              padding: '10px 0', borderBottom: '1px solid var(--border)',
+              padding: '10px 0', borderBottom: '1px solid var(--ink-3)',
               cursor: 'pointer', transition: 'opacity .1s',
               color: 'inherit', textDecoration: 'none',
             }}
@@ -120,7 +148,7 @@ function TopPositions({ enriched, selectedCurrency }: {
           </Link>
         ))}
         {sorted.length === 0 && (
-          <p style={{ fontSize: 13, color: 'var(--ink-muted)', padding: '16px 0' }}>No assets yet.</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-muted)', padding: '16px 0', margin: 0 }}>No assets yet.</p>
         )}
       </div>
     </div>

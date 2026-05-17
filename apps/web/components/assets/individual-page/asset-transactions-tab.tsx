@@ -60,7 +60,7 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
                       padding: '2px 8px', borderRadius: 999,
                       fontSize: 11, fontFamily: 'var(--font-mono)',
                       textTransform: 'uppercase', letterSpacing: '0.04em',
-                      border: '1px solid var(--border)',
+                      border: '1px solid var(--ink-3)',
                       background: TX_BG[transaction.transaction_type] ?? 'var(--surface-2)',
                       color: TX_INK[transaction.transaction_type] ?? 'var(--ink-2)',
                     }}>
@@ -71,7 +71,7 @@ export function AssetTransactionsTab({ transactions, asset, onEdit, onDelete, on
                         padding: '1px 6px', borderRadius: 999,
                         fontSize: 10, fontFamily: 'var(--font-mono)',
                         textTransform: 'uppercase', letterSpacing: '0.04em',
-                        border: '1px solid var(--border)',
+                        border: '1px solid var(--ink-3)',
                         color: 'var(--ink-faint)',
                       }}>auto</span>
                     )}

@@ -81,10 +81,10 @@ export function SymbolSearchInput({ value, onChange, onSelect, lookupStatus, loo
             top: 'calc(100% + 4px)',
             left: 0,
             right: 0,
-            background: 'var(--bg)',
-            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            border: '1px solid var(--rule-strong)',
             borderRadius: 'var(--radius)',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            boxShadow: 'var(--shadow-lg)',
             zIndex: 300,
             overflow: 'hidden',
             maxHeight: 260,
@@ -106,8 +106,9 @@ export function SymbolSearchInput({ value, onChange, onSelect, lookupStatus, loo
                 border: 'none',
                 cursor: 'pointer',
                 textAlign: 'left',
+                color: 'var(--ink)',
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)' }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none' }}
             >
               <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, fontSize: 12, minWidth: 72, color: 'var(--ink)', flexShrink: 0 }}>
@@ -117,7 +118,7 @@ export function SymbolSearchInput({ value, onChange, onSelect, lookupStatus, loo
                 {r.name}
               </span>
               {r.exchange && assetType !== 'crypto' && (
-                <span style={{ fontSize: 10, color: 'var(--ink-faint)', flexShrink: 0, background: 'var(--bg-2)', borderRadius: 4, padding: '2px 5px' }}>
+                <span style={{ fontSize: 10, color: 'var(--ink-faint)', flexShrink: 0, background: 'var(--surface-2)', borderRadius: 4, padding: '2px 5px' }}>
                   {r.exchange}
                 </span>
               )}

@@ -16,7 +16,7 @@ export const PERIOD_HEADER_LABELS: Record<Period, string> = {
 
 export const CHART_TOOLTIP_STYLE = {
   background: "var(--color-card)",
-  border: "1px solid var(--color-border)",
+  border: "1px solid var(--ink-3)",
   borderRadius: "8px",
   fontSize: 12,
 };

@@ -166,13 +166,30 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
       />
 
       {(fxError || priceError) && (
-        <div style={{ padding: '10px 14px', borderRadius: 'var(--radius)', background: 'color-mix(in oklch, var(--warn) 12%, transparent)', border: '1px solid color-mix(in oklch, var(--warn) 30%, transparent)', fontSize: 13, color: 'var(--warn)' }}>
-          {fxError && <p>{fxError}</p>}
-          {priceError && <p>{priceError}</p>}
+        <div
+          role="status"
+          className="callout callout-warn"
+          style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: 'currentColor',
+              marginTop: 8,
+              flexShrink: 0,
+            }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {fxError && <p style={{ margin: 0 }}>{fxError}</p>}
+            {priceError && <p style={{ margin: 0 }}>{priceError}</p>}
+          </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+      <div className="page-tools">
         <AssetTypeFilter allTypes={allTypes} selectedTypes={selectedTypes} onToggle={toggleType} />
         <PortfolioClient
           portfolios={portfolios}
@@ -211,6 +228,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
         selectedCurrency={selectedCurrency}
         loading={baseLoading}
         onAssetClick={openAsset}
+        onAddAsset={() => setShowAddAsset(true)}
       />
 
       {showAddAsset && (

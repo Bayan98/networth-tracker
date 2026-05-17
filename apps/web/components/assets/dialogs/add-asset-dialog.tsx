@@ -38,6 +38,7 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   const router = useRouter()
   const { lookup, lookupNow, cancel, loading: lookupLoading } = useSymbolLookup()
 
+  const [step, setStep] = useState<'type' | 'details'>('type')
   const [assetType, setAssetType] = useState<AssetType | null>(null)
   const [symbol, setSymbol] = useState('')
   const [assetName, setAssetName] = useState('')
@@ -61,6 +62,8 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   const symbolInputHint = symbolPresets.length > 0
     ? selectedPresetRequiresSymbol ? 'Yahoo Finance symbol' : 'Optional Yahoo Finance symbol'
     : 'Search to auto-fill name'
+  const selectedAssetTypeCard = ASSET_TYPE_CARDS.find((item) => item.id === assetType)
+  const SelectedAssetTypeIcon = selectedAssetTypeCard?.Icon
   const selectedSymbol = selectedSymbolPreset?.symbol ?? symbol
   const isGramMetal = assetType === 'commodity' && isGramPricedMetal(selectedSymbol)
 
@@ -69,13 +72,14 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
   const isFirstRender = useRef(true)
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
+    if (step !== 'details') return
     if (!assetType) return
     if (showSymbolInput) symbolRef.current?.focus()
     else nameRef.current?.focus()
-  }, [assetType, showSymbolInput])
+  }, [assetType, showSymbolInput, step])
 
   useEffect(() => {
-    if (!assetType || !needsSymbol || !symbol.trim()) { cancel(); return }
+    if (step !== 'details' || !assetType || !needsSymbol || !symbol.trim()) { cancel(); return }
     setLookupStatus('loading')
     lookup(symbol, assetType, (info, status) => {
       setLookupStatus(status)
@@ -134,6 +138,10 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (step === 'type') {
+      if (assetType) setStep('details')
+      return
+    }
     if (!assetType || !assetName.trim()) return
     if (symbolPresets.length > 0 && (!symbolPresetId || (selectedPresetRequiresSymbol && !symbol.trim()))) return
     setLoading(true)
@@ -159,6 +167,7 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
     && !!assetName.trim()
     && !loading
     && (symbolPresets.length === 0 || (!!symbolPresetId && (!selectedPresetRequiresSymbol || !!symbol.trim())))
+  const canContinue = !!assetType
 
   return (
     <div
@@ -169,37 +178,59 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
         <div className="rmodal-head">
           <div>
             <div className="rmodal-kicker">New asset</div>
-            <h2>Add an <em>asset</em></h2>
-            <div className="rmodal-desc">Track a holding manually or pull live prices via ticker symbol.</div>
+            {step === 'type' ? (
+              <>
+                <h2>Choose <em>asset type</em></h2>
+                <div className="rmodal-desc">Start with the category so the next fields match the holding.</div>
+              </>
+            ) : (
+              <>
+                <h2>Add an <em>asset</em></h2>
+                <div className="rmodal-desc">Track a holding manually or pull live prices via ticker symbol.</div>
+              </>
+            )}
           </div>
           <button className="iconbtn" onClick={onClose}><X size={16} /></button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
           <div className="rmodal-body">
-            <div className="mfield">
-              <label className="mfield-label">Asset type</label>
-              <div className="type-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}>
-                {ASSET_TYPE_CARDS.map(({ id, label, desc, Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    className={`type-card ${assetType === id ? 'selected' : ''}`}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
-                    onClick={() => handleTypeSelect(id)}
-                  >
-                    <div className="type-card-icon" style={{ flexShrink: 0 }}><Icon size={14} /></div>
-                    <div>
-                      <div className="type-card-name" style={{ fontSize: 12 }}>{label}</div>
-                      <div className="type-card-desc" style={{ fontSize: 10 }}>{desc}</div>
-                    </div>
-                  </button>
-                ))}
+            {step === 'type' ? (
+              <div className="asset-type-step">
+                <div className="type-grid asset-type-grid">
+                  {ASSET_TYPE_CARDS.map(({ id, label, desc, Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`type-card asset-type-card ${assetType === id ? 'selected' : ''}`}
+                      onClick={() => handleTypeSelect(id)}
+                    >
+                      <div className="type-card-icon"><Icon size={15} /></div>
+                      <div className="type-card-copy">
+                        <div className="type-card-name">{label}</div>
+                        <div className="type-card-desc">{desc}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-
-            {assetType && (
+            ) : (
               <>
+                {selectedAssetTypeCard && (
+                  <div className="asset-type-summary">
+                    {SelectedAssetTypeIcon && (
+                      <div className="type-card-icon"><SelectedAssetTypeIcon size={14} /></div>
+                    )}
+                    <div className="type-card-copy">
+                      <div className="type-card-name">{selectedAssetTypeCard.label}</div>
+                      <div className="type-card-desc">{selectedAssetTypeCard.desc}</div>
+                    </div>
+                    <button type="button" className="btn btn-ghost" onClick={() => setStep('type')}>
+                      Change
+                    </button>
+                  </div>
+                )}
+
                 {symbolPresets.length > 0 && (
                   <div className="mfield">
                     <label className="mfield-label">{assetConfig.assetDialog.symbolPresetLabel ?? 'Type'}</label>
@@ -259,7 +290,7 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
                     <label className="mfield-label">
                       {needsSymbol ? 'Display name' : 'Asset name'}
                       {needsSymbol && autoFilled && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 400, color: 'var(--accent)' }}>
+                        <span className="mautofill">
                           <Sparkles size={10} /> auto-filled
                         </span>
                       )}
@@ -279,7 +310,6 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
                     <CurrencyPicker
                       value={currency}
                       onChange={(c) => setCurrency(c as CurrencyCode)}
-                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 12px', fontSize: 13, color: 'var(--ink)', outline: 'none', width: '100%' }}
                     />
                   </div>
                 </div>
@@ -312,13 +342,13 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
                   />
                 </div>
 
-                <p style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 8 }}>
+                <p className="mnote">
                   {isGramMetal
                     ? 'Gold and silver quantities use grams; prices and cost basis are tracked per gram.'
                     : 'Quantity and cost basis are calculated automatically from your transactions. Add transactions after creating the asset.'}
                 </p>
 
-                {error && <p style={{ fontSize: 13, color: 'var(--neg)', marginTop: 8 }}>{error}</p>}
+                {error && <p className="merror">{error}</p>}
               </>
             )}
           </div>
@@ -328,15 +358,32 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
               <Sparkles size={11} /> Price data reflects today&apos;s market — exact current price not guaranteed
             </div>
             <div className="rmodal-actions">
-              <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={!canSubmit}
-                style={{ opacity: canSubmit ? 1 : 0.5 }}
-              >
-                Add asset
-              </button>
+              {step === 'type' ? (
+                <>
+                  <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={!canContinue}
+                    style={{ opacity: canContinue ? 1 : 0.5 }}
+                    onClick={() => { if (assetType) setStep('details') }}
+                  >
+                    Continue
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn btn-ghost" onClick={() => setStep('type')}>Back</button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={!canSubmit}
+                    style={{ opacity: canSubmit ? 1 : 0.5 }}
+                  >
+                    Add asset
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </form>

@@ -8,17 +8,21 @@ export default async function SettingsPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: profile }, { data: portfolios }] = await Promise.all([
+  const [{ data: profile, error: profileError }, { data: portfolios, error: portfoliosError }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
     supabase.from('portfolios').select('*').eq('user_id', user!.id).order('created_at'),
   ])
+
+  if (profileError) throw new Error(profileError.message)
+  if (portfoliosError) throw new Error(portfoliosError.message)
 
   return (
     <>
       <div className="page-head">
         <div>
-          <div className="empty-label">You</div>
-          <h1>Settings.</h1>
+          <div className="page-kicker">You · Preferences</div>
+          <h1>Settings <em>&amp; preferences.</em></h1>
+          <p>Profile, currency, appearance, and a destructive lever for clean starts.</p>
         </div>
       </div>
       <SettingsClient

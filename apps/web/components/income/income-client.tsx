@@ -4,10 +4,10 @@ import { useMemo, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Sparkles, SlidersHorizontal } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
-import { currencySymbol, INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
+import { INCOME_FREQUENCY_LABELS, TRANSACTION_TYPE_LABELS } from '@networth/utils'
 import type { Asset, Portfolio, ScheduledEvent, CurrencyCode, IncomeFrequency } from '@networth/types'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
@@ -15,6 +15,7 @@ import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import { getAssetTypeConfig } from '@/components/assets/asset-type-config'
 import { MoneyText, LoadingText } from '@/components/ui/money-text'
+import { Badge, Swatch, type RowTone } from '@/components/ui/tone-badge'
 
 type IncomeEventAsset = Asset & {
   portfolio?: Pick<Portfolio, 'id' | 'name'> | null
@@ -29,6 +30,16 @@ interface Props {
   userId: string
   currency: CurrencyCode
 }
+
+type SortKey = 'next' | 'amount-desc' | 'name' | 'asset-value'
+
+const SORT_LABELS: Record<SortKey, string> = {
+  'next':         'Next deposit',
+  'amount-desc':  'Amount ↓',
+  'asset-value':  'Asset value ↓',
+  'name':         'A → Z',
+}
+const DEFAULT_SORT: SortKey = 'next'
 
 const FREQUENCY_MULTIPLIERS: Record<IncomeFrequency, number> = {
   daily: 365, weekly: 52, monthly: 12, quarterly: 4, annually: 1,
@@ -61,16 +72,21 @@ function formatPercent(value: number): string {
   return `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
 }
 
-function MiniStat({ label, value, sub, trend }: {
-  label: string; value: ReactNode; sub: ReactNode; trend?: 'pos' | 'neg'
+function rowTone(ev: IncomeEvent): RowTone {
+  if (!ev.is_active) return 'neutral'
+  if (ev.transaction_type === 'withdrawal') return 'neg'
+  if (ev.transaction_type === 'buy') return 'info'
+  return 'pos'
+}
+
+function MiniStat({ label, value, sub, variant }: {
+  label: string; value: ReactNode; sub: ReactNode; variant?: 'mono'
 }) {
   return (
     <div className="kpi">
       <div className="kpi-label">{label}</div>
-      <div className="kpi-val" style={{ fontSize: 22, marginBottom: 4 }}>{value}</div>
-      <div className="kpi-sub" style={{ color: trend === 'pos' ? 'var(--pos)' : trend === 'neg' ? 'var(--neg)' : 'var(--ink-faint)' }}>
-        {sub}
-      </div>
+      <div className={`kpi-val ${variant === 'mono' ? 'mono' : ''}`} style={{ marginBottom: 6 }}>{value}</div>
+      <div className="kpi-sub">{sub}</div>
     </div>
   )
 }
@@ -81,6 +97,8 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
   const router = useRouter()
   const [showAdd, setShowAdd] = useState(false)
   const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null)
+  const [sort, setSort] = useState<SortKey>(DEFAULT_SORT)
+  const [sortOpen, setSortOpen] = useState(false)
 
   const _selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const selectedCurrency = isMounted ? _selectedCurrency : currency
@@ -184,6 +202,8 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
     return value === null ? sum : sum + annualize(value, e.frequency)
   }, 0)
   const totalMonthly = totalAnnual / 12
+  const activeCount = activeIncome.length
+  const pausedCount = events.filter((e) => !e.is_active).length
 
   const nextEvent = activeIncome
     .map((e) => ({ event: e, next: nextOccurrenceDate(e) }))
@@ -201,11 +221,39 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
     )
     : 'No upcoming events'
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sortedEvents = useMemo(() => {
+    const arr = [...events]
+    switch (sort) {
+      case 'amount-desc':
+        return arr.sort((a, b) => {
+          const aV = eventAmountValue(a) ?? -Infinity
+          const bV = eventAmountValue(b) ?? -Infinity
+          return bV - aV
+        })
+      case 'name':
+        return arr.sort((a, b) => formatEventTitle(a).localeCompare(formatEventTitle(b)))
+      case 'asset-value':
+        return arr.sort((a, b) => {
+          const aV = a.asset_id ? (valueByAssetId[a.asset_id] ?? -Infinity) : -Infinity
+          const bV = b.asset_id ? (valueByAssetId[b.asset_id] ?? -Infinity) : -Infinity
+          return bV - aV
+        })
+      case 'next':
+      default:
+        return arr.sort((a, b) => {
+          const aT = nextOccurrenceDate(a)?.getTime() ?? Number.POSITIVE_INFINITY
+          const bT = nextOccurrenceDate(b)?.getTime() ?? Number.POSITIVE_INFINITY
+          return aT - bT
+        })
+    }
+  }, [events, sort, fx, valueByAssetId])
+
   return (
     <>
       <div className="page-head">
         <div>
-          <div className="empty-label">Inflows</div>
+          <div className="page-kicker">Inflows · Cashflow calendar</div>
           <h1>Income <em>streams.</em></h1>
           <p>Recurring and one-off sources feeding the net worth equation.</p>
         </div>
@@ -214,107 +262,185 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
         </button>
       </div>
 
-      {/* Stats row */}
       <div className="stat-grid">
         <MiniStat
-          label="Monthly (recurring)"
+          label="Monthly"
+          variant="mono"
           value={<MoneyText value={totalMonthly} currency={selectedCurrency} loading={!isMounted || amountLoading} maskLength={6} skelWidth={110} skelHeight={22} />}
-          sub={`${activeIncome.length} source${activeIncome.length !== 1 ? 's' : ''}`}
+          sub={`${activeCount} active source${activeCount !== 1 ? 's' : ''}`}
         />
         <MiniStat
           label="Annualized"
+          variant="mono"
           value={<MoneyText value={totalAnnual} currency={selectedCurrency} loading={!isMounted || amountLoading} maskLength={6} skelWidth={120} skelHeight={22} />}
-          sub="Gross"
-          trend="pos"
+          sub={<Badge tone="pos">Gross</Badge>}
         />
         <MiniStat
           label="Next deposit"
           value={nextDateStr}
           sub={nextSub}
         />
+        <MiniStat
+          label="Active sources"
+          value={String(activeCount)}
+          sub={pausedCount > 0 ? `${pausedCount} paused` : 'All running'}
+        />
       </div>
 
-      {/* Table */}
-      <div className="table-wrap">
-        <div className="table-head"><h3>Sources</h3></div>
-        {events.length === 0 ? (
-          <div style={{ padding: '36px 20px', textAlign: 'center' }}>
-            <p className="empty-label">No scheduled events yet.</p>
+      {events.length === 0 ? (
+        <div className="card empty-state">
+          <div className="empty-state-icon">
+            <Sparkles size={20} />
           </div>
-        ) : (
+          <div className="empty-state-text">
+            <h2>No income sources yet</h2>
+            <p>
+              Add a recurring source like salary, dividends, or interest to start
+              tracking inflows against your net worth.
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={() => setShowAdd(true)} style={{ marginTop: 6 }}>
+            <Plus size={14} /> Add first source
+          </button>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <div className="ds-positions-head" style={{ flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <h3>Income <em>sources</em></h3>
+              <p className="ds-positions-meta" style={{ margin: '6px 0 0' }}>
+                {events.length} {events.length === 1 ? 'source' : 'sources'} · sorted by {SORT_LABELS[sort].toLowerCase()}
+              </p>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setSortOpen((value) => !value)}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: 12,
+                  padding: '5px 10px',
+                  color: sort !== DEFAULT_SORT ? 'var(--accent)' : undefined,
+                }}
+              >
+                <SlidersHorizontal size={11} />
+                Sort
+                {sort !== DEFAULT_SORT && (
+                  <span style={{ fontSize: 10, opacity: 0.65 }}>· {SORT_LABELS[sort]}</span>
+                )}
+              </button>
+
+              {sortOpen && (
+                <div
+                  style={{
+                    position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                    zIndex: 50, borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)',
+                    padding: '4px 0', minWidth: 160,
+                    background: 'var(--surface)', border: '1px solid var(--ink-3)',
+                  }}
+                  onMouseLeave={() => setSortOpen(false)}
+                >
+                  {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => { setSort(key); setSortOpen(false) }}
+                      style={{
+                        display: 'block', width: '100%', padding: '6px 14px',
+                        textAlign: 'left', fontSize: 13, border: 'none',
+                        cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                        color: sort === key ? 'var(--accent)' : 'var(--ink)',
+                        background: sort === key ? 'color-mix(in oklch, var(--accent) 8%, transparent)' : 'transparent',
+                      } as React.CSSProperties}
+                    >
+                      {SORT_LABELS[key]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           <table>
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Cadence</th>
-                <th className="num">Amount</th>
-                <th className="num">Next</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((ev) => (
-                <tr key={ev.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 8,
-                        background: 'var(--surface-2)', border: '1px solid var(--border)',
-                        display: 'grid', placeItems: 'center',
-                        color: 'var(--pos)', flexShrink: 0,
-                        fontSize: 20, fontWeight: 500,
-                      }}>
-                        {currencySymbol(ev.asset?.currency ?? ev.currency)}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 500, fontSize: 13 }}>
-                          {ev.asset_id ? (
-                            <Link href={`/assets/${ev.asset_id}`} style={{ color: 'var(--accent)' }}>
-                              {formatEventTitle(ev)}
-                            </Link>
-                          ) : formatEventTitle(ev)}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 1 }}>
-                          {formatEventMeta(ev)}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td data-label="Cadence" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
-                    {INCOME_FREQUENCY_LABELS[ev.frequency]}
-                  </td>
-                  <td data-label="Amount" className="num" style={{ fontWeight: 600 }}>
-                    {formatEventAmount(ev)}
-                  </td>
-                  <td data-label="Next" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
-                    {formatNextDate(ev)}
-                  </td>
-                  <td className="cell-actions">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
-                      <button
-                        onClick={() => setEditingEvent(ev)}
-                        className="iconbtn"
-                        style={{ width: 28, height: 28 }}
-                        title="Edit"
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(ev.id)}
-                        className="iconbtn"
-                        style={{ width: 28, height: 28, color: 'var(--neg)' }}
-                        title="Delete"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </td>
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Cadence</th>
+                  <th className="num">Amount</th>
+                  <th className="num">Next</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {sortedEvents.map((ev) => {
+                  const tone = rowTone(ev)
+                  return (
+                    <tr key={ev.id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, minHeight: 32 }}>
+                          <Swatch tone={tone} />
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2,
+                            justifyContent: 'center',
+                            minWidth: 0,
+                          }}>
+                            <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--ink)' }}>
+                              {ev.asset_id ? (
+                                <Link href={`/assets/${ev.asset_id}`} style={{ color: 'inherit' }}>
+                                  {formatEventTitle(ev)}
+                                </Link>
+                              ) : formatEventTitle(ev)}
+                            </div>
+                            <div style={{
+                              fontSize: 11,
+                              color: 'var(--ink-faint)',
+                              fontFamily: 'var(--font-mono)',
+                              letterSpacing: '-0.005em',
+                            }}>
+                              {formatEventMeta(ev)}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td data-label="Cadence">
+                        <Badge tone={ev.is_active ? tone : 'neutral'}>
+                          {INCOME_FREQUENCY_LABELS[ev.frequency]}
+                        </Badge>
+                      </td>
+                      <td data-label="Amount" className="num" style={{ fontWeight: 600 }}>
+                        {formatEventAmount(ev)}
+                      </td>
+                      <td data-label="Next" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+                        {formatNextDate(ev)}
+                      </td>
+                      <td className="cell-actions">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => setEditingEvent(ev)}
+                            className="iconbtn"
+                            style={{ width: 28, height: 28 }}
+                            title="Edit"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(ev.id)}
+                            className="iconbtn"
+                            style={{ width: 28, height: 28, color: 'var(--neg)' }}
+                            title="Delete"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+        </div>
+      )}
 
       {showAdd && (
         <AddScheduledEventDialog userId={userId} defaultCurrency={currency} onClose={() => setShowAdd(false)} />

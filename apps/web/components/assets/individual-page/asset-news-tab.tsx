@@ -13,7 +13,7 @@ export function AssetNewsTab({ news }: { news: NewsItem[] }) {
           style={{
             display: 'block',
             padding: '14px 0',
-            borderBottom: index < news.length - 1 ? '1px solid var(--border)' : 'none',
+            borderBottom: index < news.length - 1 ? '1px solid var(--ink-3)' : 'none',
             textDecoration: 'none',
             color: 'inherit',
           }}

@@ -30,49 +30,41 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" suppressHydrationWarning>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="email">
+    <form onSubmit={handleSubmit} className="auth-form" suppressHydrationWarning>
+      <div className="auth-field">
+        <label className="auth-label" htmlFor="email">
           Email
         </label>
         <input
           id="email"
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
           required
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2"
-          style={{
-            background: 'var(--color-card)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-foreground)',
-          }}
+          className="auth-input"
         />
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="password">
+      <div className="auth-field">
+        <label className="auth-label" htmlFor="password">
           Password
         </label>
         <input
           id="password"
           type="password"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
+          placeholder="Password"
           required
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2"
-          style={{
-            background: 'var(--color-card)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-foreground)',
-          }}
+          className="auth-input"
         />
       </div>
 
       {error && (
-        <p className="text-sm" style={{ color: 'var(--color-danger)' }}>
+        <p className="auth-error" role="alert">
           {error}
         </p>
       )}
@@ -80,8 +72,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-2 px-4 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50"
-        style={{ background: 'var(--color-accent)', color: '#fff' }}
+        className="btn btn-primary auth-submit"
       >
         {loading ? 'Signing in…' : 'Sign in'}
       </button>

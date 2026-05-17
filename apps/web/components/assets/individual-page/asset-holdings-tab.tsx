@@ -23,7 +23,7 @@ export function AssetHoldingsTab({ holdings, title = 'Holdings' }: { holdings: H
                 <td data-label="Name" style={{ color: 'var(--ink-2)' }}>{holding.name}</td>
                 <td data-label="Weight" className="num">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-                    <div style={{ width: 60, height: 4, borderRadius: 2, background: 'var(--border)', overflow: 'hidden' }}>
+                    <div style={{ width: 60, height: 4, borderRadius: 2, background: 'var(--ink-3)', overflow: 'hidden' }}>
                       <div style={{ width: `${Math.min(100, (holding.pct / (total || 1)) * 100)}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
                     </div>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 40, textAlign: 'right' }}>

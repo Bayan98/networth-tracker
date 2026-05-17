@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Badge } from '@/components/ui/tone-badge'
 
 function MiniStat({ label, value, sub, trend }: {
   label: string
@@ -9,8 +10,16 @@ function MiniStat({ label, value, sub, trend }: {
   return (
     <div className="kpi">
       <div className="kpi-label">{label}</div>
-      <div className="kpi-val" style={{ fontSize: 20, marginBottom: 4 }}>{value}</div>
-      <div className="kpi-sub" style={{ color: trend === 'pos' ? 'var(--pos)' : trend === 'neg' ? 'var(--neg)' : 'var(--ink-faint)' }}>
+      <div className="kpi-val mono" style={{ marginBottom: 6 }}>{value}</div>
+      <div
+        className="kpi-sub"
+        style={{
+          color:
+            trend === 'pos' ? 'var(--pos)'
+            : trend === 'neg' ? 'var(--neg)'
+            : 'var(--ink-faint)',
+        }}
+      >
         {sub}
       </div>
     </div>
@@ -45,7 +54,11 @@ export function PortfolioStats({
   return (
     <div className="stat-grid">
       <MiniStat label="Total value" value={totalValue} sub={totalGainPct} trend={totalGainTrend} />
-      <MiniStat label="Cost basis" value={totalCostBasis} sub="Invested" />
+      <MiniStat
+        label="Cost basis"
+        value={totalCostBasis}
+        sub={<Badge tone="neutral">Invested</Badge>}
+      />
       <MiniStat label="Period change" value={periodChange} sub={periodChangePct} trend={periodTrend} />
       <MiniStat label="Today" value={todayChange} sub={todayChangePct} trend={todayTrend} />
     </div>

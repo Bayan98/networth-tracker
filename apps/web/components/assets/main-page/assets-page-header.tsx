@@ -11,9 +11,11 @@ export function AssetsPageHeader({ portfolioName, holdingCount, portfolioCount, 
   return (
     <div className="page-head">
       <div>
-        <div className="empty-label">{portfolioName ? 'Portfolio' : 'Holdings'}</div>
+        <div className="page-kicker">
+          {portfolioName ? 'Portfolio · Positions' : 'Holdings · Allocation ledger'}
+        </div>
         <h1>
-          {portfolioName ?? 'My Assets'} <em>{portfolioName ? '& positions.' : ''}</em>
+          {portfolioName ?? 'My Assets'} <em>{portfolioName ? '& positions.' : 'by value.'}</em>
         </h1>
         <p>
           {holdingCount} holding{holdingCount !== 1 ? 's' : ''}{' '}

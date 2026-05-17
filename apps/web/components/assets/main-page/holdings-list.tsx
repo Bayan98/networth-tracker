@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { Sparkles, Plus } from 'lucide-react'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { formatPercent, ASSET_TYPE_LABELS } from '@networth/utils'
 import type { CurrencyCode } from '@networth/types'
@@ -7,7 +8,23 @@ import type { AssetValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { AssetAvatar } from '@/components/ui/asset-avatar'
 import { MoneyText, QuantityText } from '@/components/ui/money-text'
 import { SkeletonTableRows } from '@/components/ui/skeleton'
+import { Swatch, type RowTone } from '@/components/ui/tone-badge'
 import { HoldingsSortMenu, type SortKey } from './holdings-sort-menu'
+
+const SORT_LABELS: Record<SortKey, string> = {
+  'alpha':      'name',
+  'value-desc': 'value',
+  'value-asc':  'value · ascending',
+  'abs-gain':   'absolute gain',
+  'abs-loss':   'absolute loss',
+  'rel-gain':   'relative gain',
+  'rel-loss':   'relative loss',
+}
+
+function priceReturnTone(pct: number | null): RowTone {
+  if (pct === null) return 'neutral'
+  return pct >= 0 ? 'pos' : 'neg'
+}
 
 interface Props {
   assetsCount: number
@@ -17,6 +34,7 @@ interface Props {
   selectedCurrency: CurrencyCode
   loading: boolean
   onAssetClick: (assetId: string) => void
+  onAddAsset?: () => void
 }
 
 export function HoldingsList({
@@ -27,6 +45,7 @@ export function HoldingsList({
   selectedCurrency,
   loading,
   onAssetClick,
+  onAddAsset,
 }: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('value-desc')
   const { hideAmounts } = useAmountDisplay()
@@ -42,10 +61,39 @@ export function HoldingsList({
     }
   }), [sortBy, valuations])
 
+  const isFirstRunEmpty = !loading && assetsCount === 0
+
+  if (isFirstRunEmpty) {
+    return (
+      <div className="card empty-state">
+        <div className="empty-state-icon">
+          <Sparkles size={20} />
+        </div>
+        <div className="empty-state-text">
+          <h2>No assets yet</h2>
+          <p>
+            Add a position — stocks, crypto, real estate, or cash — to start
+            tracking value, cost basis, and performance.
+          </p>
+        </div>
+        {onAddAsset && (
+          <button className="btn btn-primary" onClick={onAddAsset} style={{ marginTop: 6 }}>
+            <Plus size={14} /> Add first asset
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="table-wrap">
-      <div className="table-head">
-        <h3>Holdings</h3>
+      <div className="ds-positions-head" style={{ flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0 }}>
+          <h3>Holdings <em>register</em></h3>
+          <p className="ds-positions-meta" style={{ margin: '6px 0 0' }}>
+            {valuations.length} of {assetsCount} · sorted by {SORT_LABELS[sortBy]}
+          </p>
+        </div>
         {valuations.length > 1 && <HoldingsSortMenu sortBy={sortBy} onChange={setSortBy} />}
       </div>
 
@@ -53,8 +101,8 @@ export function HoldingsList({
         <SkeletonTableRows rows={6} />
       ) : valuations.length === 0 ? (
         <div style={{ padding: '36px 20px', textAlign: 'center' }}>
-          <p className="empty-label">
-            {assetsCount === 0 ? 'No assets yet. Add your first position.' : 'No assets match the selected filters.'}
+          <p className="empty-label" style={{ margin: 0 }}>
+            No assets match the selected filters.
           </p>
         </div>
       ) : (
@@ -74,6 +122,7 @@ export function HoldingsList({
               const portfolio = asset.portfolio_id ? portfolioMap[asset.portfolio_id] : null
               const isPositive = priceReturnAbs !== null && priceReturnAbs >= 0
               const share = totalValue && value !== null ? (value / totalValue) * 100 : null
+              const tone = priceReturnTone(priceReturnPct)
               return (
                 <tr
                   key={asset.id}
@@ -84,10 +133,30 @@ export function HoldingsList({
                     <Link
                       href={`/assets/${asset.id}`}
                       onClick={(event) => event.stopPropagation()}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'inherit', textDecoration: 'none' }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'stretch',
+                        gap: 10,
+                        color: 'inherit',
+                        textDecoration: 'none',
+                        minHeight: 32,
+                      }}
                     >
-                      <AssetAvatar symbol={asset.symbol} assetType={asset.asset_type} name={asset.asset_name} size={32} borderRadius={8} />
-                      <div>
+                      <Swatch tone={tone} />
+                      <AssetAvatar
+                        symbol={asset.symbol}
+                        assetType={asset.asset_type}
+                        name={asset.asset_name}
+                        size={32}
+                        borderRadius={8}
+                      />
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        gap: 2,
+                        minWidth: 0,
+                      }}>
                         <div style={{ fontWeight: 500, fontSize: 13 }}>
                           {asset.symbol ?? asset.asset_name}
                           {asset.symbol && (
@@ -96,7 +165,12 @@ export function HoldingsList({
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2 }}>
+                        <div style={{
+                          fontSize: 11,
+                          color: 'var(--ink-faint)',
+                          fontFamily: 'var(--font-mono)',
+                          letterSpacing: '-0.005em',
+                        }}>
                           {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
                         </div>
                       </div>

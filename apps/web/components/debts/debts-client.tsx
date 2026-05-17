@@ -18,16 +18,17 @@ interface Props {
   currency: CurrencyCode
 }
 
-function MiniStat({ label, value, sub, trend }: {
-  label: string; value: ReactNode; sub: ReactNode; trend?: 'pos' | 'neg'
+function DsKpi({ label, value, sub, variant = 'serif' }: {
+  label: string
+  value: ReactNode
+  sub: ReactNode
+  variant?: 'serif' | 'mono'
 }) {
   return (
-    <div className="kpi">
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-val" style={{ fontSize: 22, marginBottom: 4 }}>{value}</div>
-      <div className="kpi-sub" style={{ color: trend === 'pos' ? 'var(--pos)' : trend === 'neg' ? 'var(--neg)' : 'var(--ink-faint)' }}>
-        {sub}
-      </div>
+    <div className="ds-kpi">
+      <div className="ds-kpi-label">{label}</div>
+      <div className={`ds-kpi-val ${variant === 'mono' ? 'mono' : ''}`}>{value}</div>
+      <div className="ds-kpi-sub">{sub}</div>
     </div>
   )
 }
@@ -46,6 +47,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
   const router = useRouter()
   const [showAdd, setShowAdd] = useState(false)
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const _selectedCurrency = useAppStore((s) => s.selectedCurrency)
   const selectedCurrency = isMounted ? _selectedCurrency : currency
@@ -55,9 +57,14 @@ export function DebtsClient({ debts, userId, currency }: Props) {
   )
 
   async function handleDelete(id: string) {
+    setError(null)
     const supabase = createClient()
-    const { error } = await supabase.from('debts').delete().eq('id', id)
-    if (!error) router.refresh()
+    const { error } = await supabase.from('debts').delete().eq('id', id).eq('user_id', userId)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    router.refresh()
   }
 
   const activeDebts = debts.filter((d) => d.is_active)
@@ -92,12 +99,13 @@ export function DebtsClient({ debts, userId, currency }: Props) {
   }
 
   const statsLoading = !isMounted || fxLoading
+  const activeLabel = `${activeDebts.length} active loan${activeDebts.length !== 1 ? 's' : ''}`
 
   return (
     <>
       <div className="page-head">
         <div>
-          <div className="empty-label">Liabilities</div>
+          <div className="page-kicker">Liabilities · Payoff ledger</div>
           <h1>Debts <em>&amp; liabilities.</em></h1>
           <p>Track balances, rates, and payoff progress across every loan.</p>
         </div>
@@ -106,29 +114,58 @@ export function DebtsClient({ debts, userId, currency }: Props) {
         </button>
       </div>
 
-      {/* Stats row */}
       <div className="stat-grid">
-        <MiniStat
+        <DsKpi
           label="Total owed"
-          value={<MoneyText value={debtTotals.totalDebt} currency={selectedCurrency} loading={statsLoading} maskLength={6} skelWidth={110} skelHeight={22} />}
-          sub={`${activeDebts.length} active loan${activeDebts.length !== 1 ? 's' : ''}`}
-          trend="neg"
+          value={
+            <MoneyText
+              value={debtTotals.totalDebt}
+              currency={selectedCurrency}
+              loading={statsLoading}
+              maskLength={6}
+              skelWidth={140}
+              skelHeight={32}
+            />
+          }
+          sub={activeLabel}
         />
-        <MiniStat
+        <DsKpi
           label="Monthly payment"
-          value={<MoneyText value={debtTotals.totalMinPayment} currency={selectedCurrency} loading={statsLoading} maskLength={6} skelWidth={100} skelHeight={22} />}
-          sub={`${activeDebts.length} active loan${activeDebts.length !== 1 ? 's' : ''}`}
+          variant="mono"
+          value={
+            <MoneyText
+              value={debtTotals.totalMinPayment}
+              currency={selectedCurrency}
+              loading={statsLoading}
+              maskLength={6}
+              skelWidth={120}
+              skelHeight={26}
+            />
+          }
+          sub={activeLabel}
         />
-        <MiniStat
+        <DsKpi
           label="Weighted APR"
-          value={<LoadingText loading={statsLoading} skelWidth={72} skelHeight={22}>{debtTotals.weightedAPR === null ? '—' : fmtAPR(debtTotals.weightedAPR)}</LoadingText>}
+          variant="mono"
+          value={
+            <LoadingText loading={statsLoading} skelWidth={80} skelHeight={26}>
+              {debtTotals.weightedAPR === null ? '—' : fmtAPR(debtTotals.weightedAPR)}
+            </LoadingText>
+          }
           sub="Fixed + variable"
         />
       </div>
 
-      {/* Table */}
       <div className="table-wrap">
-        <div className="table-head"><h3>All debts</h3></div>
+        <div className="ds-positions-head">
+          <h3>All <em>debts</em></h3>
+          <span className="ds-positions-meta">{debts.length} record{debts.length !== 1 ? 's' : ''}</span>
+        </div>
+        {error && (
+          <div className="callout callout-neg" style={{ margin: '14px var(--density-pad-x) 0' }}>
+            {error}
+          </div>
+        )}
         {debts.length === 0 ? (
           <div style={{ padding: '36px 20px', textAlign: 'center' }}>
             <p className="empty-label">No debts recorded.</p>
@@ -151,39 +188,43 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                 const balance = Number(d.current_balance)
                 const progress = principal > 0 ? Math.max(0, Math.min(100, ((principal - balance) / principal) * 100)) : 0
                 const monthlyPayment = Number(d.minimum_payment)
-                const payoffYears = monthlyPayment > 0 ? (balance / (monthlyPayment * 12)).toFixed(1) : '—'
+                const payoffLabel = monthlyPayment > 0 ? `${(balance / (monthlyPayment * 12)).toFixed(1)}y` : '—'
 
                 return (
                   <tr key={d.id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{
-                          width: 32, height: 32, borderRadius: 8,
-                          background: 'var(--surface-2)', border: '1px solid var(--border)',
-                          display: 'grid', placeItems: 'center',
-                          color: 'var(--neg)', flexShrink: 0,
-                        }}>
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'var(--neg-soft)',
+                            border: '1px solid var(--ink-3)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            color: 'var(--neg)',
+                            flexShrink: 0,
+                          }}
+                        >
                           <DebtIcon name={d.name} />
                         </div>
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontWeight: 500, fontSize: 13 }}>{d.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 1, fontFamily: 'var(--font-mono)' }}>
+                          <div style={{ fontWeight: 500, fontSize: 13.5 }}>{d.name}</div>
+                          <div
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 10.5,
+                              color: 'var(--ink-muted)',
+                              letterSpacing: '0.04em',
+                              textTransform: 'uppercase',
+                              marginTop: 2,
+                            }}
+                          >
                             {progress.toFixed(0)}% paid off
                           </div>
-                          <div style={{
-                            height: 3,
-                            background: 'var(--border)',
-                            borderRadius: 2,
-                            marginTop: 5,
-                            width: 160,
-                            maxWidth: '100%',
-                          }}>
-                            <div style={{
-                              height: '100%',
-                              width: `${progress}%`,
-                              background: 'var(--pos)',
-                              borderRadius: 2,
-                            }} />
+                          <div className="ds-progress" style={{ width: 160, maxWidth: '100%' }}>
+                            <span style={{ width: `${progress}%` }} />
                           </div>
                         </div>
                       </div>
@@ -198,11 +239,12 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                       <MoneyText value={balance} currency={d.currency} maskLength={5} skelWidth={80} />
                     </td>
                     <td data-label="Payoff" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
-                      {typeof payoffYears === 'string' ? payoffYears : `${payoffYears}y`}
+                      {payoffLabel}
                     </td>
                     <td className="cell-actions">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
                         <button
+                          type="button"
                           onClick={() => setEditingDebt(d)}
                           className="iconbtn"
                           style={{ width: 28, height: 28 }}
@@ -211,6 +253,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                           <Pencil size={12} />
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleDelete(d.id)}
                           className="iconbtn"
                           style={{ width: 28, height: 28, color: 'var(--neg)' }}

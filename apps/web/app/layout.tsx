@@ -1,25 +1,6 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, DM_Sans, JetBrains_Mono } from 'next/font/google'
 import { ServiceWorkerRegistration } from './service-worker-registration'
 import './globals.css'
-
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-  display: 'swap',
-})
-
-const dmSans = DM_Sans({
-  variable: '--font-dm-sans',
-  subsets: ['latin'],
-  display: 'swap',
-})
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: '--font-jetbrains-mono',
-  subsets: ['latin'],
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   applicationName: 'Networth Tracker',
@@ -47,8 +28,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fbfaf6' },
-    { media: '(prefers-color-scheme: dark)', color: '#1f2026' },
+    { media: '(prefers-color-scheme: light)', color: '#F5F1E8' },
+    { media: '(prefers-color-scheme: dark)', color: '#0E0C07' },
   ],
 }
 
@@ -60,9 +41,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        />
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var s=JSON.parse(localStorage.getItem('networth-settings')||'{}');var t=s.theme||'dark';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})()` }} />
       </head>
-      <body className={`${inter.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}>
+      <body>
         <ServiceWorkerRegistration />
         {children}
       </body>

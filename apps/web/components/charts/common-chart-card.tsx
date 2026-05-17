@@ -88,7 +88,7 @@ export function CommonChartCard({
               {defs}
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="var(--border)"
+                stroke="var(--ink-3)"
                 vertical={false}
                 strokeOpacity={0.7}
               />

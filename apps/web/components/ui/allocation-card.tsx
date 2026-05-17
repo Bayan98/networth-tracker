@@ -321,7 +321,7 @@ export function AllocationCard({
               />
               <div style={{
                 position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
-                background: 'var(--surface)', border: '1px solid var(--border)',
+                background: 'var(--surface)', border: '1px solid var(--ink-3)',
                 borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.10)',
                 minWidth: 200, padding: '4px 0',
               }}>
@@ -332,7 +332,7 @@ export function AllocationCard({
                     style={{
                       display: 'block', width: '100%', textAlign: 'left',
                       padding: '8px 12px', fontSize: 13,
-                      background: t === allocType ? 'var(--border)' : 'none',
+                      background: t === allocType ? 'var(--bg-sunken)' : 'none',
                       border: 'none', cursor: 'pointer',
                       color: 'var(--ink)', fontWeight: t === allocType ? 500 : 400,
                       fontFamily: 'inherit',
@@ -412,7 +412,7 @@ export function AllocationCard({
               minHeight: 34,
               padding: '8px 12px',
               borderRadius: 8,
-              border: '1px solid var(--border)',
+              border: '1px solid var(--ink-3)',
               background: 'var(--surface-2)',
               color: 'var(--ink-muted)',
               cursor: 'pointer',

@@ -15,14 +15,14 @@ export function AssetNotesTab({ notes, notesSaving, notesError, onChange, onSave
         placeholder="Write your notes, thesis, reminders…"
         style={{
           width: '100%', minHeight: 220, padding: '16px 18px',
-          background: 'var(--bg-sunken)', border: '1px solid var(--border)',
+          background: 'var(--bg-sunken)', border: '1px solid var(--ink-3)',
           borderRadius: 'var(--radius)', resize: 'vertical',
           fontSize: 14, lineHeight: 1.7, color: 'var(--ink)',
           fontFamily: 'var(--font-sans)', outline: 'none',
           boxSizing: 'border-box',
         }}
         onFocus={(event) => { event.currentTarget.style.borderColor = 'var(--accent)' }}
-        onBlur={(event) => { event.currentTarget.style.borderColor = 'var(--border)' }}
+        onBlur={(event) => { event.currentTarget.style.borderColor = 'var(--ink-3)' }}
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
         {notesError && <p style={{ fontSize: 12, color: 'var(--neg)' }}>{notesError}</p>}

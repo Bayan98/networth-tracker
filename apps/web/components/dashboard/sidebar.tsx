@@ -4,23 +4,40 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import {
-  LayoutDashboard,
-  TrendingUp,
-  DollarSign,
-  CreditCard,
-  Settings,
-  Plus,
-} from 'lucide-react'
+import { Settings, Plus } from 'lucide-react'
 import type { Profile, Portfolio } from '@networth/types'
 import { AddPortfolioDialog } from '@/components/assets'
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, countKey: null },
-  { href: '/assets', label: 'Assets', icon: TrendingUp, countKey: 'assets' as const },
-  { href: '/income', label: 'Income', icon: DollarSign, countKey: 'income' as const },
-  { href: '/debts', label: 'Debts', icon: CreditCard, countKey: 'debts' as const },
+type GeoShape = 'overview' | 'assets' | 'income' | 'debts'
+
+const NAV_ITEMS: Array<{
+  href: string
+  label: string
+  shape: GeoShape
+  countKey: 'assets' | 'income' | 'debts' | null
+}> = [
+  { href: '/dashboard', label: 'Overview', shape: 'overview', countKey: null },
+  { href: '/assets',    label: 'Assets',   shape: 'assets',   countKey: 'assets' },
+  { href: '/income',    label: 'Income',   shape: 'income',   countKey: 'income' },
+  { href: '/debts',     label: 'Debts',    shape: 'debts',    countKey: 'debts' },
 ]
+
+const GEO_CLIP: Record<GeoShape, string> = {
+  overview: 'polygon(0 0, 40% 0, 40% 100%, 0 100%)',
+  assets:   'polygon(0 60%, 30% 30%, 55% 50%, 100% 0, 100% 100%, 0 100%)',
+  income:   'circle(45%)',
+  debts:    'polygon(0 25%, 100% 25%, 100% 75%, 0 75%)',
+}
+
+function GeoIcon({ shape }: { shape: GeoShape }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="nav-geo"
+      style={{ clipPath: GEO_CLIP[shape], WebkitClipPath: GEO_CLIP[shape] }}
+    />
+  )
+}
 
 interface SidebarProps {
   user: Profile | null
@@ -56,12 +73,12 @@ export function Sidebar({ user, portfolios, counts, portfolioAssetCounts }: Side
 
         <div className="nav-group">
           <div className="nav-label">Workspace</div>
-          {NAV_ITEMS.map(({ href, label, icon: Icon, countKey }) => {
+          {NAV_ITEMS.map(({ href, label, shape, countKey }) => {
             const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href) && !pathname.startsWith('/portfolios'))
             const count = countKey ? counts[countKey] : null
             return (
               <Link key={href} href={href} className={`nav-item ${isActive ? 'active' : ''}`}>
-                <Icon size={16} />
+                <GeoIcon shape={shape} />
                 <span>{label}</span>
                 {count != null && count > 0 && <span className="nav-count">{count}</span>}
               </Link>

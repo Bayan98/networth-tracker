@@ -88,7 +88,7 @@ export function AddPortfolioDialog({ userId, onClose }: Props) {
               />
             </div>
 
-            {error && <p style={{ fontSize: 13, color: 'var(--neg)', marginTop: 10 }}>{error}</p>}
+            {error && <p className="merror">{error}</p>}
           </div>
 
           <div className="rmodal-foot">

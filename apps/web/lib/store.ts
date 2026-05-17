@@ -5,7 +5,7 @@ import { devtools, persist } from 'zustand/middleware'
 import type { CurrencyCode } from '@networth/types'
 
 export type Density = 'compact' | 'cozy' | 'spacious'
-export type Accent = 'evergreen' | 'indigo' | 'amber' | 'rose' | 'graphite'
+export type Accent = 'moss' | 'indigo' | 'amber' | 'rose' | 'graphite'
 
 interface AppState {
   selectedCurrency: CurrencyCode
@@ -43,7 +43,7 @@ export const useAppStore = create<AppState>()(
         density: 'cozy',
         setDensity: (density) => set({ density }),
 
-        accent: 'evergreen',
+        accent: 'moss',
         setAccent: (accent) => set({ accent }),
 
         hideAmounts: false,
@@ -61,7 +61,7 @@ export const useAppStore = create<AppState>()(
           selectedCurrency: s.selectedCurrency,
           theme: s.theme,
           density: s.density,
-          accent: s.accent,
+          accent: (s.accent as Accent | 'evergreen') === 'evergreen' ? 'moss' : s.accent,
           hideAmounts: s.hideAmounts,
         }),
       },

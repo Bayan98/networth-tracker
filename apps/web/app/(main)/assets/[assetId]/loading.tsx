@@ -2,8 +2,8 @@ import { Skeleton, SkeletonRow, SkeletonText } from '@/components/ui/skeleton'
 
 export default function AssetDetailLoading() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
-      <SkeletonRow style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className="asset-detail-shell">
+      <SkeletonRow className="asset-detail-breadcrumb">
         <Skeleton width={64} height={26} radius={6} inline />
         <Skeleton width={6} height={12} radius={2} inline />
         <Skeleton width={150} height={11} radius={3} inline />
@@ -11,15 +11,13 @@ export default function AssetDetailLoading() {
 
       <SkeletonRow
         delay={0.06}
-        className="page-head"
-        style={{
-          alignItems: 'center',
-        }}
+        className="page-head asset-detail-head"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, minWidth: 0, flexWrap: 'wrap' }}>
+        <div className="asset-detail-identity">
           <Skeleton width={64} height={64} radius={14} inline />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div className="asset-detail-title">
+            <Skeleton width={146} height={11} radius={3} />
+            <div className="asset-detail-title-row" style={{ marginTop: 8 }}>
               <Skeleton width={260} height={34} radius={7} inline />
               <Skeleton width={86} height={24} radius={999} inline />
             </div>
@@ -29,7 +27,7 @@ export default function AssetDetailLoading() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div className="asset-head-actions">
           <Skeleton width={112} height={34} radius={8} inline />
           <Skeleton width={94} height={34} radius={8} inline />
           <Skeleton width={38} height={34} radius={8} inline />
@@ -37,7 +35,16 @@ export default function AssetDetailLoading() {
       </SkeletonRow>
 
       <SkeletonRow delay={0.12}>
-        <div className="hero">
+        <div className="hero asset-detail-hero">
+          <div className="asset-summary-top">
+            <div>
+              <Skeleton width={150} height={11} radius={3} />
+              <div style={{ marginTop: 10 }}>
+                <Skeleton width={260} height={40} radius={7} />
+              </div>
+            </div>
+            <Skeleton width={104} height={28} radius={999} inline />
+          </div>
           <div className="asset-summary-rows">
             {Array.from({ length: 2 }).map((_, i) => (
               <HeroRowSkeleton key={i} primary={i === 0} />
@@ -47,7 +54,7 @@ export default function AssetDetailLoading() {
       </SkeletonRow>
 
       <SkeletonRow delay={0.18}>
-        <div className="table-wrap" style={{ padding: 0 }}>
+        <div className="table-wrap asset-detail-panel">
           <div className="tabs">
             {[90, 118, 92, 72, 64].map((width, i) => (
               <div key={i} className="tab-btn" style={{ cursor: 'default' }}>
@@ -56,14 +63,7 @@ export default function AssetDetailLoading() {
             ))}
           </div>
 
-          <div
-            style={{
-              padding: 'var(--density-pad-y) var(--density-pad-x)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-              gap: 'var(--density-gap)',
-            }}
-          >
+          <div className="asset-detail-loading-grid">
             <div>
               <Skeleton width={122} height={13} radius={3} />
               <div style={{ marginTop: 12 }}>

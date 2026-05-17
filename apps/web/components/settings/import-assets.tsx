@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { Upload, Plus, Sparkles, Copy, Check, ChevronDown, FileText } from 'lucide-react'
+import { Upload, Plus, Sparkles, Copy, Check, ChevronDown, FileText, X } from 'lucide-react'
 import { parseAndVerify } from '@networth/utils'
 import type { ParsedRow, ImportRow } from '@networth/utils'
 import type { Portfolio } from '@networth/types'
 import { AddPortfolioDialog } from '@/components/assets'
-import { Dialog } from '@/components/ui/dialog'
 import { importAssets } from '@/app/(main)/settings/actions'
 import type { ImportResult } from '@/app/(main)/settings/actions'
 
@@ -123,16 +122,13 @@ export function ImportAssets({ portfolios, userId }: Props) {
   return (
     <>
       <div className="card">
-        <div className="card-head">
-          <div>
-            <h3>Import assets</h3>
-            <div className="sub">Bring in holdings from a file or paste rows.</div>
-          </div>
-        </div>
+        <header className="ds-section-head">
+          <h2 className="ds-section-title">Import <em>assets</em></h2>
+          <span className="ds-section-meta">CSV · manual</span>
+        </header>
 
-        {/* Portfolio selector */}
         <div style={{ marginBottom: 20 }}>
-          <div className="empty-label" style={{ marginBottom: 8 }}>Add to portfolio</div>
+          <div className="ds-field-label">Add to portfolio</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <select
@@ -143,7 +139,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
                   padding: '7px 28px 7px 10px',
                   fontSize: 13,
                   borderRadius: 'var(--radius)',
-                  border: '1px solid var(--border)',
+                  border: '1px solid var(--ink-3)',
                   background: 'var(--surface)',
                   color: selectedPortfolioId ? 'var(--ink)' : 'var(--ink-faint)',
                   cursor: 'pointer',
@@ -169,9 +165,8 @@ export function ImportAssets({ portfolios, userId }: Props) {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 18 }} className="import-grid">
-          {/* Source selector */}
           <div>
-            <div className="empty-label" style={{ marginBottom: 8 }}>Source</div>
+            <div className="ds-field-label">Source</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {PROVIDERS.map((p) => (
                 <button
@@ -184,7 +179,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
                     gap: 12,
                     padding: '10px 12px',
                     borderRadius: 'var(--radius)',
-                    border: `1px solid ${selected === p.id ? 'var(--border-strong)' : 'var(--border)'}`,
+                    border: `1px solid ${selected === p.id ? 'var(--ink)' : 'var(--ink-3)'}`,
                     background: selected === p.id ? 'var(--surface-2)' : 'var(--surface)',
                     textAlign: 'left',
                     cursor: 'pointer',
@@ -195,7 +190,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
                   <div style={{
                     width: 32, height: 32, borderRadius: 8,
                     display: 'grid', placeItems: 'center',
-                    background: 'var(--bg-sunken)', border: '1px solid var(--border)',
+                    background: 'var(--bg-sunken)', border: '1px solid var(--ink-3)',
                     color: 'var(--ink-2)',
                   }}>
                     {p.icon}
@@ -209,10 +204,9 @@ export function ImportAssets({ portfolios, userId }: Props) {
             </div>
           </div>
 
-          {/* Upload / paste area */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div className="empty-label">{selected === 'csv' ? 'Upload file' : 'Paste rows'}</div>
+              <div className="ds-field-label" style={{ marginBottom: 0 }}>{selected === 'csv' ? 'Upload file' : 'Paste rows'}</div>
               <button
                 onClick={() => setShowAiPrompt(true)}
                 style={{
@@ -248,7 +242,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
               >
                 <div style={{
                   width: 42, height: 42, borderRadius: 10,
-                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  background: 'var(--surface)', border: '1px solid var(--ink-3)',
                   display: 'grid', placeItems: 'center', color: 'var(--ink-2)',
                 }}>
                   {csvFileName ? <FileText size={18} /> : <Upload size={18} />}
@@ -289,7 +283,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
               </div>
             ) : (
               <div style={{
-                border: '1px solid var(--border)',
+                border: '1px solid var(--ink-3)',
                 borderRadius: 'var(--radius-lg)',
                 background: 'var(--bg-sunken)',
                 display: 'flex',
@@ -315,7 +309,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
                 />
                 <div style={{
                   padding: '10px 16px',
-                  borderTop: '1px solid var(--border)',
+                  borderTop: '1px solid var(--ink-3)',
                   display: 'flex',
                   justifyContent: 'flex-end',
                 }}>
@@ -331,19 +325,12 @@ export function ImportAssets({ portfolios, userId }: Props) {
               </div>
             )}
 
-            {/* Verify + import result area */}
             {importDone ? (
-              <div style={{
-                marginTop: 10,
-                padding: '12px 14px',
-                borderRadius: 'var(--radius)',
-                background: 'color-mix(in srgb, var(--pos) 8%, transparent)',
-                border: '1px solid var(--pos)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--pos)' }}>
+              <div
+                className="callout callout-pos"
+                style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}
+              >
+                <div style={{ fontWeight: 500 }}>
                   Imported {importDone.assetsCreated} asset{importDone.assetsCreated !== 1 ? 's' : ''} and {importDone.transactionsCreated} transaction{importDone.transactionsCreated !== 1 ? 's' : ''}
                 </div>
                 {importDone.errors.length > 0 && (
@@ -362,29 +349,15 @@ export function ImportAssets({ portfolios, userId }: Props) {
             ) : verifyResult !== null ? (
               <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {errorRows.length === 0 ? (
-                  <div style={{
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius)',
-                    background: 'color-mix(in srgb, var(--pos) 8%, transparent)',
-                    border: '1px solid var(--pos)',
-                    fontSize: 13,
-                    color: 'var(--pos)',
-                    fontWeight: 500,
-                  }}>
+                  <div className="callout callout-pos" style={{ fontWeight: 500 }}>
                     {validRows.length} row{validRows.length !== 1 ? 's' : ''} ready to import
                   </div>
                 ) : (
-                  <div style={{
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius)',
-                    background: 'color-mix(in srgb, var(--neg) 6%, transparent)',
-                    border: '1px solid var(--neg)',
-                    fontSize: 12,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                  }}>
-                    <div style={{ fontWeight: 500, color: 'var(--neg)', fontSize: 13 }}>
+                  <div
+                    className="callout callout-neg"
+                    style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}
+                  >
+                    <div style={{ fontWeight: 500, fontSize: 13 }}>
                       {errorRows.length} row{errorRows.length !== 1 ? 's' : ''} with errors
                       {validRows.length > 0 && `, ${validRows.length} valid`}
                     </div>
@@ -422,36 +395,75 @@ export function ImportAssets({ portfolios, userId }: Props) {
       </div>
 
       {showAiPrompt && (
-        <Dialog title="AI import prompt" onClose={() => { setShowAiPrompt(false); setCopied(false) }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-              Copy this prompt into any AI chat (Claude, ChatGPT, Gemini, etc.), attach your data — screenshots, PDFs, brokerage exports, or plain text — and paste the output here.
-            </p>
-            <div style={{
-              background: 'var(--bg-sunken)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              padding: '12px 14px',
-              fontSize: 12,
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--ink)',
-              whiteSpace: 'pre-wrap',
-              maxHeight: 280,
-              overflowY: 'auto',
-              lineHeight: 1.6,
-            }}>
-              {aiPrompt || 'Loading prompt...'}
+        <div
+          className="rmodal-scrim"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAiPrompt(false)
+              setCopied(false)
+            }
+          }}
+        >
+          <div className="rmodal wide">
+            <div className="rmodal-head">
+              <div>
+                <div className="rmodal-kicker">Import helper</div>
+                <h2>AI import <em>prompt</em></h2>
+                <div className="rmodal-desc">
+                  Copy this into any AI chat (Claude, ChatGPT, Gemini), attach your data — screenshots, PDFs, brokerage exports, or plain text — and paste the output back here.
+                </div>
+              </div>
+              <button
+                className="iconbtn"
+                onClick={() => { setShowAiPrompt(false); setCopied(false) }}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
             </div>
-            <button
-              onClick={copyPrompt}
-              className="btn btn-primary"
-              style={{ fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-              {copied ? 'Copied!' : 'Copy prompt'}
-            </button>
+
+            <div className="rmodal-body">
+              <div style={{
+                background: 'var(--bg-sunken)',
+                border: '1px solid var(--ink-3)',
+                borderRadius: 'var(--radius)',
+                padding: '12px 14px',
+                fontSize: 12,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--ink)',
+                whiteSpace: 'pre-wrap',
+                maxHeight: 320,
+                overflowY: 'auto',
+                lineHeight: 1.6,
+              }}>
+                {aiPrompt || 'Loading prompt…'}
+              </div>
+            </div>
+
+            <div className="rmodal-foot">
+              <div className="rmodal-hint">
+                {copied ? 'Prompt copied to clipboard.' : 'Then paste the AI output into the import form.'}
+              </div>
+              <div className="rmodal-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => { setShowAiPrompt(false); setCopied(false) }}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={copyPrompt}
+                  className="btn btn-primary"
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied ? 'Copied' : 'Copy prompt'}
+                </button>
+              </div>
+            </div>
           </div>
-        </Dialog>
+        </div>
       )}
 
       {showNewPortfolio && (

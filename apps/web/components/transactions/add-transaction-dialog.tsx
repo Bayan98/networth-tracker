@@ -166,7 +166,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
                   required
                 />
                 {convertedPrice != null && (
-                  <p style={{ fontSize: 11, color: 'var(--ink-muted)', marginTop: 4 }}>
+                  <p className="mnote">
                     {fxLoading ? 'Fetching rate…' : `≈ ${formatCurrency(convertedPrice, assetCurrency!)} in ${assetCurrency}`}
                   </p>
                 )}
@@ -179,7 +179,6 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
                 <CurrencyPicker
                   value={currency}
                   onChange={(c) => setCurrency(c as CurrencyCode)}
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 12px', fontSize: 13, color: 'var(--ink)', outline: 'none', width: '100%' }}
                 />
               </div>
               <div className="mfield" style={{ margin: 0 }}>
@@ -205,7 +204,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
               />
             </div>
 
-            {error && <p style={{ fontSize: 13, color: 'var(--neg)', marginTop: 8 }}>{error}</p>}
+            {error && <p className="merror">{error}</p>}
           </div>
 
           <div className="rmodal-foot">

@@ -129,7 +129,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
+    <div className="asset-detail-shell">
       <AssetDetailHeader
         asset={asset}
         portfolio={portfolio}
@@ -145,12 +145,12 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
       />
 
       {fxError && (
-        <div style={{ padding: '10px 14px', borderRadius: 'var(--radius)', background: 'color-mix(in oklch, var(--warn) 12%, transparent)', border: '1px solid color-mix(in oklch, var(--warn) 30%, transparent)', fontSize: 13, color: 'var(--warn)' }}>
+        <div className="callout callout-warn">
           {fxError}
         </div>
       )}
 
-      <div className="hero">
+      <div className="hero asset-detail-hero">
         <div className="asset-summary-rows">
           <div className={`asset-summary-row ${showQuantity ? '' : 'single'}`}>
             <SummaryMetric label={`Total market value · ${asset.currency}`} primary>
@@ -200,7 +200,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
         </div>
       </div>
 
-      <div className="table-wrap" style={{ padding: 0 }}>
+      <div className="table-wrap asset-detail-panel">
         <div className="tabs">
           {tabs.map((tabName) => (
             <button
@@ -215,7 +215,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
           ))}
         </div>
 
-        <div style={{ padding: 'var(--density-pad-y) var(--density-pad-x)' }}>
+        <div className="asset-detail-panel-body">
           {tab === 'Overview' && (
             <AssetOverviewTab
               asset={asset}

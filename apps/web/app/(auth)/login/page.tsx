@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { LoginForm } from '@/components/auth/login-form'
 
 export const metadata: Metadata = {
@@ -7,22 +8,63 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-          <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-            Sign in to your account
+    <main className="auth-shell">
+      <section className="auth-brand-panel" aria-label="Networth overview">
+        <div className="auth-brand">
+          <div className="auth-mark">N</div>
+          <div className="auth-wordmark">Net<em>worth</em></div>
+        </div>
+
+        <div className="auth-hero-copy">
+          <div className="auth-kicker">Private ledger</div>
+          <h1>Your money <em>at a glance.</em></h1>
+          <p>Track assets, cash, investments, and liabilities in one quiet workspace.</p>
+        </div>
+
+        <div className="auth-ledger" aria-hidden="true">
+          <div className="auth-ledger-head">
+            <span>Portfolio</span>
+            <span>Today</span>
+          </div>
+          <div className="auth-ledger-value">$225,937<span>.19</span></div>
+          <div className="auth-ledger-chart">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="auth-ledger-row">
+            <span>Stocks</span>
+            <strong>52.4%</strong>
+          </div>
+          <div className="auth-ledger-row">
+            <span>Cash</span>
+            <strong>14.0%</strong>
+          </div>
+          <div className="auth-ledger-row">
+            <span>Real estate</span>
+            <strong>9.7%</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="auth-form-panel">
+        <div className="auth-card">
+          <div className="auth-card-head">
+            <div className="auth-kicker">Sign in</div>
+            <h2>Welcome <em>back.</em></h2>
+            <p>Use your account email and password to open your workspace.</p>
+          </div>
+
+          <LoginForm />
+
+          <p className="auth-alt">
+            No account? <Link href="/signup">Sign up</Link>
           </p>
         </div>
-        <LoginForm />
-        <p className="text-center text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-          No account?{' '}
-          <a href="/signup" className="underline underline-offset-4 hover:text-white">
-            Sign up
-          </a>
-        </p>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }

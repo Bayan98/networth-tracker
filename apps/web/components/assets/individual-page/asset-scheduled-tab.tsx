@@ -43,7 +43,7 @@ export function AssetScheduledTab({ events, assetType, assetValue, currency, loa
       {events.map((event) => (
         <div key={event.id} style={{
           padding: '16px 18px', borderRadius: 'var(--radius)',
-          background: 'var(--surface-2)', border: '1px solid var(--border)',
+          background: 'var(--surface-2)', border: '1px solid var(--ink-3)',
           display: 'flex', flexDirection: 'column', gap: 10,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -57,7 +57,7 @@ export function AssetScheduledTab({ events, assetType, assetValue, currency, loa
               <span style={{
                 padding: '2px 7px', borderRadius: 999, fontSize: 10,
                 background: event.is_active ? 'color-mix(in oklch, var(--pos) 12%, transparent)' : 'var(--bg)',
-                border: '1px solid var(--border)',
+                border: '1px solid var(--ink-3)',
                 color: event.is_active ? 'var(--pos)' : 'var(--ink-muted)',
                 fontFamily: 'var(--font-mono)',
               }}>

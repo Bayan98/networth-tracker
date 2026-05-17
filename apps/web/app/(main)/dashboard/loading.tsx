@@ -96,7 +96,7 @@ export default function DashboardLoading() {
     <>
       <div className="page-head">
         <div>
-          <div className="empty-label">Overview</div>
+          <div className="page-kicker">Overview · Net worth ledger</div>
           <h1>
             Your money <em>at a glance.</em>
           </h1>
@@ -122,6 +122,22 @@ export default function DashboardLoading() {
             <div style={{ height: 420, paddingBottom: 20 }}>
               <ChartLineLoading />
             </div>
+          </div>
+        </SkeletonRow>
+
+        <SkeletonRow delay={0.06}>
+          <div className="ledger-strip">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div className="ledger-item" key={i}>
+                <Skeleton width={92} height={10} radius={3} />
+                <div style={{ marginTop: 8 }}>
+                  <Skeleton width={42} height={28} radius={5} />
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <Skeleton width="70%" height={10} radius={3} />
+                </div>
+              </div>
+            ))}
           </div>
         </SkeletonRow>
 

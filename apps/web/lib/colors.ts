@@ -1,10 +1,12 @@
 // ─── Asset type → display color ───────────────────────────────────────────────
+// Colors map to the Almanac donut palette in Networth Design System.html:
+// moss → sienna → sage → oxblood → slate → mustard.
 
 export const ASSET_TYPE_COLOR: Record<string, string> = {
   stock:       'var(--cat-stocks)',
   etf:         'var(--cat-stocks)',
   mutual_fund: 'var(--cat-stocks)',
-  bond:        'var(--cat-stocks)',
+  bond:        'var(--cat-bonds)',
   crypto:      'var(--cat-crypto)',
   cash:        'var(--cat-cash)',
   real_estate: 'var(--cat-real)',
@@ -21,10 +23,8 @@ export const PALETTE = [
   'var(--cat-crypto)',
   'var(--cat-cash)',
   'var(--cat-real)',
+  'var(--cat-bonds)',
   'var(--cat-other)',
-  'oklch(55% 0.12 310)',
-  'oklch(52% 0.11 200)',
-  'oklch(58% 0.09 40)',
 ]
 
 // ─── Liquidity tiers ──────────────────────────────────────────────────────────
@@ -67,12 +67,12 @@ export const ASSET_TYPE_SECTOR: Record<string, string> = {
 
 export const SECTOR_COLOR: Record<string, string> = {
   'Equities':          'var(--cat-stocks)',
-  'Funds':             'oklch(55% 0.12 310)',
-  'Fixed Income':      'oklch(52% 0.11 200)',
+  'Funds':             'var(--cat-stocks)',
+  'Fixed Income':      'var(--cat-bonds)',
   'Digital Assets':    'var(--cat-crypto)',
   'Cash & Equivalents':'var(--cat-cash)',
   'Real Estate':       'var(--cat-real)',
-  'Commodities':       'oklch(58% 0.09 40)',
+  'Commodities':       'var(--cat-other)',
   'Other':             'var(--cat-other)',
 }
 

@@ -50,7 +50,7 @@ export function AssetAvatar({ symbol, assetType, name, size = 32, borderRadius =
     height: size,
     borderRadius,
     background: 'var(--surface-2)',
-    border: '1px solid var(--border)',
+    border: '1px solid var(--ink-3)',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
