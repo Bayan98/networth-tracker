@@ -224,7 +224,7 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
             />
           )}
           {tab === 'Charts' && (
-            <AssetChartsTab asset={asset} />
+            <AssetChartsTab asset={asset} transactions={transactions} />
           )}
           {tab === 'Transactions' && (
             <AssetTransactionsTab

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -34,6 +34,7 @@ interface Props {
   defs?: ReactNode;
   children: ReactNode;
   tooltipFormatter: (value: number, name: string) => [string, string];
+  tooltipContent?: (props: { active?: boolean; payload?: Array<{ value: number; name: string; payload: any }>; label?: number }) => ReactNode;
 }
 
 export function CommonChartCard({
@@ -49,6 +50,7 @@ export function CommonChartCard({
   defs,
   children,
   tooltipFormatter,
+  tooltipContent,
 }: Props) {
   const { displayPrice } = useAmountDisplay();
   const isEmpty = !loading && data.length === 0;
@@ -127,7 +129,7 @@ export function CommonChartCard({
                 domain={[seriesMin, "auto"]}
               />
               <Tooltip
-                contentStyle={CHART_TOOLTIP_STYLE}
+                contentStyle={tooltipContent ? undefined : CHART_TOOLTIP_STYLE}
                 labelFormatter={(value: number) =>
                   formatChartDate(
                     new Date(value).toISOString().slice(0, 10),
@@ -135,6 +137,7 @@ export function CommonChartCard({
                   )
                 }
                 formatter={tooltipFormatter}
+                content={tooltipContent ? (props: any) => (tooltipContent(props) as ReactElement ?? null) : undefined}
               />
               {children}
             </AreaChart>
