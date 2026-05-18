@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getClientCache, setClientCache } from '@/lib/client-cache'
 
-export type PriceMap = Record<string, number>
-export type CurrencyMap = Record<string, string>
+type PriceMap = Record<string, number>
+type CurrencyMap = Record<string, string>
 
 interface PriceItem {
   symbol: string

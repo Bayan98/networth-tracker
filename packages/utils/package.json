@@ -12,9 +12,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@networth/types": "workspace:*",
-    "currency-codes": "^2.2.0",
-    "date-fns": "^3.6.0"
+    "@networth/types": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^4.1.2"

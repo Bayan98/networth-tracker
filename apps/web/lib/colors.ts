@@ -114,11 +114,3 @@ export const CURRENCY_COUNTRY: Record<string, string> = {
   PHP: 'Philippines',
   TWD: 'Taiwan',
 }
-
-// ─── Font CSS variables (defined in globals.css / layout.tsx) ─────────────────
-
-export const FONTS = {
-  sans:    'var(--font-sans)',
-  display: 'var(--font-display)',
-  mono:    'var(--font-mono)',
-} as const

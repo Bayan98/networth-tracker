@@ -28,7 +28,7 @@ export async function fetchPriceableHistoryFlow(
   toTs: number,
   period: string,
 ): Promise<PriceableHistoryResult[]> {
-  return Promise.all(items.map(async ({ symbol: sym, asset_type }) => {
+  return await Promise.all(items.map(async ({ symbol: sym, asset_type }) => {
     let rawPoints: PricePoint[] | null = null;
     let currency: string | undefined;
     let rawCurrency: string | null = null;

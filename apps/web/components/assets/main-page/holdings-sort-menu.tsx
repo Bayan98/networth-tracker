@@ -3,7 +3,7 @@ import { SlidersHorizontal } from 'lucide-react'
 
 export type SortKey = 'value-desc' | 'value-asc' | 'alpha' | 'abs-gain' | 'abs-loss' | 'rel-gain' | 'rel-loss'
 
-export const SORT_LABELS: Record<SortKey, string> = {
+const SORT_LABELS: Record<SortKey, string> = {
   'value-desc': 'Value ↓',
   'value-asc':  'Value ↑',
   'alpha':      'A → Z',
