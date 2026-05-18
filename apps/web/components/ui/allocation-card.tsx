@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
@@ -21,28 +21,17 @@ export interface Enriched {
   value: number | null
 }
 
-export type AllocationType =
-  | 'category'
-  | 'portfolio'
-  | 'currency'
-  | 'assets'
-  | 'liquidity'
-  | 'country'
-  | 'sector'
+export type AllocationType = 'category' | 'portfolio' | 'currency' | 'assets' | 'liquidity' | 'country' | 'sector'
 
 const ALLOC_LABELS: Record<AllocationType, string> = {
-  category:  'Category allocation',
+  category: 'Category allocation',
   portfolio: 'Portfolio allocation',
-  currency:  'Currency allocation',
-  assets:    'Asset share',
+  currency: 'Currency allocation',
+  assets: 'Asset share',
   liquidity: 'Liquidity allocation',
-  country:   'Country allocation',
-  sector:    'Sector allocation',
+  country: 'Country allocation',
+  sector: 'Sector allocation',
 }
-
-const MIN_VISIBLE_ITEMS = 5
-const FALLBACK_ALLOC_ROW_HEIGHT = 22
-const FALLBACK_ALLOC_BUTTON_HEIGHT = 34
 
 interface AllocItem {
   key: string
@@ -122,7 +111,9 @@ function buildItems(enriched: Enriched[], portfolios: Portfolio[], type: Allocat
     .sort((a, b) => b.value - a.value)
 
   if (type === 'portfolio' || type === 'currency' || type === 'country') {
-    items.forEach((item, i) => { item.color = PALETTE[i % PALETTE.length] })
+    items.forEach((item, i) => {
+      item.color = PALETTE[i % PALETTE.length]
+    })
   }
 
   return items
@@ -130,13 +121,20 @@ function buildItems(enriched: Enriched[], portfolios: Portfolio[], type: Allocat
 
 function getSubLabel(type: AllocationType, count: number): string {
   switch (type) {
-    case 'category':  return `${count} class${count !== 1 ? 'es' : ''}`
-    case 'portfolio': return `${count} portfolio${count !== 1 ? 's' : ''}`
-    case 'currency':  return `${count} currenc${count !== 1 ? 'ies' : 'y'}`
-    case 'assets':    return `${count} position${count !== 1 ? 's' : ''}`
-    case 'liquidity': return `${count} tier${count !== 1 ? 's' : ''}`
-    case 'country':   return `${count} countr${count !== 1 ? 'ies' : 'y'}`
-    case 'sector':    return `${count} sector${count !== 1 ? 's' : ''}`
+    case 'category':
+      return `${count} class${count !== 1 ? 'es' : ''}`
+    case 'portfolio':
+      return `${count} portfolio${count !== 1 ? 's' : ''}`
+    case 'currency':
+      return `${count} currenc${count !== 1 ? 'ies' : 'y'}`
+    case 'assets':
+      return `${count} position${count !== 1 ? 's' : ''}`
+    case 'liquidity':
+      return `${count} tier${count !== 1 ? 's' : ''}`
+    case 'country':
+      return `${count} countr${count !== 1 ? 'ies' : 'y'}`
+    case 'sector':
+      return `${count} sector${count !== 1 ? 's' : ''}`
   }
 }
 
@@ -147,26 +145,13 @@ interface AllocationCardProps {
   selectedCurrency: CurrencyCode
 }
 
-export function AllocationCard({
-  defaultType,
-  enriched,
-  portfolios,
-  selectedCurrency,
-}: AllocationCardProps) {
+export function AllocationCard({ defaultType, enriched, portfolios, selectedCurrency }: AllocationCardProps) {
   const [allocType, setAllocType] = useState<AllocationType>(defaultType)
   const [excluded, setExcluded] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(false)
-  const [listExpanded, setListExpanded] = useState(false)
-  const [collapsedVisibleCount, setCollapsedVisibleCount] = useState(MIN_VISIBLE_ITEMS)
-  const cardRef = useRef<HTMLDivElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
-  const expandButtonRef = useRef<HTMLButtonElement>(null)
   const { displayPrice } = useAmountDisplay()
 
-  const items = useMemo(
-    () => buildItems(enriched, portfolios, allocType),
-    [enriched, portfolios, allocType],
-  )
+  const items = useMemo(() => buildItems(enriched, portfolios, allocType), [enriched, portfolios, allocType])
 
   const active = items.filter((i) => !excluded.has(i.key))
   const inactive = items.filter((i) => excluded.has(i.key))
@@ -200,67 +185,6 @@ export function AllocationCard({
     ]
   }, [items, excluded])
 
-  useEffect(() => {
-    if (listExpanded) return
-
-    const card = cardRef.current
-    const list = listRef.current
-    if (!card || !list) return
-
-    function calculateVisibleCount() {
-      const currentCard = cardRef.current
-      const currentList = listRef.current
-      if (!currentCard || !currentList) return
-
-      const totalCount = active.length + inactive.length
-      if (totalCount <= MIN_VISIBLE_ITEMS) {
-        setCollapsedVisibleCount(totalCount)
-        return
-      }
-
-      const cardRect = currentCard.getBoundingClientRect()
-      const listRect = currentList.getBoundingClientRect()
-      const cardStyle = window.getComputedStyle(currentCard)
-      const listStyle = window.getComputedStyle(currentList)
-      const bottomPadding = Number.parseFloat(cardStyle.paddingBottom) || 0
-      const listGap = Number.parseFloat(listStyle.rowGap || listStyle.gap) || 0
-      const firstRow = currentList.querySelector<HTMLElement>('.alloc-row')
-      const rowHeight = firstRow?.getBoundingClientRect().height || FALLBACK_ALLOC_ROW_HEIGHT
-      const buttonHeight = expandButtonRef.current?.getBoundingClientRect().height || FALLBACK_ALLOC_BUTTON_HEIGHT
-      const availableHeight = Math.max(0, cardRect.bottom - bottomPadding - listRect.top)
-      const minimumCount = Math.min(MIN_VISIBLE_ITEMS, totalCount)
-      let nextCount = minimumCount
-
-      for (let count = minimumCount; count <= totalCount; count += 1) {
-        const rowGaps = Math.max(0, count - 1) * listGap
-        const rowsHeight = count * rowHeight + rowGaps
-        const hasHiddenRows = count < totalCount
-        const buttonSpace = hasHiddenRows ? buttonHeight + listGap : 0
-        if (rowsHeight + buttonSpace <= availableHeight) {
-          nextCount = count
-        }
-      }
-
-      setCollapsedVisibleCount(nextCount)
-    }
-
-    calculateVisibleCount()
-
-    const observer = new ResizeObserver(calculateVisibleCount)
-    observer.observe(card)
-    observer.observe(list)
-    return () => observer.disconnect()
-  }, [active.length, inactive.length, listExpanded])
-
-  const displayedActive = listExpanded ? active : active.slice(0, collapsedVisibleCount)
-  const displayedInactive = listExpanded
-    ? inactive
-    : inactive.slice(0, Math.max(0, collapsedVisibleCount - displayedActive.length))
-  const displayedCount = displayedActive.length + displayedInactive.length
-  const totalListCount = active.length + inactive.length
-  const hasHiddenItems = displayedCount < totalListCount
-  const showListButton = listExpanded ? totalListCount > MIN_VISIBLE_ITEMS : hasHiddenItems
-
   function toggle(key: string) {
     setExcluded((prev) => {
       const next = new Set(prev)
@@ -274,7 +198,6 @@ export function AllocationCard({
     setAllocType(t)
     setExcluded(new Set())
     setOpen(false)
-    setListExpanded(false)
   }
 
   if (items.length === 0) {
@@ -289,23 +212,32 @@ export function AllocationCard({
   }
 
   return (
-    <div ref={cardRef} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="card allocation-card">
       <div className="card-head">
         <div style={{ position: 'relative' }}>
           <button
             onClick={() => setOpen((v) => !v)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              fontSize: 14, fontWeight: 600, letterSpacing: '-0.005em',
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--ink)', padding: 0, fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 14,
+              fontWeight: 600,
+              letterSpacing: '-0.005em',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--ink)',
+              padding: 0,
+              fontFamily: 'inherit',
             }}
           >
             {ALLOC_LABELS[allocType]}
             <ChevronDown
               size={14}
               style={{
-                color: 'var(--ink-muted)', flexShrink: 0,
+                color: 'var(--ink-muted)',
+                flexShrink: 0,
                 transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: 'transform .15s',
               }}
@@ -315,26 +247,36 @@ export function AllocationCard({
 
           {open && (
             <>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
               <div
-                style={{ position: 'fixed', inset: 0, zIndex: 49 }}
-                onClick={() => setOpen(false)}
-              />
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
-                background: 'var(--surface)', border: '1px solid var(--ink-3)',
-                borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.10)',
-                minWidth: 200, padding: '4px 0',
-              }}>
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  left: 0,
+                  zIndex: 50,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--ink-3)',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.10)',
+                  minWidth: 200,
+                  padding: '4px 0',
+                }}
+              >
                 {(Object.keys(ALLOC_LABELS) as AllocationType[]).map((t) => (
                   <button
                     key={t}
                     onClick={() => changeType(t)}
                     style={{
-                      display: 'block', width: '100%', textAlign: 'left',
-                      padding: '8px 12px', fontSize: 13,
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '8px 12px',
+                      fontSize: 13,
                       background: t === allocType ? 'var(--bg-sunken)' : 'none',
-                      border: 'none', cursor: 'pointer',
-                      color: 'var(--ink)', fontWeight: t === allocType ? 500 : 400,
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--ink)',
+                      fontWeight: t === allocType ? 500 : 400,
                       fontFamily: 'inherit',
                     }}
                   >
@@ -348,14 +290,11 @@ export function AllocationCard({
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 16px' }}>
-        <Donut
-          segments={donutSegments}
-          formatValue={(v) => displayPrice(v, selectedCurrency)}
-        />
+        <Donut segments={donutSegments} formatValue={(v) => displayPrice(v, selectedCurrency)} />
       </div>
 
-      <div ref={listRef} className="alloc-list">
-        {displayedActive.map((item) => {
+      <div className="alloc-list">
+        {active.map((item) => {
           const pct = activeTotal > 0 ? (item.value / activeTotal) * 100 : 0
           return (
             <button
@@ -363,8 +302,13 @@ export function AllocationCard({
               className="alloc-row"
               onClick={() => toggle(item.key)}
               style={{
-                display: 'grid', cursor: 'pointer',
-                background: 'none', border: 'none', padding: 0, width: '100%', textAlign: 'left',
+                display: 'grid',
+                cursor: 'pointer',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                width: '100%',
+                textAlign: 'left',
               }}
             >
               <div className="swatch" style={{ background: item.color }} />
@@ -377,61 +321,27 @@ export function AllocationCard({
           )
         })}
 
-        {displayedInactive.length > 0 && (
-          <>
-            {displayedActive.length > 0 && <div style={{ height: 1, margin: '4px 0' }} />}
-            {displayedInactive.map((item) => (
-              <button
-                key={item.key}
-                className="alloc-row"
-                onClick={() => toggle(item.key)}
-                style={{
-                  display: 'grid', opacity: 0.38, cursor: 'pointer',
-                  background: 'none', border: 'none', padding: 0, width: '100%', textAlign: 'left',
-                }}
-              >
-                <div className="swatch" style={{ background: 'var(--ink-faint)' }} />
-                <div className="alloc-name">{item.label}</div>
-                <div className="alloc-pct">—</div>
-              </button>
-            ))}
-          </>
-        )}
-
-        {showListButton && (
+        {inactive.map((item) => (
           <button
-            ref={expandButtonRef}
-            type="button"
-            onClick={() => setListExpanded((value) => !value)}
+            key={item.key}
+            className="alloc-row"
+            onClick={() => toggle(item.key)}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              width: '100%',
-              minHeight: 34,
-              padding: '8px 12px',
-              borderRadius: 8,
-              border: '1px solid var(--ink-3)',
-              background: 'var(--surface-2)',
-              color: 'var(--ink-muted)',
+              display: 'grid',
+              opacity: 0.38,
               cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 12,
-              fontWeight: 500,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              width: '100%',
+              textAlign: 'left',
             }}
           >
-            {listExpanded ? 'Collapse' : `View all ${totalListCount} items`}
-            <ChevronDown
-              size={13}
-              style={{
-                flexShrink: 0,
-                transform: listExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform .15s',
-              }}
-            />
+            <div className="swatch" style={{ background: 'var(--ink-faint)' }} />
+            <div className="alloc-name">{item.label}</div>
+            <div className="alloc-pct">—</div>
           </button>
-        )}
+        ))}
       </div>
     </div>
   )

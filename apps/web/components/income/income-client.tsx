@@ -324,7 +324,6 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
                 }}
               >
                 <SlidersHorizontal size={11} />
-                Sort
                 {sort !== DEFAULT_SORT && (
                   <span style={{ fontSize: 10, opacity: 0.65 }}>· {SORT_LABELS[sort]}</span>
                 )}

@@ -156,8 +156,8 @@ export function HoldingsList({
               <th>Asset</th>
               <th>Portfolio</th>
               <th className="num">Price</th>
-              <th className="num">Change</th>
               <th className="num">Value</th>
+              <th className="num">Change</th>
               <th className="num">Share</th>
             </tr>
           </thead>
@@ -241,6 +241,9 @@ export function HoldingsList({
                     )}
                     <MoneyText value={price} currency={priceCcy} loading={loading} skelWidth={60} />
                   </td>
+                  <td data-label="Value" className="num" style={{ fontWeight: 600 }}>
+                    <MoneyText value={value} currency={selectedCurrency} loading={loading} skelWidth={70} />
+                  </td>
                   <td data-label="Change" className="num">
                     {hasChange ? (
                       <span className={`holding-change-stack ${isPositive ? 'pos' : 'neg'}`}>
@@ -260,9 +263,6 @@ export function HoldingsList({
                     ) : (
                       ''
                     )}
-                  </td>
-                  <td data-label="Value" className="num" style={{ fontWeight: 600 }}>
-                    <MoneyText value={value} currency={selectedCurrency} loading={loading} skelWidth={70} />
                   </td>
                   <td data-label="Share" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                     {share !== null ? `${share.toFixed(1)}%` : '—'}

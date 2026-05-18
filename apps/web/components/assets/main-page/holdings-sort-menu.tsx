@@ -34,7 +34,6 @@ export function HoldingsSortMenu({ sortBy, onChange }: Props) {
         }}
       >
         <SlidersHorizontal size={11} />
-        Sort
         {sortBy !== 'value-desc' && (
           <span style={{ fontSize: 10, opacity: 0.65 }}>· {SORT_LABELS[sortBy]}</span>
         )}
