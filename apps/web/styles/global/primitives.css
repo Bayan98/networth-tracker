@@ -12,24 +12,49 @@
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.005em;
-  transition: transform .06s ease, background .12s, color .12s;
+  transition:
+    transform 0.06s ease,
+    background 0.12s,
+    color 0.12s;
   border: none;
   cursor: pointer;
   font-family: var(--font-sans);
   white-space: nowrap;
 }
-.btn:active { transform: translateY(1px); }
+.btn:active {
+  transform: translateY(1px);
+}
 .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
-  transition: background var(--dur-fast) var(--ease-out), transform .06s ease;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    transform 0.06s ease;
 }
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-secondary { background: var(--surface); border: 1px solid var(--rule); color: var(--ink); }
-.btn-secondary:hover { background: var(--bg-sunken); }
-.btn-ghost { color: var(--ink-2); background: none; border: 1px solid transparent; }
-.btn-ghost:hover { background: var(--surface-2); color: var(--ink); }
-.btn:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+.btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+.btn-secondary:hover {
+  background: var(--bg-sunken);
+}
+.btn-ghost {
+  color: var(--ink-2);
+  background: none;
+  border: 1px solid transparent;
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
 
 .card {
   background: var(--surface);
@@ -44,8 +69,15 @@
   margin-bottom: 16px;
   gap: 12px;
 }
-.card-head h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
-.card-head .sub { font-size: 12px; color: var(--ink-faint); }
+.card-head h3 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.card-head .sub {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
 
 .ds-field-label {
   display: block;
@@ -64,7 +96,9 @@
   color: var(--ink);
   font-size: 13px;
   outline: none;
-  transition: border-color .12s, box-shadow .12s;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
   -webkit-appearance: none;
 }
 .ds-field {
@@ -78,7 +112,7 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .ds-field:disabled {
-  opacity: .6;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 .ds-section-head {
@@ -197,7 +231,9 @@
   gap: 2px;
 }
 .ds-segmented,
-.segmented { border: 1px solid var(--rule); }
+.segmented {
+  border: 1px solid var(--rule);
+}
 .ds-segmented button,
 .segmented button,
 .toggle-row button {
@@ -206,7 +242,9 @@
   border: none;
   background: none;
   cursor: pointer;
-  transition: background .12s, color .12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 .ds-segmented button,
 .segmented button {
@@ -219,7 +257,9 @@
   border-radius: var(--radius-sm);
   text-transform: uppercase;
 }
-.ds-segmented button:hover { color: var(--ink); }
+.ds-segmented button:hover {
+  color: var(--ink);
+}
 .ds-segmented button.active {
   background: var(--ink);
   color: var(--bg);
@@ -235,13 +275,20 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   border: 1px solid var(--rule);
-  transition: transform .1s ease, border-color .12s, box-shadow .12s;
+  transition:
+    transform 0.1s ease,
+    border-color 0.12s,
+    box-shadow 0.12s;
   padding: 0;
 }
-.ds-swatch:hover { transform: translateY(-1px); }
+.ds-swatch:hover {
+  transform: translateY(-1px);
+}
 .ds-swatch.active {
   border-color: var(--ink);
-  box-shadow: 0 0 0 2px var(--bg) inset, 0 0 0 2px var(--ink);
+  box-shadow:
+    0 0 0 2px var(--bg) inset,
+    0 0 0 2px var(--ink);
 }
 .ds-switch {
   position: relative;
@@ -252,10 +299,12 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  transition: background .15s;
+  transition: background 0.15s;
   flex-shrink: 0;
 }
-.ds-switch.on { background: var(--accent); }
+.ds-switch.on {
+  background: var(--accent);
+}
 .ds-switch::after {
   content: "";
   position: absolute;
@@ -265,10 +314,12 @@
   height: 20px;
   border-radius: 50%;
   background: var(--bg);
-  box-shadow: 0 1px 3px rgba(26, 24, 19, .25);
-  transition: transform .15s;
+  box-shadow: 0 1px 3px rgba(26, 24, 19, 0.25);
+  transition: transform 0.15s;
 }
-.ds-switch.on::after { transform: translateX(20px); }
+.ds-switch.on::after {
+  transform: translateX(20px);
+}
 .ds-progress {
   height: 2px;
   background: var(--rule);
@@ -287,8 +338,12 @@
     grid-template-columns: 1fr;
     gap: 4px;
   }
-  .ds-section-title { font-size: 22px; }
-  .ds-section-meta { display: none; }
+  .ds-section-title {
+    font-size: 22px;
+  }
+  .ds-section-meta {
+    display: none;
+  }
   .ds-segmented {
     display: flex;
     width: 100%;
@@ -310,11 +365,24 @@
   font-weight: 500;
   font-family: var(--font-sans);
 }
-.segmented button:hover { color: var(--ink); }
-.segmented button.active { background: var(--bg); color: var(--ink); box-shadow: var(--shadow-sm); }
+.segmented button:hover {
+  color: var(--ink);
+}
+.segmented button.active {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
 @media (max-width: 720px) {
-  .segmented { display: flex; width: 100%; }
-  .segmented button { flex: 1; text-align: center; padding: 7px 4px; }
+  .segmented {
+    display: flex;
+    width: 100%;
+  }
+  .segmented button {
+    flex: 1;
+    text-align: center;
+    padding: 7px 4px;
+  }
 }
 
 .delta-pill {
@@ -327,8 +395,47 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
-.delta-pill.pos { color: var(--pos); background: color-mix(in oklch, var(--pos) 12%, transparent); }
-.delta-pill.neg { color: var(--neg); background: color-mix(in oklch, var(--neg) 12%, transparent); }
+.delta-pill.pos {
+  color: var(--pos);
+  background: color-mix(in oklch, var(--pos) 12%, transparent);
+}
+.delta-pill.neg {
+  color: var(--neg);
+  background: color-mix(in oklch, var(--neg) 12%, transparent);
+}
+.holdings-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.holdings-change-period button {
+  min-width: 40px;
+}
+.holding-change-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.holding-change-stack > span:first-child {
+  font-weight: 500;
+  align-self: flex-end;
+}
+.holding-change-stack > span:last-child {
+  color: color-mix(in oklch, currentColor 72%, var(--ink-muted));
+}
+.holding-change-stack.pos {
+  color: var(--pos);
+}
+.holding-change-stack.neg {
+  color: var(--neg);
+}
 
 .pill-ghost {
   display: inline-flex;
@@ -360,20 +467,34 @@
   vertical-align: middle;
 }
 @keyframes skel-shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 .skel-row {
   opacity: 0;
   transform: translateY(4px);
-  animation: skel-row-in .35s var(--cd, 0s) ease-out forwards;
+  animation: skel-row-in 0.35s var(--cd, 0s) ease-out forwards;
 }
 @keyframes skel-row-in {
-  to { opacity: 1; transform: none; }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .skel { animation: none; background: var(--border); }
-  .skel-row { animation: none; opacity: 1; transform: none; }
+  .skel {
+    animation: none;
+    background: var(--border);
+  }
+  .skel-row {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ════════════════════════════════════════════════
@@ -416,13 +537,19 @@
   stroke-linejoin: round;
   stroke-dasharray: 80 920;
   stroke-dashoffset: 1000;
-  filter: drop-shadow(0 0 6px color-mix(in oklch, var(--accent) 35%, transparent));
+  filter: drop-shadow(
+    0 0 6px color-mix(in oklch, var(--accent) 35%, transparent)
+  );
   vector-effect: non-scaling-stroke;
-  animation: chart-line-trace 2s cubic-bezier(.5, 0, .5, 1) infinite;
+  animation: chart-line-trace 2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
 }
 @keyframes chart-line-trace {
-  0%   { stroke-dashoffset: 1000; }
-  100% { stroke-dashoffset: 0; }
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .chart-line-loading .cll-trace {

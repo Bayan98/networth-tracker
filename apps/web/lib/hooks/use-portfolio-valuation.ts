@@ -21,6 +21,10 @@ export interface AssetValuation {
   periodStartValue: number | null
   priceReturnAbs: number | null
   priceReturnPct: number | null
+  totalReturnAbs: number | null
+  totalReturnPct: number | null
+  todayReturnAbs: number | null
+  todayReturnPct: number | null
 }
 
 interface Options {
@@ -30,18 +34,8 @@ interface Options {
   replaceLiveCostBasis?: boolean
 }
 
-export function usePortfolioValuation(
-  assets: Asset[],
-  period: Period,
-  displayCurrency: string,
-  options: Options = {},
-) {
-  const {
-    quantityOverrides,
-    missingQuantityFallback = 0,
-    priceAssets = assets,
-    replaceLiveCostBasis = true,
-  } = options
+export function usePortfolioValuation(assets: Asset[], period: Period, displayCurrency: string, options: Options = {}) {
+  const { quantityOverrides, missingQuantityFallback = 0, priceAssets = assets, replaceLiveCostBasis = true } = options
 
   const priceItems = priceAssets
     .filter((h) => h.symbol && PRICEABLE_TYPES.has(h.asset_type))
@@ -50,70 +44,79 @@ export function usePortfolioValuation(
 
   const history = usePortfolioHistory(assets, period, displayCurrency)
 
-  const valuations = useMemo<AssetValuation[]>(() => assets.map((asset) => {
-    const overrideQty = quantityOverrides?.[asset.id]
-    const hookQty = history.quantityPerAsset[asset.id]
-    const qty = overrideQty !== undefined
-      ? overrideQty
-      : hookQty !== undefined
-      ? hookQty
-      : missingQuantityFallback
-    const avgCost = history.avgCostPerAsset[asset.id] ?? 0
-    const valuation = calculateHoldingValuation({
-      asset,
+  const valuations = useMemo<AssetValuation[]>(
+    () =>
+      assets.map((asset) => {
+        const overrideQty = quantityOverrides?.[asset.id]
+        const hookQty = history.quantityPerAsset[asset.id]
+        const qty = overrideQty !== undefined ? overrideQty : hookQty !== undefined ? hookQty : missingQuantityFallback
+        const avgCost = history.avgCostPerAsset[asset.id] ?? 0
+        const valuation = calculateHoldingValuation({
+          asset,
+          prices,
+          priceCurrencies: currencies,
+          quantity: qty,
+          averageCost: avgCost,
+          periodStartPrice: history.startPricePerAsset[asset.id] ?? null,
+          todayFx: history.todayFx,
+        })
+        const oneDayValuation = calculateHoldingValuation({
+          asset,
+          prices,
+          priceCurrencies: currencies,
+          quantity: qty,
+          averageCost: avgCost,
+          periodStartPrice: history.prevDayPricePerAsset[asset.id] ?? null,
+          todayFx: history.todayFx,
+        })
+        const totalReturnAbs =
+          valuation.currentValue !== null && valuation.costBasis !== null
+            ? valuation.currentValue - valuation.costBasis
+            : null
+        const totalReturnPct = safePercentChange(totalReturnAbs, valuation.costBasis)
+
+        return {
+          asset,
+          source: valuation.source,
+          qty: valuation.quantity,
+          avgCost: valuation.averageCost,
+          price: valuation.currentPrice,
+          priceCcy: valuation.currentPriceCurrency,
+          value: valuation.currentValue,
+          costBasis: valuation.costBasis,
+          periodStartPrice: valuation.periodStartPrice,
+          periodStartValue: valuation.periodStartValue,
+          priceReturnAbs: valuation.priceReturnAbs,
+          priceReturnPct: valuation.priceReturnPct,
+          totalReturnAbs,
+          totalReturnPct,
+          todayReturnAbs: oneDayValuation.priceReturnAbs,
+          todayReturnPct: oneDayValuation.priceReturnPct,
+        }
+      }),
+    [
+      assets,
       prices,
-      priceCurrencies: currencies,
-      quantity: qty,
-      averageCost: avgCost,
-      periodStartPrice: history.startPricePerAsset[asset.id] ?? null,
-      todayFx: history.todayFx,
-    })
-
-    return {
-      asset,
-      source: valuation.source,
-      qty: valuation.quantity,
-      avgCost: valuation.averageCost,
-      price: valuation.currentPrice,
-      priceCcy: valuation.currentPriceCurrency,
-      value: valuation.currentValue,
-      costBasis: valuation.costBasis,
-      periodStartPrice: valuation.periodStartPrice,
-      periodStartValue: valuation.periodStartValue,
-      priceReturnAbs: valuation.priceReturnAbs,
-      priceReturnPct: valuation.priceReturnPct,
-    }
-  }), [
-    assets,
-    prices,
-    quantityOverrides,
-    history.quantityPerAsset,
-    missingQuantityFallback,
-    history.avgCostPerAsset,
-    currencies,
-    history.todayFx,
-    history.startPricePerAsset,
-  ])
-
-  const enriched = useMemo(
-    () => valuations.map(({ asset, value }) => ({ asset, value })),
-    [valuations],
+      quantityOverrides,
+      history.quantityPerAsset,
+      missingQuantityFallback,
+      history.avgCostPerAsset,
+      currencies,
+      history.todayFx,
+      history.startPricePerAsset,
+      history.prevDayPricePerAsset,
+    ],
   )
 
-  const totalValue = useMemo(
-    () => valuations.reduce((sum, e) => sum + (e.value ?? 0), 0),
-    [valuations],
-  )
+  const enriched = useMemo(() => valuations.map(({ asset, value }) => ({ asset, value })), [valuations])
 
-  const totalCostBasis = useMemo(
-    () => valuations.reduce((sum, e) => sum + (e.costBasis ?? 0), 0),
-    [valuations],
-  )
+  const totalValue = useMemo(() => valuations.reduce((sum, e) => sum + (e.value ?? 0), 0), [valuations])
+
+  const totalCostBasis = useMemo(() => valuations.reduce((sum, e) => sum + (e.costBasis ?? 0), 0), [valuations])
 
   const totalGainAbs = totalValue !== null && totalCostBasis !== null ? totalValue - totalCostBasis : null
-  const totalGainPct = totalCostBasis !== null && totalCostBasis > 0
-    ? safePercentChange(totalGainAbs, totalCostBasis)
-    : null
+  const totalGainPct =
+    totalCostBasis !== null && totalCostBasis > 0 ? safePercentChange(totalGainAbs, totalCostBasis) : null
 
   const liveSeries = useMemo<SeriesPoint[]>(() => {
     if (history.series.length === 0 || totalValue === null || pricesLoading) return history.series
@@ -131,19 +134,15 @@ export function usePortfolioValuation(
   }, [history.series, totalValue, totalCostBasis, pricesLoading, replaceLiveCostBasis])
 
   const periodStartValue = liveSeries.length >= 2 ? liveSeries[0].marketValue : 0
-  const periodChangeAbs = liveSeries.length >= 2
-    ? liveSeries[liveSeries.length - 1].marketValue - periodStartValue
-    : null
-  const periodChangePct = periodStartValue > 0
-    ? safePercentChange(periodChangeAbs, periodStartValue)
-    : null
+  const periodChangeAbs =
+    liveSeries.length >= 2 ? liveSeries[liveSeries.length - 1].marketValue - periodStartValue : null
+  const periodChangePct = periodStartValue > 0 ? safePercentChange(periodChangeAbs, periodStartValue) : null
 
-  const todayChangeAbs = totalValue !== null && history.prevDayValue !== null
-    ? totalValue - history.prevDayValue
-    : null
-  const todayChangePct = history.prevDayValue !== null && history.prevDayValue > 0
-    ? safePercentChange(todayChangeAbs, history.prevDayValue)
-    : null
+  const todayChangeAbs = totalValue !== null && history.prevDayValue !== null ? totalValue - history.prevDayValue : null
+  const todayChangePct =
+    history.prevDayValue !== null && history.prevDayValue > 0
+      ? safePercentChange(todayChangeAbs, history.prevDayValue)
+      : null
 
   return {
     valuations,

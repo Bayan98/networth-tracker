@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAppStore } from '@/lib/store'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { ASSET_TYPE_LABELS } from '@networth/utils'
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
+import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import { DashboardChart } from '@/components/charts/dashboard-chart'
 import { AllocationCard } from '@/components/ui/allocation-card'
 import type { Enriched } from '@/components/ui/allocation-card'
@@ -30,51 +31,99 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
 
   const [period, setPeriod] = useState<Period>('1y')
 
-  const { enriched, totalValue, liveSeries, chartLoading, periodIncome } = usePortfolioValuation(
-    assets,
-    period,
+  const {
+    enriched,
+    totalValue,
+    liveSeries,
+    loading: valuationLoading,
+    chartLoading,
+    periodIncome,
+  } = usePortfolioValuation(assets, period, selectedCurrency, {
+    quantityOverrides: quantityPerAsset,
+    missingQuantityFallback: 0,
+    replaceLiveCostBasis: false,
+  })
+  const activeDebtsList = useMemo(() => debts.filter((debt) => debt.is_active), [debts])
+  const { fx: debtFx, loading: debtFxLoading } = useTodayFx(
+    activeDebtsList.map((debt) => ({ currency: debt.currency })),
     selectedCurrency,
-    {
-      quantityOverrides: quantityPerAsset,
-      missingQuantityFallback: 0,
-      replaceLiveCostBasis: false,
-    },
   )
+
+  const totalDebts = useMemo(() => {
+    let total = 0
+    for (const debt of activeDebtsList) {
+      const rate = debtFx(debt.currency)
+      if (rate === null) return null
+      total += Number(debt.current_balance) * rate
+    }
+    return total
+  }, [activeDebtsList, debtFx])
+
+  const netWorth = totalDebts === null ? null : totalValue - totalDebts
 
   const pricedPositions = enriched.filter((item) => item.value !== null && item.value > 0).length
   const activePortfolios = new Set(assets.map((asset) => asset.portfolio_id).filter(Boolean)).size
   const activeCurrencies = new Set(assets.map((asset) => asset.currency)).size
-  const activeDebts = debts.filter((debt) => debt.is_active).length
+  const activeDebts = activeDebtsList.length
+  const currentTotalsLoading = valuationLoading || debtFxLoading
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--density-gap)',
+      }}
+    >
       <DashboardChart
         series={liveSeries}
         currency={selectedCurrency}
         loading={chartLoading}
         period={period}
         onPeriodChange={setPeriod}
-        totalValue={totalValue}
+        netWorth={netWorth}
+        totalDebts={totalDebts}
+        currentTotalsLoading={currentTotalsLoading}
         periodIncome={periodIncome}
         height={420}
       />
 
       <div className="three-col">
-        <AllocationCard defaultType="category" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
-        <AllocationCard defaultType="portfolio" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
-        <AllocationCard defaultType="currency" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
+        <AllocationCard
+          defaultType="category"
+          enriched={enriched}
+          portfolios={portfolios}
+          selectedCurrency={selectedCurrency}
+        />
+        <AllocationCard
+          defaultType="portfolio"
+          enriched={enriched}
+          portfolios={portfolios}
+          selectedCurrency={selectedCurrency}
+        />
+        <AllocationCard
+          defaultType="currency"
+          enriched={enriched}
+          portfolios={portfolios}
+          selectedCurrency={selectedCurrency}
+        />
       </div>
 
       <div className="ledger-strip" aria-label="Overview summary">
         <div className="ledger-item">
           <span className="ledger-label">Positions</span>
           <strong className="ledger-value">{pricedPositions}</strong>
-          <div className="ledger-note">{assets.length} tracked holding{assets.length !== 1 ? 's' : ''}</div>
+          <div className="ledger-note">
+            {assets.length} tracked holding{assets.length !== 1 ? 's' : ''}
+          </div>
         </div>
         <div className="ledger-item">
           <span className="ledger-label">Portfolios</span>
           <strong className="ledger-value">{activePortfolios}</strong>
-          <div className="ledger-note">{portfolios.length} account group{portfolios.length !== 1 ? 's' : ''}</div>
+          <div className="ledger-note">
+            {portfolios.length} account group
+            {portfolios.length !== 1 ? 's' : ''}
+          </div>
         </div>
         <div className="ledger-item">
           <span className="ledger-label">Currencies</span>
@@ -90,16 +139,18 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
 
       <div className="bottom-row">
         <TopPositions enriched={enriched} selectedCurrency={selectedCurrency} />
-        <AllocationCard defaultType="assets" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
+        <AllocationCard
+          defaultType="assets"
+          enriched={enriched}
+          portfolios={portfolios}
+          selectedCurrency={selectedCurrency}
+        />
       </div>
     </div>
   )
 }
 
-function TopPositions({ enriched, selectedCurrency }: {
-  enriched: Enriched[]
-  selectedCurrency: CurrencyCode
-}) {
+function TopPositions({ enriched, selectedCurrency }: { enriched: Enriched[]; selectedCurrency: CurrencyCode }) {
   const { displayPrice } = useAmountDisplay()
   const sorted = [...enriched]
     .filter((e) => e.value !== null)
@@ -110,7 +161,9 @@ function TopPositions({ enriched, selectedCurrency }: {
     <div className="table-wrap">
       <div className="ds-positions-head">
         <div>
-          <h3>Top <em>positions</em></h3>
+          <h3>
+            Top <em>positions</em>
+          </h3>
           <span className="ds-positions-meta">Sorted by value</span>
         </div>
         <Link href="/assets" style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
@@ -118,37 +171,87 @@ function TopPositions({ enriched, selectedCurrency }: {
         </Link>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', padding: '8px var(--density-pad-x)' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '8px var(--density-pad-x)',
+        }}
+      >
         {sorted.map(({ asset, value }) => (
           <Link
             key={asset.id}
             href={`/assets/${asset.id}`}
             style={{
-              display: 'grid', gridTemplateColumns: '32px 1fr auto',
-              alignItems: 'center', gap: 12,
-              padding: '10px 0', borderBottom: '1px solid var(--ink-3)',
-              cursor: 'pointer', transition: 'opacity .1s',
-              color: 'inherit', textDecoration: 'none',
+              display: 'grid',
+              gridTemplateColumns: '32px 1fr auto',
+              alignItems: 'center',
+              gap: 12,
+              padding: '10px 0',
+              borderBottom: '1px solid var(--ink-3)',
+              cursor: 'pointer',
+              transition: 'opacity .1s',
+              color: 'inherit',
+              textDecoration: 'none',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            <AssetAvatar symbol={asset.symbol} assetType={asset.asset_type} name={asset.asset_name} size={32} borderRadius={8} />
+            <AssetAvatar
+              symbol={asset.symbol}
+              assetType={asset.asset_type}
+              name={asset.asset_name}
+              size={32}
+              borderRadius={8}
+            />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: '-0.005em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  letterSpacing: '-0.005em',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {asset.asset_name}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--ink-faint)',
+                  fontFamily: 'var(--font-mono)',
+                  marginTop: 1,
+                }}
+              >
                 {asset.symbol ?? ASSET_TYPE_LABELS[asset.asset_type]}
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 13,
+                fontWeight: 500,
+                fontVariantNumeric: 'tabular-nums',
+                flexShrink: 0,
+              }}
+            >
               {displayPrice(value, selectedCurrency)}
             </div>
           </Link>
         ))}
         {sorted.length === 0 && (
-          <p style={{ fontSize: 13, color: 'var(--ink-muted)', padding: '16px 0', margin: 0 }}>No assets yet.</p>
+          <p
+            style={{
+              fontSize: 13,
+              color: 'var(--ink-muted)',
+              padding: '16px 0',
+              margin: 0,
+            }}
+          >
+            No assets yet.
+          </p>
         )}
       </div>
     </div>

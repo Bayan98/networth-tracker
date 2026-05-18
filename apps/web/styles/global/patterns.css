@@ -71,6 +71,13 @@
 }
 .page-head h1 em { font-style: normal; font-weight: 400; color: var(--accent); }
 .page-head p { font-size: 14px; color: var(--ink-muted); margin-top: 6px; max-width: 540px; }
+.assets-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 .page-kicker {
   font-family: var(--font-mono);
@@ -102,6 +109,10 @@
   .page-head > :first-child { flex: 1 1 100%; }
   /* primary action becomes a full-width button under the heading */
   .page-head > .btn { flex: 1 1 100%; justify-content: center; min-height: 42px; }
+  .assets-head-actions { width: 100%; align-items: stretch; }
+  .assets-head-actions > .relative { flex: 1 1 auto; }
+  .assets-head-actions > .relative > button,
+  .assets-head-actions > .btn { width: 100%; justify-content: center; min-height: 42px; }
   /* action cluster on the asset detail header — full-width row, More stays compact */
   .asset-head-actions { width: 100%; }
   .asset-head-actions > .btn { flex: 1; }
@@ -622,7 +633,7 @@
 }
 
 /* ════════════════════════════════════════════════
-   Portfolio chart header (net worth + period income)
+   Portfolio chart header
    ════════════════════════════════════════════════ */
 .chart-header {
   padding: var(--density-pad-y) var(--density-pad-x) 20px;
@@ -635,7 +646,7 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: flex-end;
   column-gap: clamp(24px, 4vw, 56px);
   row-gap: 18px;
@@ -1240,10 +1251,10 @@
   color: var(--accent-hover);
 }
 .overview-source-links {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 .overview-source-part {
   display: inline-flex;

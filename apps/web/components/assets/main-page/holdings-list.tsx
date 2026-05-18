@@ -11,19 +11,32 @@ import { SkeletonTableRows } from '@/components/ui/skeleton'
 import { Swatch, type RowTone } from '@/components/ui/tone-badge'
 import { HoldingsSortMenu, type SortKey } from './holdings-sort-menu'
 
+export type HoldingsChangePeriod = 'total' | '1d' | '1w' | '1m' | '1y' | '5y'
+
+const CHANGE_PERIOD_LABELS: Record<HoldingsChangePeriod, string> = {
+  total: 'Total',
+  '1d': '1D',
+  '1w': '1W',
+  '1m': '1M',
+  '1y': '1Y',
+  '5y': '5Y',
+}
+const CHANGE_PERIODS = Object.keys(CHANGE_PERIOD_LABELS) as HoldingsChangePeriod[]
+
 const SORT_LABELS: Record<SortKey, string> = {
-  'alpha':      'name',
+  alpha: 'name',
   'value-desc': 'value',
-  'value-asc':  'value · ascending',
-  'abs-gain':   'absolute gain',
-  'abs-loss':   'absolute loss',
-  'rel-gain':   'relative gain',
-  'rel-loss':   'relative loss',
+  'value-asc': 'value · ascending',
+  'abs-gain': 'absolute gain',
+  'abs-loss': 'absolute loss',
+  'rel-gain': 'relative gain',
+  'rel-loss': 'relative loss',
 }
 
-function priceReturnTone(pct: number | null): RowTone {
-  if (pct === null) return 'neutral'
-  return pct >= 0 ? 'pos' : 'neg'
+function priceReturnTone(abs: number | null, pct: number | null): RowTone {
+  const value = abs ?? pct
+  if (value === null) return 'neutral'
+  return value >= 0 ? 'pos' : 'neg'
 }
 
 interface Props {
@@ -33,6 +46,8 @@ interface Props {
   totalValue: number | null
   selectedCurrency: CurrencyCode
   loading: boolean
+  changePeriod: HoldingsChangePeriod
+  onChangePeriod: (period: HoldingsChangePeriod) => void
   onAssetClick: (assetId: string) => void
   onAddAsset?: () => void
 }
@@ -44,22 +59,35 @@ export function HoldingsList({
   totalValue,
   selectedCurrency,
   loading,
+  changePeriod,
+  onChangePeriod,
   onAssetClick,
   onAddAsset,
 }: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('value-desc')
   const { hideAmounts } = useAmountDisplay()
-  const sorted = useMemo(() => [...valuations].sort((a, b) => {
-    switch (sortBy) {
-      case 'alpha':      return a.asset.asset_name.localeCompare(b.asset.asset_name)
-      case 'value-desc': return (b.value ?? 0) - (a.value ?? 0)
-      case 'value-asc':  return (a.value ?? 0) - (b.value ?? 0)
-      case 'abs-gain':   return (b.priceReturnAbs ?? 0) - (a.priceReturnAbs ?? 0)
-      case 'abs-loss':   return (a.priceReturnAbs ?? 0) - (b.priceReturnAbs ?? 0)
-      case 'rel-gain':   return (b.priceReturnPct ?? 0) - (a.priceReturnPct ?? 0)
-      case 'rel-loss':   return (a.priceReturnPct ?? 0) - (b.priceReturnPct ?? 0)
-    }
-  }), [sortBy, valuations])
+  const sorted = useMemo(
+    () =>
+      [...valuations].sort((a, b) => {
+        switch (sortBy) {
+          case 'alpha':
+            return a.asset.asset_name.localeCompare(b.asset.asset_name)
+          case 'value-desc':
+            return (b.value ?? 0) - (a.value ?? 0)
+          case 'value-asc':
+            return (a.value ?? 0) - (b.value ?? 0)
+          case 'abs-gain':
+            return (b.priceReturnAbs ?? 0) - (a.priceReturnAbs ?? 0)
+          case 'abs-loss':
+            return (a.priceReturnAbs ?? 0) - (b.priceReturnAbs ?? 0)
+          case 'rel-gain':
+            return (b.priceReturnPct ?? 0) - (a.priceReturnPct ?? 0)
+          case 'rel-loss':
+            return (a.priceReturnPct ?? 0) - (b.priceReturnPct ?? 0)
+        }
+      }),
+    [sortBy, valuations],
+  )
 
   const isFirstRunEmpty = !loading && assetsCount === 0
 
@@ -72,8 +100,8 @@ export function HoldingsList({
         <div className="empty-state-text">
           <h2>No assets yet</h2>
           <p>
-            Add a position — stocks, crypto, real estate, or cash — to start
-            tracking value, cost basis, and performance.
+            Add a position — stocks, crypto, real estate, or cash — to start tracking value, cost basis, and
+            performance.
           </p>
         </div>
         {onAddAsset && (
@@ -89,12 +117,28 @@ export function HoldingsList({
     <div className="table-wrap">
       <div className="ds-positions-head" style={{ flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
-          <h3>Holdings <em>register</em></h3>
+          <h3>
+            Holdings <em>register</em>
+          </h3>
           <p className="ds-positions-meta" style={{ margin: '6px 0 0' }}>
             {valuations.length} of {assetsCount} · sorted by {SORT_LABELS[sortBy]}
           </p>
         </div>
-        {valuations.length > 1 && <HoldingsSortMenu sortBy={sortBy} onChange={setSortBy} />}
+        <div className="holdings-head-actions">
+          <div className="segmented holdings-change-period" aria-label="Change period">
+            {CHANGE_PERIODS.map((periodOption) => (
+              <button
+                key={periodOption}
+                type="button"
+                className={changePeriod === periodOption ? 'active' : ''}
+                onClick={() => onChangePeriod(periodOption)}
+              >
+                {CHANGE_PERIOD_LABELS[periodOption]}
+              </button>
+            ))}
+          </div>
+          {valuations.length > 1 && <HoldingsSortMenu sortBy={sortBy} onChange={setSortBy} />}
+        </div>
       </div>
 
       {loading && valuations.length === 0 ? (
@@ -120,15 +164,13 @@ export function HoldingsList({
           <tbody>
             {sorted.map(({ asset, qty, price, priceCcy, value, priceReturnAbs, priceReturnPct }) => {
               const portfolio = asset.portfolio_id ? portfolioMap[asset.portfolio_id] : null
-              const isPositive = priceReturnAbs !== null && priceReturnAbs >= 0
+              const isPositive = (priceReturnAbs ?? priceReturnPct ?? 0) >= 0
               const share = totalValue && value !== null ? (value / totalValue) * 100 : null
-              const tone = priceReturnTone(priceReturnPct)
+              const tone = priceReturnTone(priceReturnAbs, priceReturnPct)
+              const hasChange =
+                (priceReturnAbs !== null && priceReturnAbs !== 0) || (priceReturnPct !== null && priceReturnPct !== 0)
               return (
-                <tr
-                  key={asset.id}
-                  onClick={() => onAssetClick(asset.id)}
-                  style={{ cursor: 'pointer' }}
-                >
+                <tr key={asset.id} onClick={() => onAssetClick(asset.id)} style={{ cursor: 'pointer' }}>
                   <td>
                     <Link
                       href={`/assets/${asset.id}`}
@@ -150,27 +192,38 @@ export function HoldingsList({
                         size={32}
                         borderRadius={8}
                       />
-                      <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        gap: 2,
-                        minWidth: 0,
-                      }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          gap: 2,
+                          minWidth: 0,
+                        }}
+                      >
                         <div style={{ fontWeight: 500, fontSize: 13 }}>
                           {asset.symbol ?? asset.asset_name}
                           {asset.symbol && (
-                            <span style={{ fontWeight: 400, color: 'var(--ink-muted)', marginLeft: 6, fontSize: 12 }}>
+                            <span
+                              style={{
+                                fontWeight: 400,
+                                color: 'var(--ink-muted)',
+                                marginLeft: 6,
+                                fontSize: 12,
+                              }}
+                            >
                               {asset.asset_name}
                             </span>
                           )}
                         </div>
-                        <div style={{
-                          fontSize: 11,
-                          color: 'var(--ink-faint)',
-                          fontFamily: 'var(--font-mono)',
-                          letterSpacing: '-0.005em',
-                        }}>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--ink-faint)',
+                            fontFamily: 'var(--font-mono)',
+                            letterSpacing: '-0.005em',
+                          }}
+                        >
                           {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
                         </div>
                       </div>
@@ -189,11 +242,24 @@ export function HoldingsList({
                     <MoneyText value={price} currency={priceCcy} loading={loading} skelWidth={60} />
                   </td>
                   <td data-label="Change" className="num">
-                    {priceReturnAbs !== null && priceReturnPct !== null ? (
-                      <span className={`delta-pill ${isPositive ? 'pos' : 'neg'}`}>
-                        {formatPercent(priceReturnPct)}
+                    {hasChange ? (
+                      <span className={`holding-change-stack ${isPositive ? 'pos' : 'neg'}`}>
+                        <span>
+                          <MoneyText
+                            value={priceReturnAbs}
+                            currency={selectedCurrency}
+                            loading={loading}
+                            withSign
+                            skelWidth={58}
+                          />
+                        </span>
+                        <span className={`delta-pill ${isPositive ? 'pos' : 'neg'}`}>
+                          {priceReturnPct !== null ? formatPercent(priceReturnPct) : '—'}
+                        </span>
                       </span>
-                    ) : ''}
+                    ) : (
+                      ''
+                    )}
                   </td>
                   <td data-label="Value" className="num" style={{ fontWeight: 600 }}>
                     <MoneyText value={value} currency={selectedCurrency} loading={loading} skelWidth={70} />

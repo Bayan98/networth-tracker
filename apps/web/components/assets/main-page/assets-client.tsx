@@ -14,7 +14,7 @@ import type { Period } from '@/components/charts/chart-utils'
 import { AddAssetDialog } from '../dialogs/add-asset-dialog'
 import { AssetTypeFilter } from './asset-type-filter'
 import { AssetsPageHeader } from './assets-page-header'
-import { HoldingsList } from './holdings-list'
+import { HoldingsList, type HoldingsChangePeriod } from './holdings-list'
 import { PortfolioClient } from './portfolio-selector'
 import { PortfolioPerformance } from './portfolio-performance'
 import { PortfolioStats } from './portfolio-stats'
@@ -45,6 +45,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(initialPortfolioId ?? null)
   const [selectedTypes, setSelectedTypes] = useState<Set<AssetType>>(new Set())
   const [period, setPeriod] = useState<Period>('1w')
+  const [holdingsChangePeriod, setHoldingsChangePeriod] = useState<HoldingsChangePeriod>('total')
   const [showAddAsset, setShowAddAsset] = useState(false)
   const [cacheReady, setCacheReady] = useState(false)
 
@@ -52,9 +53,10 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
     ? assets.filter((asset) => asset.portfolio_id === selectedPortfolioId)
     : assets
 
-  const visible = selectedTypes.size > 0
-    ? byPortfolio.filter((asset) => selectedTypes.has(asset.asset_type as AssetType))
-    : byPortfolio
+  const visible =
+    selectedTypes.size > 0
+      ? byPortfolio.filter((asset) => selectedTypes.has(asset.asset_type as AssetType))
+      : byPortfolio
 
   const allTypes = Array.from(new Set(byPortfolio.map((asset) => asset.asset_type))) as AssetType[]
   const assetsViewPath = selectedPortfolioId ? `/portfolios/${selectedPortfolioId}` : '/assets'
@@ -73,7 +75,52 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
     chartLoading,
     fxError,
     priceError,
-  } = usePortfolioValuation(visible, period, selectedCurrency, { priceAssets: assets })
+  } = usePortfolioValuation(visible, period, selectedCurrency, {
+    priceAssets: assets,
+  })
+  const holdingsLookupPeriod: Period =
+    holdingsChangePeriod === 'total' || holdingsChangePeriod === '1d' ? period : holdingsChangePeriod
+  const { valuations: holdingsPeriodValuations, chartLoading: holdingsPeriodLoading } = usePortfolioValuation(
+    visible,
+    holdingsLookupPeriod,
+    selectedCurrency,
+    {
+      priceAssets: assets,
+    },
+  )
+  const holdingsPeriodValuationMap = useMemo(
+    () => Object.fromEntries(holdingsPeriodValuations.map((valuation) => [valuation.asset.id, valuation])),
+    [holdingsPeriodValuations],
+  )
+  const holdingsValuations = useMemo(
+    () =>
+      valuations.map((valuation) => {
+        if (holdingsChangePeriod === 'total') {
+          return {
+            ...valuation,
+            priceReturnAbs: valuation.totalReturnAbs,
+            priceReturnPct: valuation.totalReturnPct,
+          }
+        }
+        if (holdingsChangePeriod === '1d') {
+          return {
+            ...valuation,
+            priceReturnAbs: valuation.todayReturnAbs,
+            priceReturnPct: valuation.todayReturnPct,
+          }
+        }
+
+        const periodValuation = holdingsPeriodValuationMap[valuation.asset.id]
+        return {
+          ...valuation,
+          priceReturnAbs: periodValuation?.priceReturnAbs ?? null,
+          priceReturnPct: periodValuation?.priceReturnPct ?? null,
+        }
+      }),
+    [holdingsChangePeriod, holdingsPeriodValuationMap, valuations],
+  )
+  const holdingsLoading =
+    holdingsChangePeriod === 'total' || holdingsChangePeriod === '1d' ? baseLoading : holdingsPeriodLoading
 
   useEffect(() => {
     const cached = getAssetsViewState()
@@ -163,6 +210,14 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
         holdingCount={visible.length}
         portfolioCount={portfolioCount}
         onAddAsset={() => setShowAddAsset(true)}
+        portfolioSelector={
+          <PortfolioClient
+            portfolios={portfolios}
+            selectedId={selectedPortfolioId}
+            onSelect={handlePortfolioSelect}
+            userId={userId}
+          />
+        }
       />
 
       {(fxError || priceError) && (
@@ -191,12 +246,6 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
 
       <div className="page-tools">
         <AssetTypeFilter allTypes={allTypes} selectedTypes={selectedTypes} onToggle={toggleType} />
-        <PortfolioClient
-          portfolios={portfolios}
-          selectedId={selectedPortfolioId}
-          onSelect={handlePortfolioSelect}
-          userId={userId}
-        />
       </div>
 
       <PortfolioStats
@@ -222,11 +271,13 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
 
       <HoldingsList
         assetsCount={assets.length}
-        valuations={valuations}
+        valuations={holdingsValuations}
         portfolioMap={portfolioMap}
         totalValue={totalValue}
         selectedCurrency={selectedCurrency}
-        loading={baseLoading}
+        loading={holdingsLoading}
+        changePeriod={holdingsChangePeriod}
+        onChangePeriod={setHoldingsChangePeriod}
         onAssetClick={openAsset}
         onAddAsset={() => setShowAddAsset(true)}
       />
