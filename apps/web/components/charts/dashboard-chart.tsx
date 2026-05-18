@@ -9,7 +9,7 @@ import {
   type Period,
 } from '@/components/charts/chart-utils'
 import { CommonChartCard, renderCommonMarketValueAreas } from '@/components/charts/common-chart-card'
-import { MoneyText, MoneyTextWithDimFraction } from '@/components/ui/money-text'
+import { MoneyTextWithDimFraction } from '@/components/ui/money-text'
 import type { SeriesPoint } from '@/lib/hooks/use-portfolio-history'
 
 interface Props {

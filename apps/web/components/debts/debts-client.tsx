@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import type { Debt, CurrencyCode } from '@networth/types'
-import { LoadingText, MoneyText, MoneyTextWithDimFraction } from '@/components/ui/money-text'
+import { LoadingText, MoneyTextWithDimFraction } from '@/components/ui/money-text'
 import { AddDebtDialog } from './add-debt-dialog'
 import { EditDebtDialog } from './edit-debt-dialog'
 

@@ -114,7 +114,7 @@ export function HoldingsList({
   }
 
   return (
-    <div className="table-wrap">
+    <div className="table-wrap holdings-table">
       <div className="ds-positions-head" style={{ flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
           <h3>
@@ -205,6 +205,7 @@ export function HoldingsList({
                           {asset.symbol ?? asset.asset_name}
                           {asset.symbol && (
                             <span
+                              className="holding-name-inline"
                               style={{
                                 fontWeight: 400,
                                 color: 'var(--ink-muted)',
@@ -217,6 +218,7 @@ export function HoldingsList({
                           )}
                         </div>
                         <div
+                          className="holding-type-inline"
                           style={{
                             fontSize: 11,
                             color: 'var(--ink-faint)',
@@ -226,6 +228,25 @@ export function HoldingsList({
                         >
                           {ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type}
                         </div>
+                        <div
+                          className="holding-meta-mobile"
+                          style={{
+                            fontSize: 11.5,
+                            color: 'var(--ink-muted)',
+                            fontFamily: 'var(--font-mono)',
+                            fontVariantNumeric: 'tabular-nums',
+                            letterSpacing: '-0.005em',
+                            display: 'none',
+                          }}
+                        >
+                          {qty !== 1 && !hideAmounts && (
+                            <>
+                              <QuantityText value={qty} loading={loading} maximumFractionDigits={4} />
+                              <span style={{ margin: '0 5px', opacity: 0.45 }}>|</span>
+                            </>
+                          )}
+                          <MoneyText value={price} currency={priceCcy} loading={loading} skelWidth={48} />
+                        </div>
                       </div>
                     </Link>
                   </td>
@@ -234,7 +255,7 @@ export function HoldingsList({
                   </td>
                   <td data-label="Price" className="num" style={{ fontSize: 12 }}>
                     {qty !== 1 && !hideAmounts && (
-                      <span style={{ color: 'var(--ink-faint)', marginRight: 4 }}>
+                      <span className="holding-qty-inline" style={{ color: 'var(--ink-faint)', marginRight: 4 }}>
                         <QuantityText value={qty} loading={loading} maximumFractionDigits={4} />
                         <span style={{ margin: '0 3px', opacity: 0.45 }}>|</span>
                       </span>
@@ -247,7 +268,7 @@ export function HoldingsList({
                   <td data-label="Change" className="num">
                     {hasChange ? (
                       <span className={`holding-change-stack ${isPositive ? 'pos' : 'neg'}`}>
-                        <span>
+                        <span className="holding-change-abs">
                           <MoneyText
                             value={priceReturnAbs}
                             currency={selectedCurrency}
