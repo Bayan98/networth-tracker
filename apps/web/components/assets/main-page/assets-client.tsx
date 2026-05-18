@@ -7,6 +7,7 @@ import { useAppStore } from '@/lib/store'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
 import { formatPercent } from '@networth/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { withDimFraction } from '@/components/ui/money-text'
 import type { Portfolio, Asset, CurrencyCode, AssetType } from '@networth/types'
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { getAssetsViewState, setAssetsViewState } from '@/lib/assets-view-state'
@@ -195,7 +196,7 @@ export function AssetsClient({ portfolios, assets, currency, userId, initialPort
 
   const fmt = (value: number | null, withSign = false, loading = baseLoading): ReactNode => {
     if (loading) return <Skeleton width={80} height="0.85em" radius={3} inline />
-    return displayPrice(value, selectedCurrency, { withSign })
+    return withDimFraction(displayPrice(value, selectedCurrency, { withSign }))
   }
   const fmtPct = (value: number | null, loading = baseLoading): ReactNode => {
     if (loading) return <Skeleton width={44} height="0.75em" radius={3} inline />

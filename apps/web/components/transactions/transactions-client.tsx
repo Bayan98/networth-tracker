@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useAmountDisplay } from '@/lib/hooks/use-amount-display'
+import { withDimFraction } from '@/components/ui/money-text'
 import type { Transaction } from '@networth/types'
 import { AddTransactionDialog } from './add-transaction-dialog'
 
@@ -80,10 +81,10 @@ export function TransactionsClient({ transactions, userId }: Props) {
                       {displayQuantity(Number(tx.quantity), { maximumFractionDigits: 4 })}
                     </td>
                     <td className="hidden md:table-cell px-4 md:px-5 py-3 tabular-nums">
-                      {displayPrice(Number(tx.price), tx.currency)}
+                      {withDimFraction(displayPrice(Number(tx.price), tx.currency))}
                     </td>
                     <td className="px-4 md:px-5 py-3 font-medium tabular-nums">
-                      {displayPrice(Number(tx.quantity) * Number(tx.price), tx.currency)}
+                      {withDimFraction(displayPrice(Number(tx.quantity) * Number(tx.price), tx.currency))}
                     </td>
                   </tr>
                 ))}

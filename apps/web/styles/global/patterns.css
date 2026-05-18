@@ -947,6 +947,42 @@
     grid-template-columns: 1fr 1fr !important;
   }
 }
+@media (max-width: 560px) {
+  .appearance-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* "Add to portfolio" row — select + button. Wraps on narrow viewports. */
+.import-portfolio-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.import-portfolio-row > .import-portfolio-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.import-portfolio-row > .import-portfolio-select-wrap > select {
+  width: 100%;
+}
+/* Fallback for the legacy inline-style structure on narrow viewports */
+@media (max-width: 420px) {
+  .card > div > .ds-field-label + div[style*="flex"] {
+    flex-wrap: wrap !important;
+  }
+  .card > div > .ds-field-label + div[style*="flex"] > div[style*="inline-flex"] {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+  }
+  .card > div > .ds-field-label + div[style*="flex"] > div[style*="inline-flex"] > select {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
 
 /* ════════════════════════════════════════════════
    Asset detail statement

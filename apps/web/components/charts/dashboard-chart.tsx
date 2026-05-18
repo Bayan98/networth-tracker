@@ -9,7 +9,7 @@ import {
   type Period,
 } from '@/components/charts/chart-utils'
 import { CommonChartCard, renderCommonMarketValueAreas } from '@/components/charts/common-chart-card'
-import { MoneyText } from '@/components/ui/money-text'
+import { MoneyText, MoneyTextWithDimFraction } from '@/components/ui/money-text'
 import type { SeriesPoint } from '@/lib/hooks/use-portfolio-history'
 
 interface Props {
@@ -45,7 +45,7 @@ export function DashboardChart({
       <div className="chart-header-stat">
         <div className="empty-label">Net worth · {currency}</div>
         <div className="chart-header-big">
-          <MoneyText
+          <MoneyTextWithDimFraction
             value={netWorth ?? null}
             currency={currency}
             loading={currentTotalsLoading}
@@ -57,7 +57,7 @@ export function DashboardChart({
       <div className="chart-header-stat">
         <div className="empty-label">Total debts · {currency}</div>
         <div className="chart-header-big" style={{ color: 'var(--neg)' }}>
-          <MoneyText
+          <MoneyTextWithDimFraction
             value={totalDebts ?? null}
             currency={currency}
             loading={currentTotalsLoading}
@@ -82,7 +82,7 @@ export function DashboardChart({
                     : undefined,
             }}
           >
-            <MoneyText
+            <MoneyTextWithDimFraction
               value={periodIncome ?? null}
               currency={currency}
               loading={loading || periodIncome === null}

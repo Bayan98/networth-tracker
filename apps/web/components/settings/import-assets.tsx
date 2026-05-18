@@ -129,8 +129,8 @@ export function ImportAssets({ portfolios, userId }: Props) {
 
         <div style={{ marginBottom: 20 }}>
           <div className="ds-field-label">Add to portfolio</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+          <div className="import-portfolio-row">
+            <div className="import-portfolio-select-wrap">
               <select
                 value={selectedPortfolioId ?? ''}
                 onChange={(e) => setSelectedPortfolioId(e.target.value || null)}
@@ -144,7 +144,6 @@ export function ImportAssets({ portfolios, userId }: Props) {
                   color: selectedPortfolioId ? 'var(--ink)' : 'var(--ink-faint)',
                   cursor: 'pointer',
                   fontFamily: 'var(--font-sans)',
-                  minWidth: 180,
                 }}
               >
                 <option value="">No portfolio</option>

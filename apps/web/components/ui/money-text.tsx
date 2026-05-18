@@ -9,6 +9,17 @@ type SkelSize = number | string
 
 const DEFAULT_HEIGHT: SkelSize = '0.85em'
 
+export function withDimFraction(formatted: string): ReactNode {
+  const match = formatted.match(/^(.*)(\.\d+)$/)
+  if (!match) return formatted
+  return (
+    <>
+      {match[1]}
+      <span className="frac">{match[2]}</span>
+    </>
+  )
+}
+
 interface MoneyTextProps {
   value: number | null
   currency?: CurrencyCode
@@ -33,6 +44,21 @@ export function MoneyText({
   const { displayPrice } = useAmountDisplay()
   if (loading) return <Skeleton width={skelWidth} height={skelHeight} radius={3} inline />
   return <>{displayPrice(value, currency, { withSign, maskLength, compact })}</>
+}
+
+export function MoneyTextWithDimFraction({
+  value,
+  currency = 'USD',
+  loading,
+  withSign,
+  maskLength,
+  compact,
+  skelWidth = 72,
+  skelHeight = DEFAULT_HEIGHT,
+}: MoneyTextProps) {
+  const { displayPrice } = useAmountDisplay()
+  if (loading) return <Skeleton width={skelWidth} height={skelHeight} radius={3} inline />
+  return <>{withDimFraction(displayPrice(value, currency, { withSign, maskLength, compact }))}</>
 }
 
 interface QuantityTextProps {

@@ -14,7 +14,7 @@ import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-sch
 import { usePortfolioValuation } from '@/lib/hooks/use-portfolio-valuation'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import { getAssetTypeConfig } from '@/components/assets/asset-type-config'
-import { MoneyText, LoadingText } from '@/components/ui/money-text'
+import { MoneyText, MoneyTextWithDimFraction, LoadingText } from '@/components/ui/money-text'
 import { Badge, Swatch, type RowTone } from '@/components/ui/tone-badge'
 
 type IncomeEventAsset = Asset & {
@@ -266,22 +266,24 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
         <MiniStat
           label="Monthly"
           variant="mono"
-          value={<MoneyText value={totalMonthly} currency={selectedCurrency} loading={!isMounted || amountLoading} maskLength={6} skelWidth={110} skelHeight={22} />}
+          value={<MoneyTextWithDimFraction value={totalMonthly} currency={selectedCurrency} loading={!isMounted || amountLoading} maskLength={6} skelWidth={110} skelHeight={22} />}
           sub={`${activeCount} active source${activeCount !== 1 ? 's' : ''}`}
         />
         <MiniStat
           label="Annualized"
           variant="mono"
-          value={<MoneyText value={totalAnnual} currency={selectedCurrency} loading={!isMounted || amountLoading} maskLength={6} skelWidth={120} skelHeight={22} />}
+          value={<MoneyTextWithDimFraction value={totalAnnual} currency={selectedCurrency} loading={!isMounted || amountLoading} maskLength={6} skelWidth={120} skelHeight={22} />}
           sub={<Badge tone="pos">Gross</Badge>}
         />
         <MiniStat
           label="Next deposit"
+          variant="mono"
           value={nextDateStr}
           sub={nextSub}
         />
         <MiniStat
           label="Active sources"
+          variant="mono"
           value={String(activeCount)}
           sub={pausedCount > 0 ? `${pausedCount} paused` : 'All running'}
         />

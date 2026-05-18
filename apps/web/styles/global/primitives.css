@@ -156,6 +156,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  container-type: inline-size;
 }
 .ds-kpi-label,
 .kpi-label {
@@ -169,17 +171,21 @@
 .kpi-val {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: 32px;
+  font-size: clamp(22px, 14cqi, 32px);
   line-height: 1.05;
   letter-spacing: -0.015em;
   color: var(--ink);
   margin-top: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ds-kpi-val.mono,
 .kpi-val.mono {
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 26px;
+  font-size: clamp(18px, 12cqi, 26px);
   letter-spacing: -0.02em;
 }
 .ds-kpi-sub,
@@ -556,4 +562,10 @@
     animation: none;
     stroke-dashoffset: 500;
   }
+}
+
+/* Dim the fractional part of numbers (".40" in $1,284,602.40) */
+.frac {
+  color: var(--ink-faint);
+  font-weight: inherit;
 }

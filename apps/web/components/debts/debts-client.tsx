@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import type { Debt, CurrencyCode } from '@networth/types'
-import { LoadingText, MoneyText } from '@/components/ui/money-text'
+import { LoadingText, MoneyText, MoneyTextWithDimFraction } from '@/components/ui/money-text'
 import { AddDebtDialog } from './add-debt-dialog'
 import { EditDebtDialog } from './edit-debt-dialog'
 
@@ -119,7 +119,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
           label="Total owed"
           variant="mono"
           value={
-            <MoneyText
+            <MoneyTextWithDimFraction
               value={debtTotals.totalDebt}
               currency={selectedCurrency}
               loading={statsLoading}
@@ -134,7 +134,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
           label="Monthly payment"
           variant="mono"
           value={
-            <MoneyText
+            <MoneyTextWithDimFraction
               value={debtTotals.totalMinPayment}
               currency={selectedCurrency}
               loading={statsLoading}
@@ -234,10 +234,10 @@ export function DebtsClient({ debts, userId, currency }: Props) {
                       {fmtAPR(Number(d.interest_rate))}
                     </td>
                     <td data-label="Payment" className="num" style={{ fontSize: 12 }}>
-                      <MoneyText value={monthlyPayment} currency={d.currency} maskLength={5} skelWidth={72} />
+                      <MoneyTextWithDimFraction value={monthlyPayment} currency={d.currency} maskLength={5} skelWidth={72} />
                     </td>
                     <td data-label="Balance" className="num" style={{ fontWeight: 600, color: 'var(--neg)' }}>
-                      <MoneyText value={balance} currency={d.currency} maskLength={5} skelWidth={80} />
+                      <MoneyTextWithDimFraction value={balance} currency={d.currency} maskLength={5} skelWidth={80} />
                     </td>
                     <td data-label="Payoff" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
                       {payoffLabel}
