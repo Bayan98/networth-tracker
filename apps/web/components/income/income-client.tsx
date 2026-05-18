@@ -257,7 +257,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
       <div className="page-head">
         <div>
           <div className="page-kicker">Inflows · Cashflow calendar</div>
-          <h1>Income <em>streams.</em></h1>
+          <h1>Income streams.</h1>
           <p>Recurring and one-off sources feeding the net worth equation.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
@@ -312,7 +312,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
         <div className="table-wrap">
           <div className="ds-positions-head">
             <div style={{ minWidth: 0 }}>
-              <h3>Income <em>sources</em></h3>
+              <h3>Income sources</h3>
               <p className="ds-positions-meta" style={{ margin: '6px 0 0' }}>
                 {events.length} {events.length === 1 ? 'source' : 'sources'} · sorted by {SORT_LABELS[sort].toLowerCase()}
               </p>

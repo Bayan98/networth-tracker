@@ -100,7 +100,7 @@ export function SettingsClient({ profile, userEmail }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--density-gap)' }}>
       <section className="card settings-profile-card">
         <header className="ds-section-head">
-          <h2 className="ds-section-title">Profile &amp; <em>identity</em></h2>
+          <h2 className="ds-section-title">Profile &amp; identity</h2>
           <span className="ds-section-meta">Account · currency</span>
         </header>
 
@@ -168,7 +168,7 @@ export function SettingsClient({ profile, userEmail }: Props) {
 
       <section className="card">
         <header className="ds-section-head">
-          <h2 className="ds-section-title">Appearance &amp; <em>tone</em></h2>
+          <h2 className="ds-section-title">Appearance &amp; tone</h2>
           <span className="ds-section-meta">Theme · density · accent</span>
         </header>
 
@@ -271,7 +271,7 @@ export function DangerZone() {
         style={{ borderBottom: '1px solid color-mix(in oklch, var(--color-danger) 60%, var(--border))' }}
       >
         <h2 className="ds-section-title" style={{ color: 'var(--color-danger)' }}>
-          Danger <em style={{ color: 'var(--color-danger)' }}>zone</em>
+          Danger zone
         </h2>
         <span className="ds-section-meta" style={{ color: 'var(--color-danger)' }}>Destructive</span>
       </header>

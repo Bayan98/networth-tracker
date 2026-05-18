@@ -180,12 +180,12 @@ export function AddAssetDialog({ portfolios, userId, defaultPortfolioId, onClose
             <div className="rmodal-kicker">New asset</div>
             {step === 'type' ? (
               <>
-                <h2>Choose <em>asset type</em></h2>
+                <h2>Choose asset type</h2>
                 <div className="rmodal-desc">Start with the category so the next fields match the holding.</div>
               </>
             ) : (
               <>
-                <h2>Add an <em>asset</em></h2>
+                <h2>Add an asset</h2>
                 <div className="rmodal-desc">Track a holding manually or pull live prices via ticker symbol.</div>
               </>
             )}

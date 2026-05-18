@@ -60,12 +60,6 @@
   font-weight: 600;
   letter-spacing: -0.015em;
 }
-.brand-name em {
-  font-family: var(--font-display);
-  font-style: normal;
-  font-weight: 500;
-  color: var(--ink-2);
-}
 
 .nav-group { margin-bottom: 18px; }
 .nav-label {

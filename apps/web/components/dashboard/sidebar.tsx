@@ -68,7 +68,7 @@ export function Sidebar({ user, portfolios, counts, portfolioAssetCounts }: Side
           <div className="brand-mark">
             <Image className="brand-mark-image" src="/icons/icon-source.svg" alt="" width={26} height={26} aria-hidden="true" />
           </div>
-          <div className="brand-name">Net<em>worth</em></div>
+          <div className="brand-name">Networth</div>
         </div>
 
         <div className="nav-group">

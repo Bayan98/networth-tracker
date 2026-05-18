@@ -32,7 +32,7 @@ export function Header({}: HeaderProps) {
           <Image className="brand-mark-image" src="/icons/icon-source.svg" alt="" width={24} height={24} aria-hidden="true" />
         </div>
         <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.015em' }}>
-          Net<em style={{ fontFamily: 'var(--font-display)', fontStyle: 'normal', fontWeight: 500, color: 'var(--ink-2)' }}>worth</em>
+          Networth
         </span>
       </div>
 

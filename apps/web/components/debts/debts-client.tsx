@@ -107,7 +107,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
       <div className="page-head">
         <div>
           <div className="page-kicker">Liabilities · Payoff ledger</div>
-          <h1>Debts <em>&amp; liabilities.</em></h1>
+          <h1>Debts &amp; liabilities.</h1>
           <p>Track balances, rates, and payoff progress across every loan.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
@@ -160,7 +160,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
 
       <div className="table-wrap">
         <div className="ds-positions-head">
-          <h3>All <em>debts</em></h3>
+          <h3>All debts</h3>
           <span className="ds-positions-meta">{debts.length} record{debts.length !== 1 ? 's' : ''}</span>
         </div>
         {error && (

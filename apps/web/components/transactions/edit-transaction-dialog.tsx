@@ -71,7 +71,7 @@ export function EditTransactionDialog({ transaction, assetCurrency, assetSymbol,
         <div className="rmodal-head">
           <div>
             <div className="rmodal-kicker">Edit transaction</div>
-            <h2>Edit <em>transaction</em></h2>
+            <h2>Edit transaction</h2>
           </div>
           <button className="iconbtn" onClick={onClose}><X size={16} /></button>
         </div>

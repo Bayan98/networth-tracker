@@ -21,7 +21,7 @@ export default async function SettingsPage() {
       <div className="page-head">
         <div>
           <div className="page-kicker">You · Preferences</div>
-          <h1>Settings <em>&amp; preferences.</em></h1>
+          <h1>Settings &amp; preferences.</h1>
           <p>Profile, currency, appearance, and a destructive lever for clean starts.</p>
         </div>
       </div>

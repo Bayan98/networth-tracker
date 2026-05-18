@@ -64,7 +64,7 @@ export function EditScheduledEventDialog({ event, assetType, onClose }: Props) {
         <div className="rmodal-head">
           <div>
             <div className="rmodal-kicker">Edit schedule</div>
-            <h2>Edit <em>scheduled event</em></h2>
+            <h2>Edit scheduled event</h2>
           </div>
           <button className="iconbtn" onClick={onClose}><X size={16} /></button>
         </div>

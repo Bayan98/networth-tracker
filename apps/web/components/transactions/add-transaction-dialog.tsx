@@ -111,7 +111,7 @@ export function AddTransactionDialog({ userId, assetId, assetCurrency, assetSymb
         <div className="rmodal-head">
           <div>
             <div className="rmodal-kicker">New transaction</div>
-            <h2>Add a <em>transaction</em></h2>
+            <h2>Add a transaction</h2>
           </div>
           <button className="iconbtn" onClick={onClose}><X size={16} /></button>
         </div>

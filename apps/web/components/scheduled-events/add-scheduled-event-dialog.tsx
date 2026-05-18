@@ -75,7 +75,7 @@ export function AddScheduledEventDialog({ userId, assetId, assetType, defaultCur
         <div className="rmodal-head">
           <div>
             <div className="rmodal-kicker">New schedule</div>
-            <h2>Add a <em>scheduled event</em></h2>
+            <h2>Add a scheduled event</h2>
           </div>
           <button className="iconbtn" onClick={onClose}><X size={16} /></button>
         </div>

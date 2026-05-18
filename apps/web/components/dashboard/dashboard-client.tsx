@@ -162,7 +162,7 @@ function TopPositions({ enriched, selectedCurrency }: { enriched: Enriched[]; se
       <div className="ds-positions-head">
         <div>
           <h3>
-            Top <em>positions</em>
+            Top positions
           </h3>
           <span className="ds-positions-meta">Sorted by value</span>
         </div>

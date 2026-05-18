@@ -68,7 +68,7 @@ export function AddDebtDialog({ userId, defaultCurrency, onClose }: Props) {
         <div className="rmodal-head">
           <div>
             <div className="rmodal-kicker">Liability</div>
-            <h2>Add a <em>debt</em></h2>
+            <h2>Add a debt</h2>
             <div className="rmodal-desc">
               Track a mortgage, loan, or credit card so it nets against your assets.
             </div>

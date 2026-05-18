@@ -98,7 +98,7 @@ export default function DashboardLoading() {
         <div>
           <div className="page-kicker">Overview · Net worth ledger</div>
           <h1>
-            Your money <em>at a glance.</em>
+            Your money at a glance.
           </h1>
         </div>
       </div>

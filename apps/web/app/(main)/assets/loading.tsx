@@ -8,7 +8,7 @@ export default function AssetsLoading() {
         <div>
           <div className="page-kicker">Holdings · Allocation ledger</div>
           <h1>
-            Your <em>holdings.</em>
+            Your holdings.
           </h1>
         </div>
       </div>

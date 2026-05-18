@@ -12,12 +12,12 @@ export default function LoginPage() {
       <section className="auth-brand-panel" aria-label="Networth overview">
         <div className="auth-brand">
           <div className="auth-mark">N</div>
-          <div className="auth-wordmark">Net<em>worth</em></div>
+          <div className="auth-wordmark">Networth</div>
         </div>
 
         <div className="auth-hero-copy">
           <div className="auth-kicker">Private ledger</div>
-          <h1>Your money <em>at a glance.</em></h1>
+          <h1>Your money at a glance.</h1>
           <p>Track assets, cash, investments, and liabilities in one quiet workspace.</p>
         </div>
 
@@ -54,7 +54,7 @@ export default function LoginPage() {
         <div className="auth-card">
           <div className="auth-card-head">
             <div className="auth-kicker">Sign in</div>
-            <h2>Welcome <em>back.</em></h2>
+            <h2>Welcome back.</h2>
             <p>Use your account email and password to open your workspace.</p>
           </div>
 

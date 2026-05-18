@@ -16,7 +16,7 @@ export default function DebtsLoading() {
         <div>
           <div className="page-kicker">Liabilities · Payoff ledger</div>
           <h1>
-            Debts <em>&amp; liabilities.</em>
+            Debts &amp; liabilities.
           </h1>
         </div>
       </div>

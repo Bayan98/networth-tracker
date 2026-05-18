@@ -56,7 +56,7 @@ export function AddPortfolioDialog({ userId, onClose }: Props) {
         <div className="rmodal-head">
           <div>
             <div className="rmodal-kicker">New portfolio</div>
-            <h2>Create a <em>portfolio</em></h2>
+            <h2>Create a portfolio</h2>
             <div className="rmodal-desc">Group assets by account, strategy, or goal. You can add holdings right after.</div>
           </div>
           <button className="iconbtn" onClick={onClose}><X size={16} /></button>

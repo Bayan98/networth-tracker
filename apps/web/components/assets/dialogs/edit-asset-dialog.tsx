@@ -106,7 +106,7 @@ export function EditAssetDialog({ asset, portfolios, onClose }: Props) {
         <div className="rmodal-head">
           <div>
             <div className="rmodal-kicker">Edit asset</div>
-            <h2>Edit <em>{asset.symbol ?? asset.asset_name}</em></h2>
+            <h2>Edit {asset.symbol ?? asset.asset_name}</h2>
           </div>
           <button className="iconbtn" onClick={onClose}><X size={16} /></button>
         </div>

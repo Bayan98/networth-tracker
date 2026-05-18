@@ -76,11 +76,6 @@
   letter-spacing: -0.02em;
   line-height: 1;
 }
-.page-head h1 em {
-  font-style: normal;
-  font-weight: 400;
-  color: var(--accent);
-}
 .page-head p {
   font-size: 14px;
   color: var(--ink-muted);
@@ -212,12 +207,6 @@
   font-size: 25px;
   line-height: 1;
   color: var(--ink);
-}
-.auth-wordmark em,
-.auth-hero-copy h1 em,
-.auth-card-head h2 em,
-.not-found-card h1 em {
-  color: var(--accent);
 }
 .auth-hero-copy {
   align-self: center;
@@ -708,6 +697,21 @@
     transition: var(--swipe-transition);
   }
   .table-wrap:has(> .ds-positions-head) tbody tr:last-child { border-bottom: none; }
+
+  /* Holdings header on mobile: title + sort button on row 1, period
+     selector wraps to row 2 spanning full width. */
+  .table-wrap.holdings-table > .ds-positions-head > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .table-wrap.holdings-table > .ds-positions-head > .holdings-head-actions {
+    display: contents;
+  }
+  .table-wrap.holdings-table > .ds-positions-head > .holdings-head-actions > .holdings-change-period {
+    flex: 1 1 100%;
+    order: 3;
+    margin-top: 4px;
+  }
   .table-wrap:has(> .ds-positions-head) tbody tr:hover { background: transparent; }
   .table-wrap:has(> .ds-positions-head) tbody tr:active { background: var(--surface-2); }
 
@@ -1312,10 +1316,6 @@
   font-size: 44px;
   line-height: 1;
   letter-spacing: 0;
-}
-.asset-summary-top h2 em {
-  font-style: normal;
-  color: var(--ink-2);
 }
 .asset-detail-kicker {
   display: flex;
@@ -1933,11 +1933,6 @@
   margin: 0;
   line-height: 1;
   color: var(--ink);
-}
-.rmodal-head h2 em {
-  font-style: normal;
-  font-weight: 400;
-  color: var(--accent);
 }
 .rmodal-desc {
   font-size: 13px;

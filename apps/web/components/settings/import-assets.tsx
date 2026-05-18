@@ -123,7 +123,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
     <>
       <div className="card">
         <header className="ds-section-head">
-          <h2 className="ds-section-title">Import <em>assets</em></h2>
+          <h2 className="ds-section-title">Import assets</h2>
           <span className="ds-section-meta">CSV · manual</span>
         </header>
 
@@ -407,7 +407,7 @@ export function ImportAssets({ portfolios, userId }: Props) {
             <div className="rmodal-head">
               <div>
                 <div className="rmodal-kicker">Import helper</div>
-                <h2>AI import <em>prompt</em></h2>
+                <h2>AI import prompt</h2>
                 <div className="rmodal-desc">
                   Copy this into any AI chat (Claude, ChatGPT, Gemini), attach your data — screenshots, PDFs, brokerage exports, or plain text — and paste the output back here.
                 </div>

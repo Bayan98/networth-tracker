@@ -7,7 +7,7 @@ export default function NotFound() {
         <div className="not-found-code">404</div>
         <div className="auth-kicker">Missing page</div>
         <h1 id="not-found-title">
-          This page is <em>off ledger.</em>
+          This page is off ledger.
         </h1>
         <p>
           The route may have moved, or the address is no longer part of this workspace.

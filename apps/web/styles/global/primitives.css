@@ -140,10 +140,6 @@
   margin: 0;
   color: var(--ink);
 }
-.ds-section-title em {
-  font-style: normal;
-  color: var(--accent);
-}
 .ds-kpi,
 .kpi {
   background: var(--surface);
@@ -212,10 +208,6 @@
   line-height: 1;
   margin: 0;
   color: var(--ink);
-}
-.ds-positions-head h3 em {
-  font-style: normal;
-  color: var(--accent);
 }
 .ds-positions-meta {
   font-family: var(--font-mono);

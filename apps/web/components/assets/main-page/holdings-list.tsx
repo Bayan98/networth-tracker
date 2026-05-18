@@ -118,7 +118,7 @@ export function HoldingsList({
       <div className="ds-positions-head" style={{ flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
           <h3>
-            Holdings <em>register</em>
+            Holdings register
           </h3>
           <p className="ds-positions-meta" style={{ margin: '6px 0 0' }}>
             {valuations.length} of {assetsCount} · sorted by {SORT_LABELS[sortBy]}

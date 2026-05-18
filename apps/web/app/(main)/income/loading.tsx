@@ -16,7 +16,7 @@ export default function IncomeLoading() {
         <div>
           <div className="page-kicker">Inflows · Cashflow calendar</div>
           <h1>
-            Income <em>streams.</em>
+            Income streams.
           </h1>
         </div>
       </div>

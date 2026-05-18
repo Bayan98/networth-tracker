@@ -38,7 +38,7 @@ export default async function DashboardPage() {
       <div className="page-head">
         <div>
           <div className="page-kicker">Overview · Net worth ledger</div>
-          <h1>Your money <em>at a glance.</em></h1>
+          <h1>Your money at a glance.</h1>
           <p>Market value, income, allocation, and concentration in one workspace.</p>
         </div>
       </div>
