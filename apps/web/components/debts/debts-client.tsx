@@ -117,6 +117,7 @@ export function DebtsClient({ debts, userId, currency }: Props) {
       <div className="stat-grid">
         <DsKpi
           label="Total owed"
+          variant="mono"
           value={
             <MoneyText
               value={debtTotals.totalDebt}

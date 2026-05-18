@@ -59,6 +59,12 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
         height={420}
       />
 
+      <div className="three-col">
+        <AllocationCard defaultType="category" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
+        <AllocationCard defaultType="portfolio" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
+        <AllocationCard defaultType="currency" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
+      </div>
+
       <div className="ledger-strip" aria-label="Overview summary">
         <div className="ledger-item">
           <span className="ledger-label">Positions</span>
@@ -80,12 +86,6 @@ export function DashboardClient({ assets, portfolios, debts, quantityPerAsset, c
           <strong className="ledger-value">{activeDebts}</strong>
           <div className="ledger-note">Active debt record{activeDebts !== 1 ? 's' : ''}</div>
         </div>
-      </div>
-
-      <div className="three-col">
-        <AllocationCard defaultType="category" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
-        <AllocationCard defaultType="portfolio" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
-        <AllocationCard defaultType="currency" enriched={enriched} portfolios={portfolios} selectedCurrency={selectedCurrency} />
       </div>
 
       <div className="bottom-row">

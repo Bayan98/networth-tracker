@@ -87,10 +87,10 @@ export function CommonChartCard({
             >
               {defs}
               <CartesianGrid
-                strokeDasharray="3 3"
+                strokeDasharray="5 3"
                 stroke="var(--ink-3)"
                 vertical={false}
-                strokeOpacity={0.7}
+                strokeOpacity={0.2}
               />
               <XAxis
                 type="number"
@@ -177,10 +177,10 @@ export function renderCommonMarketValueAreas({
       key="costBasis"
       type="monotone"
       dataKey="costBasis"
-      stroke="var(--border-strong)"
+      stroke="var(--ink-3)"
       strokeWidth={1.5}
       strokeDasharray="4 3"
-      strokeOpacity={0.7}
+      strokeOpacity={0.8}
       fill={`url(#${cbFillId})`}
       baseValue={seriesMin}
       dot={false}

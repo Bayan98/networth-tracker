@@ -90,7 +90,7 @@ export function Donut({
         <div style={{ fontSize: 10, color: 'var(--ink-faint)', fontWeight: 500, letterSpacing: '0.02em', maxWidth: r * 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {active.label}
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em', marginTop: 2, color: active.color }}>
+        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em', marginTop: 2, color: 'var(--ink)' }}>
           {active.pct.toFixed(1)}%
         </div>
         {formatValue && (
