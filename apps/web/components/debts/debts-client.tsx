@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
 import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import type { Debt, CurrencyCode } from '@networth/types'
-import { LoadingText, MoneyTextWithDimFraction } from '@/components/ui/money-text'
+import { LoadingText, MoneyText, MoneyTextWithDimFraction } from '@/components/ui/money-text'
+import { useSwipeRow } from '@/lib/hooks/use-swipe-row'
 import { AddDebtDialog } from './add-debt-dialog'
 import { EditDebtDialog } from './edit-debt-dialog'
 
@@ -184,89 +185,15 @@ export function DebtsClient({ debts, userId, currency }: Props) {
               </tr>
             </thead>
             <tbody>
-              {debts.map((d) => {
-                const principal = Number(d.principal_amount)
-                const balance = Number(d.current_balance)
-                const progress = principal > 0 ? Math.max(0, Math.min(100, ((principal - balance) / principal) * 100)) : 0
-                const monthlyPayment = Number(d.minimum_payment)
-                const payoffLabel = monthlyPayment > 0 ? `${(balance / (monthlyPayment * 12)).toFixed(1)}y` : '—'
-
-                return (
-                  <tr key={d.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 'var(--radius-sm)',
-                            background: 'var(--neg-soft)',
-                            border: '1px solid var(--ink-3)',
-                            display: 'grid',
-                            placeItems: 'center',
-                            color: 'var(--neg)',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <DebtIcon name={d.name} />
-                        </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontWeight: 500, fontSize: 13.5 }}>{d.name}</div>
-                          <div
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 10.5,
-                              color: 'var(--ink-muted)',
-                              letterSpacing: '0.04em',
-                              textTransform: 'uppercase',
-                              marginTop: 2,
-                            }}
-                          >
-                            {progress.toFixed(0)}% paid off
-                          </div>
-                          <div className="ds-progress" style={{ width: 160, maxWidth: '100%' }}>
-                            <span style={{ width: `${progress}%` }} />
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td data-label="APR" className="num" style={{ fontSize: 12 }}>
-                      {fmtAPR(Number(d.interest_rate))}
-                    </td>
-                    <td data-label="Payment" className="num" style={{ fontSize: 12 }}>
-                      <MoneyTextWithDimFraction value={monthlyPayment} currency={d.currency} maskLength={5} skelWidth={72} />
-                    </td>
-                    <td data-label="Balance" className="num" style={{ fontWeight: 600, color: 'var(--neg)' }}>
-                      <MoneyTextWithDimFraction value={balance} currency={d.currency} maskLength={5} skelWidth={80} />
-                    </td>
-                    <td data-label="Payoff" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
-                      {payoffLabel}
-                    </td>
-                    <td className="cell-actions">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          onClick={() => setEditingDebt(d)}
-                          className="iconbtn"
-                          style={{ width: 28, height: 28 }}
-                          title="Edit"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(d.id)}
-                          className="iconbtn"
-                          style={{ width: 28, height: 28, color: 'var(--neg)' }}
-                          title="Delete"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
+              {debts.map((d) => (
+                <DebtRow
+                  key={d.id}
+                  d={d}
+                  fmtAPR={fmtAPR}
+                  onEdit={() => setEditingDebt(d)}
+                  onDelete={() => handleDelete(d.id)}
+                />
+              ))}
             </tbody>
           </table>
         )}
@@ -279,5 +206,97 @@ export function DebtsClient({ debts, userId, currency }: Props) {
         <EditDebtDialog debt={editingDebt} onClose={() => setEditingDebt(null)} />
       )}
     </>
+  )
+}
+
+interface DebtRowProps {
+  d: Debt
+  fmtAPR: (rate: number) => string
+  onEdit: () => void
+  onDelete: () => void
+}
+
+function DebtRow({ d, fmtAPR, onEdit, onDelete }: DebtRowProps) {
+  const swipe = useSwipeRow()
+  const principal = Number(d.principal_amount)
+  const balance = Number(d.current_balance)
+  const progress = principal > 0 ? Math.max(0, Math.min(100, ((principal - balance) / principal) * 100)) : 0
+  const monthlyPayment = Number(d.minimum_payment)
+  const payoffLabel = monthlyPayment > 0 ? `${(balance / (monthlyPayment * 12)).toFixed(1)}y` : '—'
+
+  return (
+    <tr style={swipe.style} {...swipe.handlers}>
+      <td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--neg-soft)',
+              border: '1px solid var(--ink-3)',
+              display: 'grid',
+              placeItems: 'center',
+              color: 'var(--neg)',
+              flexShrink: 0,
+            }}
+          >
+            <DebtIcon name={d.name} />
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontWeight: 500, fontSize: 13.5 }}>{d.name}</div>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10.5,
+                color: 'var(--ink-muted)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                marginTop: 2,
+              }}
+            >
+              {progress.toFixed(0)}% paid off
+            </div>
+            <div className="ds-progress" style={{ width: 160, maxWidth: '100%' }}>
+              <span style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        </div>
+      </td>
+      <td data-label="APR" className="num" style={{ fontSize: 12 }}>
+        {fmtAPR(Number(d.interest_rate))}
+      </td>
+      <td data-label="Payment" className="num" style={{ fontSize: 12 }}>
+        <MoneyText value={monthlyPayment} currency={d.currency} maskLength={5} skelWidth={72} />
+      </td>
+      <td data-label="Balance" className="num" style={{ fontWeight: 600, color: 'var(--neg)' }}>
+        <MoneyText value={balance} currency={d.currency} maskLength={5} skelWidth={80} />
+      </td>
+      <td data-label="Payoff" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+        {payoffLabel}
+      </td>
+      <td className="cell-actions">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="iconbtn"
+            style={{ width: 28, height: 28 }}
+            title="Edit"
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="iconbtn"
+            style={{ width: 28, height: 28, color: 'var(--neg)' }}
+            title="Delete"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </td>
+    </tr>
   )
 }

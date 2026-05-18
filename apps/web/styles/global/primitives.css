@@ -360,8 +360,10 @@
     padding: 7px 4px;
   }
   .ds-positions-head {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 10px;
   }
 }
 
@@ -568,4 +570,11 @@
 .frac {
   color: var(--ink-faint);
   font-weight: inherit;
+}
+
+/* Responsive helpers — hide on mobile / show only on mobile (≤720px) */
+.show-mobile { display: none; }
+@media (max-width: 720px) {
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: inline; }
 }

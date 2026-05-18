@@ -16,6 +16,7 @@ import { useTodayFx } from '@/lib/hooks/use-today-fx'
 import { getAssetTypeConfig } from '@/components/assets/asset-type-config'
 import { MoneyText, MoneyTextWithDimFraction, LoadingText } from '@/components/ui/money-text'
 import { Badge, Swatch, type RowTone } from '@/components/ui/tone-badge'
+import { useSwipeRow } from '@/lib/hooks/use-swipe-row'
 
 type IncomeEventAsset = Asset & {
   portfolio?: Pick<Portfolio, 'id' | 'name'> | null
@@ -170,8 +171,10 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
       return (
         <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
           <span className="delta-pill pos">{formatPercent(Number(event.amount))}</span>
-          <span style={{ color: 'var(--ink-faint)', fontWeight: 500 }}>·</span>
-          <MoneyText value={percentAmountInEventCurrency(event)} currency={event.currency} skelWidth={64} />
+          <span className="hide-mobile" style={{ color: 'var(--ink-faint)', fontWeight: 500 }}>·</span>
+          <span className="hide-mobile">
+            <MoneyText value={percentAmountInEventCurrency(event)} currency={event.currency} skelWidth={64} />
+          </span>
         </span>
       )
     }
@@ -307,7 +310,7 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
         </div>
       ) : (
         <div className="table-wrap">
-          <div className="ds-positions-head" style={{ flexWrap: 'wrap' }}>
+          <div className="ds-positions-head">
             <div style={{ minWidth: 0 }}>
               <h3>Income <em>sources</em></h3>
               <p className="ds-positions-meta" style={{ margin: '6px 0 0' }}>
@@ -318,17 +321,19 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
               <button
                 type="button"
                 onClick={() => setSortOpen((value) => !value)}
-                className="btn btn-secondary"
+                className="iconbtn"
+                aria-label="Sort"
+                title={`Sort: ${SORT_LABELS[sort]}`}
                 style={{
-                  fontSize: 12,
-                  padding: '5px 10px',
-                  color: sort !== DEFAULT_SORT ? 'var(--accent)' : undefined,
+                  width: 34,
+                  height: 34,
+                  border: '1px solid var(--rule)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--surface)',
+                  color: sort !== DEFAULT_SORT ? 'var(--accent)' : 'var(--ink-2)',
                 }}
               >
-                <SlidersHorizontal size={11} />
-                {sort !== DEFAULT_SORT && (
-                  <span style={{ fontSize: 10, opacity: 0.65 }}>· {SORT_LABELS[sort]}</span>
-                )}
+                <SlidersHorizontal size={14} />
               </button>
 
               {sortOpen && (
@@ -372,72 +377,21 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {sortedEvents.map((ev) => {
-                  const tone = rowTone(ev)
-                  return (
-                    <tr key={ev.id}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, minHeight: 32 }}>
-                          <Swatch tone={tone} />
-                          <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 2,
-                            justifyContent: 'center',
-                            minWidth: 0,
-                          }}>
-                            <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--ink)' }}>
-                              {ev.asset_id ? (
-                                <Link href={`/assets/${ev.asset_id}`} style={{ color: 'inherit' }}>
-                                  {formatEventTitle(ev)}
-                                </Link>
-                              ) : formatEventTitle(ev)}
-                            </div>
-                            <div style={{
-                              fontSize: 11,
-                              color: 'var(--ink-faint)',
-                              fontFamily: 'var(--font-mono)',
-                              letterSpacing: '-0.005em',
-                            }}>
-                              {formatEventMeta(ev)}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td data-label="Cadence">
-                        <Badge tone={ev.is_active ? tone : 'neutral'}>
-                          {INCOME_FREQUENCY_LABELS[ev.frequency]}
-                        </Badge>
-                      </td>
-                      <td data-label="Amount" className="num" style={{ fontWeight: 600 }}>
-                        {formatEventAmount(ev)}
-                      </td>
-                      <td data-label="Next" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
-                        {formatNextDate(ev)}
-                      </td>
-                      <td className="cell-actions">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => setEditingEvent(ev)}
-                            className="iconbtn"
-                            style={{ width: 28, height: 28 }}
-                            title="Edit"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(ev.id)}
-                            className="iconbtn"
-                            style={{ width: 28, height: 28, color: 'var(--neg)' }}
-                            title="Delete"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {sortedEvents.map((ev) => (
+                  <IncomeRow
+                    key={ev.id}
+                    ev={ev}
+                    tone={rowTone(ev)}
+                    primaryTitle={ev.asset?.asset_name ?? ev.name}
+                    secondaryTitle={ev.asset ? ev.name : null}
+                    meta={formatEventMeta(ev)}
+                    amount={formatEventAmount(ev)}
+                    nextDate={formatNextDate(ev)}
+                    cadenceLabel={INCOME_FREQUENCY_LABELS[ev.frequency]}
+                    onEdit={() => setEditingEvent(ev)}
+                    onDelete={() => handleDelete(ev.id)}
+                  />
+                ))}
               </tbody>
             </table>
         </div>
@@ -450,5 +404,98 @@ export function ScheduledEventsClient({ events, userId, currency }: Props) {
         <EditScheduledEventDialog event={editingEvent} onClose={() => setEditingEvent(null)} />
       )}
     </>
+  )
+}
+
+interface IncomeRowProps {
+  ev: IncomeEvent
+  tone: RowTone
+  primaryTitle: string
+  secondaryTitle: string | null
+  meta: string
+  amount: ReactNode
+  nextDate: string
+  cadenceLabel: string
+  onEdit: () => void
+  onDelete: () => void
+}
+
+function IncomeRow({ ev, tone, primaryTitle, secondaryTitle, meta, amount, nextDate, cadenceLabel, onEdit, onDelete }: IncomeRowProps) {
+  const swipe = useSwipeRow()
+  const titleContent = (
+    <>
+      {primaryTitle}
+      {secondaryTitle && (
+        <span className="hide-mobile" style={{ color: 'var(--ink-muted)', fontWeight: 400 }}>
+          {' · '}{secondaryTitle}
+        </span>
+      )}
+    </>
+  )
+  return (
+    <tr style={swipe.style} {...swipe.handlers}>
+      <td>
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, minHeight: 32 }}>
+          <Swatch tone={tone} />
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            justifyContent: 'center',
+            minWidth: 0,
+          }}>
+            <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--ink)' }}>
+              {ev.asset_id ? (
+                <Link href={`/assets/${ev.asset_id}`} style={{ color: 'inherit' }}>
+                  {titleContent}
+                </Link>
+              ) : titleContent}
+            </div>
+            <div style={{
+              fontSize: 11,
+              color: 'var(--ink-faint)',
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '-0.005em',
+            }}>
+              {meta}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td data-label="Cadence">
+        <Badge tone={ev.is_active ? tone : 'neutral'}>
+          {cadenceLabel}
+        </Badge>
+      </td>
+      <td data-label="Amount" className="num" style={{ fontWeight: 600 }}>
+        {amount}
+      </td>
+      <td data-label="Next" className="num" style={{ color: 'var(--ink-muted)', fontSize: 12 }}>
+        <span>{nextDate}</span>
+        <span className="show-mobile" style={{ color: 'var(--ink-muted)' }}>
+          · {cadenceLabel}
+        </span>
+      </td>
+      <td className="cell-actions">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onEdit}
+            className="iconbtn"
+            style={{ width: 28, height: 28 }}
+            title="Edit"
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            onClick={onDelete}
+            className="iconbtn"
+            style={{ width: 28, height: 28, color: 'var(--neg)' }}
+            title="Delete"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </td>
+    </tr>
   )
 }
