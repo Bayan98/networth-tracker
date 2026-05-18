@@ -9,7 +9,7 @@ import { useAssetAvgCost } from '@/lib/hooks/use-asset-avg-cost'
 import { useAssetInfo } from '@/lib/hooks/use-asset-info'
 import { useAssetNews } from '@/lib/hooks/use-asset-news'
 import { getAssetsViewState, normalizeAssetsPath } from '@/lib/assets-view-state'
-import { resolveAssetPrice } from '@networth/utils'
+import { formatPercent, resolveAssetPrice } from '@networth/utils'
 import type { Asset, Portfolio, Transaction, ScheduledEvent } from '@networth/types'
 import { AddScheduledEventDialog } from '@/components/scheduled-events/add-scheduled-event-dialog'
 import { EditScheduledEventDialog } from '@/components/scheduled-events/edit-scheduled-event-dialog'
@@ -69,6 +69,9 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
   const marketValue = price !== null ? quantity * price : null
   const costBasis = quantity * avgCostBasis
+  const marketValueChange = marketValue !== null && costBasis > 0 ? marketValue - costBasis : null
+  const marketValueChangePct = marketValueChange !== null ? (marketValueChange / costBasis) * 100 : null
+  const marketValueChangeTone = marketValueChange === null ? 'neutral' : marketValueChange >= 0 ? 'pos' : 'neg'
   const typeColor = ASSET_TYPE_COLOR[asset.asset_type] ?? 'var(--cat-other)'
   const portfolio = portfolios.find((candidate) => candidate.id === asset.portfolio_id)
   const showQuantity = assetConfig.transactions.showQuantity
@@ -152,34 +155,45 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 
       <div className="hero asset-detail-hero">
         <div className="asset-summary-rows">
-          <div className={`asset-summary-row ${showQuantity ? '' : 'single'}`}>
-            <SummaryMetric label={`Total market value · ${asset.currency}`} primary>
+          <div className={`asset-summary-row ${showQuantity ? 'two-col' : 'single'}`}>
+            <SummaryMetric
+              label={`Total market value · ${asset.currency}`}
+              primary
+              meta={
+                showCostBasisRow && marketValueChange !== null && marketValueChangePct !== null ? (
+                  <span className={`asset-summary-change ${marketValueChangeTone}`}>
+                    <MoneyText value={marketValueChange} currency={asset.currency} loading={loading} withSign skelWidth={76} />
+                    <span className="asset-summary-separator">·</span>
+                    <span>{formatPercent(marketValueChangePct)}</span>
+                  </span>
+                ) : undefined
+              }
+            >
               <MoneyText value={marketValue} currency={asset.currency} loading={loading} maskLength={6} skelWidth={180} skelHeight={32} />
             </SummaryMetric>
             {showQuantity && (
-              <>
-                <SummaryMetric label="Quantity">
-                  <QuantityText value={quantity} loading={loading} />
-                </SummaryMetric>
-                <SummaryMetric label="Market price">
-                  <MoneyText value={price} currency={asset.currency} loading={loading} />
-                </SummaryMetric>
-              </>
+              <SummaryMetric label="market price">
+                <PriceWithQuantity quantity={quantity} price={price} currency={asset.currency} loading={loading} />
+              </SummaryMetric>
             )}
           </div>
 
           {showCostBasisRow && (
-            <div className={`asset-summary-row ${showQuantity ? '' : 'two-col'}`}>
-              <SummaryMetric label={`Total value · ${asset.currency}`} primary>
+            <div className="asset-summary-row two-col">
+              <SummaryMetric label={`Cost basis · ${asset.currency}`} primary>
                 <MoneyText value={costBasis > 0 ? costBasis : null} currency={asset.currency} loading={loading} maskLength={6} skelWidth={180} skelHeight={32} />
               </SummaryMetric>
-              {showQuantity && (
-                <SummaryMetric label="Quantity">
-                  <QuantityText value={quantity} loading={loading} />
-                </SummaryMetric>
-              )}
               <SummaryMetric label="Avg buy price">
-                <MoneyText value={avgCostBasis > 0 ? avgCostBasis : null} currency={asset.currency} loading={loading} />
+                {showQuantity ? (
+                  <PriceWithQuantity
+                    quantity={quantity}
+                    price={avgCostBasis > 0 ? avgCostBasis : null}
+                    currency={asset.currency}
+                    loading={loading}
+                  />
+                ) : (
+                  <MoneyText value={avgCostBasis > 0 ? avgCostBasis : null} currency={asset.currency} loading={loading} />
+                )}
               </SummaryMetric>
             </div>
           )}
@@ -280,11 +294,13 @@ export function AssetDetailClient({ asset, transactions, scheduledEvents, portfo
 function SummaryMetric({
   label,
   children,
+  meta,
   color,
   primary = false,
 }: {
   label: string
   children: ReactNode
+  meta?: ReactNode
   color?: string
   primary?: boolean
 }) {
@@ -292,6 +308,29 @@ function SummaryMetric({
     <div className={`asset-summary-metric ${primary ? 'primary' : ''}`}>
       <div className="asset-summary-label">{label}</div>
       <div className="asset-summary-value" style={color ? { color } : undefined}>{children}</div>
+      {meta && <div className="asset-summary-meta">{meta}</div>}
     </div>
+  )
+}
+
+function PriceWithQuantity({
+  quantity,
+  price,
+  currency,
+  loading,
+}: {
+  quantity: number
+  price: number | null
+  currency: Asset['currency']
+  loading: boolean
+}) {
+  return (
+    <span className="asset-summary-price-line">
+      <span className="asset-summary-quantity">
+        <QuantityText value={quantity} loading={loading} maximumFractionDigits={4} />
+      </span>
+      <span className="asset-summary-separator">|</span>
+      <MoneyText value={price} currency={currency} loading={loading} />
+    </span>
   )
 }

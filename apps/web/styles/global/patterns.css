@@ -1290,6 +1290,47 @@
   overflow-wrap: anywhere;
   font-variant-numeric: tabular-nums;
 }
+.asset-summary-meta {
+  margin-top: 10px;
+  min-height: 24px;
+}
+.asset-summary-change {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 24px;
+  padding: 4px 9px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.asset-summary-change.pos {
+  background: color-mix(in oklch, var(--pos) 14%, transparent);
+  color: var(--pos);
+}
+.asset-summary-change.neg {
+  background: color-mix(in oklch, var(--neg) 14%, transparent);
+  color: var(--neg);
+}
+.asset-summary-price-line {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 4px;
+}
+.asset-summary-quantity { color: var(--ink-faint); }
+.asset-summary-separator {
+  color: var(--ink-faint);
+  opacity: 0.7;
+}
 .asset-summary-metric.primary .asset-summary-value {
   font-size: 56px;
   letter-spacing: 0;
