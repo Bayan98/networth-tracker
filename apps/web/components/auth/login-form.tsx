@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button'
 import { createClient } from '@/lib/supabase/client'
 
 export function LoginForm() {
@@ -30,52 +31,59 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="auth-form" suppressHydrationWarning>
-      <div className="auth-field">
-        <label className="auth-label" htmlFor="email">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          required
-          className="auth-input"
-        />
+    <>
+      <GoogleSignInButton />
+      <div className="auth-divider">
+        <span>or</span>
       </div>
 
-      <div className="auth-field">
-        <label className="auth-label" htmlFor="password">
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          required
-          className="auth-input"
-        />
-      </div>
+      <form onSubmit={handleSubmit} className="auth-form" suppressHydrationWarning>
+        <div className="auth-field">
+          <label className="auth-label" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            className="auth-input"
+          />
+        </div>
 
-      {error && (
-        <p className="auth-error" role="alert">
-          {error}
-        </p>
-      )}
+        <div className="auth-field">
+          <label className="auth-label" htmlFor="password">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            required
+            className="auth-input"
+          />
+        </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="btn btn-primary auth-submit"
-      >
-        {loading ? 'Signing in…' : 'Sign in'}
-      </button>
-    </form>
+        {error && (
+          <p className="auth-error" role="alert">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn btn-primary auth-submit"
+        >
+          {loading ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+    </>
   )
 }

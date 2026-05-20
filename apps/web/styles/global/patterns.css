@@ -394,6 +394,31 @@
   justify-content: center;
   margin-top: 2px;
 }
+.auth-oauth {
+  display: grid;
+  gap: 10px;
+}
+.auth-provider-button {
+  width: 100%;
+  justify-content: center;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
 .auth-alt {
   margin: 18px 0 0;
   color: var(--ink-muted);
